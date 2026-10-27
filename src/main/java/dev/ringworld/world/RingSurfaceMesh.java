@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
+
 import java.util.Objects;
 
 /**
@@ -37,7 +39,7 @@ public final class RingSurfaceMesh {
     }
 
     public static Mesh build(RingGeometry geometry, RingTerrainAtlas atlas, boolean detailed, double referenceHeight, double wallTopHeight, int rimThicknessBlocks, RingRenderProfile profile) {
-        return build(geometry, atlas, detailed, referenceHeight, wallTopHeight, wallTopHeight > referenceHeight ? (int) Math.ceil(wallTopHeight - RingDimensionReport.VANILLA_OVERWORLD_BOTTOM_Y) : 0, RingWallStyle.custom(rimThicknessBlocks, RingWallStyle.LEGACY.palette(), RingWallStyle.LEGACY.pattern(), 0), 0L, profile);
+        return build(geometry, atlas, detailed, referenceHeight, wallTopHeight, wallTopHeight > referenceHeight ? (int) Math.ceil(wallTopHeight - Constants.DEFAULT_MIN_Y) : 0, RingWallStyle.custom(rimThicknessBlocks, RingWallStyle.LEGACY.palette(), RingWallStyle.LEGACY.pattern(), 0), 0L, profile);
     }
 
     /**

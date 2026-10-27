@@ -3,12 +3,12 @@ package dev.ringworld.client.mixin;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.systems.RenderSystem;
+import dev.ringworld.Constants;
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingAtlasLightTuning;
 import dev.ringworld.client.RingDistortionTuning;
 import dev.ringworld.client.render.RingSurfaceGpu;
 import dev.ringworld.world.RingCloudBounds;
-import dev.ringworld.world.RingDimensionReport;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingRenderProfile;
 import net.minecraft.client.Minecraft;
@@ -72,7 +72,7 @@ public abstract class RingFrameUniformsMixin {
         int wallHeight = geometry == null ? 0 : ClientRingState.wallHeightBlocks();
 
         float surfaceReferenceY = geometry == null ? 0.0F : ClientRingState.surfaceReferenceY();
-        int worldBottomY = active == 1 && client.level != null ? client.level.getMinY() : RingDimensionReport.VANILLA_OVERWORLD_BOTTOM_Y;
+        int worldBottomY = active == 1 && client.level != null ? client.level.getMinY() : Constants.DEFAULT_MIN_Y;
         float wallTopY = active == 1 ? worldBottomY + wallHeight : 0.0F;
         float cloudBaseY = active == 1 ? RingCloudBounds.baseHeight(worldBottomY, wallHeight) : 0.0F;
         float physicalCenterY = geometry == null ? 0.0F : (float) geometry.physicalCenterY();

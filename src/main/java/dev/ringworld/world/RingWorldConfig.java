@@ -1,5 +1,6 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 
 import java.io.IOException;
@@ -15,8 +16,7 @@ import java.util.Properties;
  */
 public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, RingWallStyle wallStyle,
                               RingSkyProfile skyProfile, RingWorldGenerationSettings generationSettings,
-                              boolean testMode, int testViewDistanceChunks, boolean pregenerateTerrainAtlas,
-                              boolean requestOceanMonument) {
+                              boolean pregenerateTerrainAtlas, boolean requestOceanMonument) {
     private static final String FILE_NAME = "ringworld.properties";
     private static Path configDirectory = Path.of("config");
     private static RingWorldConfig loaded;
@@ -61,8 +61,6 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
             properties.setProperty("worldLayout", RingWorldLayout.VANILLA.name());
             properties.setProperty("continuousRingRiver", "false");
             properties.setProperty("moreStructures", "false");
-            properties.setProperty("testMode", "false");
-            properties.setProperty("testViewDistanceChunks", "28");
             properties.setProperty("pregenerateTerrainAtlas", "true");
             properties.setProperty("requestOceanMonument", "false");
             try {
@@ -80,8 +78,6 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         RingWallStyle wallStyle = wallStyle(properties);
         RingSkyProfile skyProfile = skyProfile(properties);
         RingWorldGenerationSettings generationSettings = generationSettings(properties);
-        boolean testMode = Boolean.parseBoolean(properties.getProperty("testMode", "false"));
-        int testViewDistance = integer(properties, "testViewDistanceChunks", 28);
         boolean pregenerateTerrainAtlas = Boolean.parseBoolean(properties.getProperty("pregenerateTerrainAtlas", "true"));
         boolean requestOceanMonument = Boolean.parseBoolean(properties.getProperty("requestOceanMonument", "false"));
         // Saved worlds ignore this bootstrap layout, so retain structural parsing
@@ -89,11 +85,8 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         // stricter new-world admission below.
         new RingGeometry(width, circumference);
         if (wallHeight < 32) throw new IllegalArgumentException("wallHeightBlocks must be at least 32");
-        if (testViewDistance < 2 || testViewDistance > 32) {
-            throw new IllegalArgumentException("testViewDistanceChunks must be between 2 and 32");
-        }
-        loaded = new RingWorldConfig(width, circumference, wallHeight, wallStyle, skyProfile, generationSettings, testMode, testViewDistance, pregenerateTerrainAtlas, requestOceanMonument);
-        RingWorldMod.LOGGER.info("RingWorld bootstrap settings: width={}, circumference={}, wallHeight={}, testMode={}, testViewDistance={}, pregenerateTerrainAtlas={}, requestOceanMonument={}", width, circumference, wallHeight, testMode, testViewDistance, pregenerateTerrainAtlas, requestOceanMonument);
+        loaded = new RingWorldConfig(width, circumference, wallHeight, wallStyle, skyProfile, generationSettings, pregenerateTerrainAtlas, requestOceanMonument);
+        RingWorldMod.LOGGER.info("RingWorld bootstrap settings: width={}, circumference={}, wallHeight={}, pregenerateTerrainAtlas={}, requestOceanMonument={}", width, circumference, wallHeight, pregenerateTerrainAtlas, requestOceanMonument);
         return loaded;
     }
 
@@ -123,7 +116,7 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         validateNewWorldLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle.thicknessBlocks(), RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
         boolean effectiveMonumentRequest = effectiveOceanMonumentRequest(new RingGeometry(widthBlocks, circumferenceBlocks), requestOceanMonument);
         RingWorldConfig current = load();
-        RingWorldConfig replacement = new RingWorldConfig(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle, skyProfile, generationSettings, current.testMode(), current.testViewDistanceChunks(), current.pregenerateTerrainAtlas(), effectiveMonumentRequest);
+        RingWorldConfig replacement = new RingWorldConfig(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle, skyProfile, generationSettings, current.pregenerateTerrainAtlas(), effectiveMonumentRequest);
         Properties properties = new Properties();
         properties.setProperty("widthBlocks", Integer.toString(widthBlocks));
         properties.setProperty("circumferenceBlocks", Integer.toString(circumferenceBlocks));
@@ -140,8 +133,6 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         properties.setProperty("worldLayout", generationSettings.layout().name());
         properties.setProperty("continuousRingRiver", Boolean.toString(generationSettings.continuousRiver()));
         properties.setProperty("moreStructures", Boolean.toString(generationSettings.moreStructures()));
-        properties.setProperty("testMode", Boolean.toString(current.testMode()));
-        properties.setProperty("testViewDistanceChunks", Integer.toString(current.testViewDistanceChunks()));
         properties.setProperty("pregenerateTerrainAtlas", Boolean.toString(current.pregenerateTerrainAtlas()));
         properties.setProperty("requestOceanMonument", Boolean.toString(effectiveMonumentRequest));
         Path path = configPath();
@@ -177,7 +168,7 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         if (circumferenceBlocks < RingWorldSettings.MIN_NEW_WORLD_CIRCUMFERENCE) {
             throw new IllegalArgumentException("circumferenceBlocks must be at least " + RingWorldSettings.MIN_NEW_WORLD_CIRCUMFERENCE + " for a new RingWorld");
         }
-        RingDimensionReport.evaluate(geometry, wallHeightBlocks, RingDimensionReport.VANILLA_OVERWORLD_BOTTOM_Y, RingDimensionReport.VANILLA_OVERWORLD_TOP_Y_EXCLUSIVE, rimThicknessBlocks, atlasSampleStepBlocks).requireValid();
+        RingDimensionReport.evaluate(geometry, wallHeightBlocks, Constants.DEFAULT_MIN_Y, Constants.DEFAULT_MAX_Y, rimThicknessBlocks, atlasSampleStepBlocks).requireValid();
     }
 
     /**

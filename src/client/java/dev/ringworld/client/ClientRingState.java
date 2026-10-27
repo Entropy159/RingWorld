@@ -415,17 +415,6 @@ public final class ClientRingState {
         terrainAtlasPendingSinceMillis = 0L;
     }
 
-    /**
-     * Starts a fresh track after an intentional test-only long teleport.
-     */
-    public static void resetCameraContinuity(double logicalX) {
-        RingGeometry currentGeometry = geometry();
-        if (currentGeometry == null) return;
-        cameraPosition = RingPosition.fromPresentationX(logicalX, currentGeometry);
-        cameraSeamCrossings = 0;
-        seamCorrectionPackets = 0;
-    }
-
     public static void clear() {
         saveTerrainAtlasIfDue(true);
         geometry = null;

@@ -52,7 +52,4 @@ public final class RingSkySettings extends SavedData {
         return created;
     }
 
-    static Codec<RingSkySettings> codecForTests() {
-        return CODEC;
-    }
 }

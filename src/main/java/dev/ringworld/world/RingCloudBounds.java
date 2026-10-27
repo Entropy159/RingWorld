@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
+
 /**
  * Intrinsic-Z clipping planes for the finite RingWorld cloud deck.
  */
@@ -8,7 +10,7 @@ public record RingCloudBounds(double minimumZ, double maximumZ) {
      * One deck altitude for CPU face selection and GPU projection.
      */
     public static int baseHeight(int worldBottomY, int wallHeightBlocks) {
-        return Math.addExact(Math.addExact(worldBottomY, wallHeightBlocks), RingDimensionReport.CLOUD_CLEARANCE_BLOCKS);
+        return Math.addExact(Math.addExact(worldBottomY, wallHeightBlocks), Constants.CLOUD_CLEARANCE_BLOCKS);
     }
 
     public RingCloudBounds {

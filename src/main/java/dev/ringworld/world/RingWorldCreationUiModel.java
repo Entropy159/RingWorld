@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -74,7 +76,7 @@ public final class RingWorldCreationUiModel {
             if (report == null) return List.of();
             RingGeometry geometry = report.geometry();
             String costLabel = report.hasHighGenerationCost() ? "High cost" : "Pregen";
-            List<String> metrics = new ArrayList<>(List.of(String.format(Locale.ROOT, "Lap: %,d÷%.3f = %s", geometry.circumferenceBlocks(), RingDimensionReport.NORMAL_WALKING_SPEED_BLOCKS_PER_SECOND, formatDuration(Math.round(report.normalWalkingLapSeconds()))), String.format(Locale.ROOT, "Radius: %,d÷2π ≈ %,.1f; D ≈ %,.1f", geometry.circumferenceBlocks(), geometry.radius(), report.diameterBlocks()), String.format(Locale.ROOT, "Opposite width: 2atan(%,d÷%,d) = %.2f°", geometry.widthBlocks(), Math.round(report.diameterBlocks() * 2.0), report.oppositeAngularWidthDegrees()), String.format(Locale.ROOT, "Chunks: %,d×%,d = %,d", geometry.circumferenceChunks(), geometry.widthChunks(), report.canonicalChunkCount()), String.format(Locale.ROOT, "Playable: %,d×%,d = %,d; rims %d", geometry.circumferenceBlocks(), report.playableInteriorBlocks(), report.playableInteriorAreaBlocks(), report.rimThicknessBlocks()), String.format(Locale.ROOT, "Atlas: %,d×%,d = %,d; %s", report.atlasColumns(), report.atlasRows(), report.atlasCellCount(), formatDataSize(report.estimatedAtlasBytes())), String.format(Locale.ROOT, "Heights: rim top Y%,d; clouds Y%,d", report.wallTopYExclusive() - 1, report.cloudBaseY()), String.format(Locale.ROOT, "%s: %,d÷%,d×%,ds = %s; disk %s", costLabel, report.canonicalChunkCount(), RingDimensionCostEstimate.REFERENCE_CANONICAL_CHUNKS, RingDimensionCostEstimate.REFERENCE_PREGENERATION_SECONDS, formatDuration(report.costEstimate().estimatedPregenerationSeconds()), formatDataSize(report.costEstimate().estimatedGeneratedWorldBytes()))));
+            List<String> metrics = new ArrayList<>(List.of(String.format(Locale.ROOT, "Lap: %,d÷%.3f = %s", geometry.circumferenceBlocks(), Constants.NORMAL_WALKING_SPEED_BLOCKS_PER_SECOND, formatDuration(Math.round(report.normalWalkingLapSeconds()))), String.format(Locale.ROOT, "Radius: %,d÷2π ≈ %,.1f; D ≈ %,.1f", geometry.circumferenceBlocks(), geometry.radius(), report.diameterBlocks()), String.format(Locale.ROOT, "Opposite width: 2atan(%,d÷%,d) = %.2f°", geometry.widthBlocks(), Math.round(report.diameterBlocks() * 2.0), report.oppositeAngularWidthDegrees()), String.format(Locale.ROOT, "Chunks: %,d×%,d = %,d", geometry.circumferenceChunks(), geometry.widthChunks(), report.canonicalChunkCount()), String.format(Locale.ROOT, "Playable: %,d×%,d = %,d; rims %d", geometry.circumferenceBlocks(), report.playableInteriorBlocks(), report.playableInteriorAreaBlocks(), report.rimThicknessBlocks()), String.format(Locale.ROOT, "Atlas: %,d×%,d = %,d; %s", report.atlasColumns(), report.atlasRows(), report.atlasCellCount(), formatDataSize(report.estimatedAtlasBytes())), String.format(Locale.ROOT, "Heights: rim top Y%,d; clouds Y%,d", report.wallTopYExclusive() - 1, report.cloudBaseY()), String.format(Locale.ROOT, "%s: %,d÷%,d×%,ds = %s; disk %s", costLabel, report.canonicalChunkCount(), RingDimensionCostEstimate.REFERENCE_CANONICAL_CHUNKS, RingDimensionCostEstimate.REFERENCE_PREGENERATION_SECONDS, formatDuration(report.costEstimate().estimatedPregenerationSeconds()), formatDataSize(report.costEstimate().estimatedGeneratedWorldBytes()))));
             if (!monumentAvailable(geometry)) {
                 metrics.add("Small is experimental: portal may need mining");
             }
@@ -122,8 +124,8 @@ public final class RingWorldCreationUiModel {
 
         if (circumference != null) validateCircumference(circumference, errors);
         if (width != null) validateWidth(width, errors);
-        if (wallHeight != null && wallHeight < RingDimensionReport.MIN_WALL_HEIGHT_BLOCKS) {
-            errors.add("Wall height must be at least " + RingDimensionReport.MIN_WALL_HEIGHT_BLOCKS + " blocks.");
+        if (wallHeight != null && wallHeight < Constants.MIN_WALL_HEIGHT_BLOCKS) {
+            errors.add("Wall height must be at least " + Constants.MIN_WALL_HEIGHT_BLOCKS + " blocks.");
         }
         if (!errors.isEmpty()) return new Validation(null, errors);
 

@@ -8,6 +8,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingClientLodTuning;
@@ -211,7 +212,7 @@ public final class RingSurfaceTextureRenderer {
         RingSurfaceBuildSnapshot buildSnapshot = new RingSurfaceBuildSnapshot(snapshot, revision);
         long generation = textureBuildGeneration;
         Minecraft client = Minecraft.getInstance();
-        int worldBottomY = client.level == null ? RingDimensionReport.VANILLA_OVERWORLD_BOTTOM_Y : client.level.getMinY();
+        int worldBottomY = client.level == null ? Constants.DEFAULT_MIN_Y : client.level.getMinY();
         MeshInputs meshInputs = new MeshInputs(ClientRingState.surfaceReferenceY(), worldBottomY + ClientRingState.wallHeightBlocks(), ClientRingState.wallHeightBlocks(), RingWallShaderStyle.encode(ClientRingState.wallStyle(), ClientRingState.generatorSeed(), client.level), geometry.equals(bufferedGeometry) && atlas.worldHash() == bufferedWorldHash, vertexBuffer != null, bufferedMeshDetailed, bufferedMeshHeightFingerprint, ClientRingState.wallStyle(), ClientRingState.generatorSeed(), worldBottomY, RingWallShaderStyle.paletteColors(ClientRingState.wallStyle(), client.level), wallTextureView == null ? null : wallTextureKey);
         RingTerrainPreview preview = ClientRingState.terrainPreview();
         pendingTextureBuild = CompletableFuture.supplyAsync(() -> buildTexture(buildSnapshot, generation, profile, quality, meshInputs, preview), BUILD_WORKER);

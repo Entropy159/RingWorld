@@ -113,12 +113,7 @@ public final class HeadlessPrewarmCoordinator {
         Run run = RUNS.get(server);
         if (run == null || run.finished || run.handle == null) return;
         try {
-            run.metrics.tick(run.world);
-            run.handle = RingAtlasConcurrencyProbe.tick(run.world, run.handle);
             if (++run.ticks % 20 == 0) run.writeProgress();
-            if (RingAtlasConcurrencyProbe.running(run.world)) return;
-            RingAtlasAutoScaleProbe.tick(run.world);
-            if (RingAtlasAutoScaleProbe.running(run.world)) return;
             if (!run.handle.completion().toCompletableFuture().isDone()) return;
             AtlasPregenerationResult result = run.handle.completion().toCompletableFuture().join();
             if (!server.saveEverything(true, true, true)) {
@@ -135,10 +130,6 @@ public final class HeadlessPrewarmCoordinator {
     }
 
     public static void serverStopping(MinecraftServer server) {
-        if (server.overworld() != null) {
-            RingAtlasConcurrencyProbe.clear(server.overworld());
-            RingAtlasAutoScaleProbe.clear(server.overworld());
-        }
         Run run = RUNS.get(server);
         if (run == null || run.finished || run.world == null) return;
         String reason = "server stopped before verified atlas completion";
@@ -212,7 +203,6 @@ public final class HeadlessPrewarmCoordinator {
         private final long startedNanos = System.nanoTime();
         private AtlasPregenerationHandle handle;
         private AtlasPregenerationResult result;
-        private final RingAtlasConcurrencyMetrics metrics = new RingAtlasConcurrencyMetrics();
         private int ticks;
         private boolean finished;
 
@@ -285,7 +275,6 @@ public final class HeadlessPrewarmCoordinator {
             json.addProperty("elapsedMillis", report.elapsed().toMillis());
             report.atlasPath().ifPresentOrElse(value -> json.addProperty("atlasPath", value.toString()), () -> json.add("atlasPath", null));
             report.failureReason().ifPresentOrElse(value -> json.addProperty("failureReason", value), () -> json.add("failureReason", null));
-            metrics.addReport(json);
             writeAtomically(resultPath, JSON.toJson(json));
             finished = true;
         }

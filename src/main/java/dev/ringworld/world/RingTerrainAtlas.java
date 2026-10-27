@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
+
 import java.io.*;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -61,7 +63,7 @@ public final class RingTerrainAtlas {
         this.columns = divideCeil(geometry.circumferenceBlocks(), sampleStep);
         this.rows = divideCeil(geometry.widthBlocks(), sampleStep);
         long cells = Math.multiplyExact((long) columns, rows);
-        if (cells > RingDimensionReport.MAX_ATLAS_CELLS) {
+        if (cells > Constants.MAX_ATLAS_CELLS) {
             throw new IllegalArgumentException(RingDimensionReport.atlasLimitMessage(cells));
         }
         int cellCount = Math.toIntExact(cells);

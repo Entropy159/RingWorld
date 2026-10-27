@@ -18,7 +18,6 @@ import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -436,16 +435,6 @@ public final class RingTerrainAtlasServer {
             observer.lastSentTick = world.getGameTime();
             observer.state = progress.state();
         }
-    }
-
-    // Kept as package-visible adapter compatibility seams for storage tests;
-    // the authoritative path policy and all load/save work live in the service.
-    static Path cachePath(Path dimensionPath) {
-        return RingAtlasPregenerationService.cachePath(dimensionPath);
-    }
-
-    static Path legacyCachePath(Path worldRoot) {
-        return RingAtlasPregenerationService.legacyCachePath(worldRoot);
     }
 
     private static int control(ServerLevel world, AtlasPregenerationAction action, CommandSourceStack source) {

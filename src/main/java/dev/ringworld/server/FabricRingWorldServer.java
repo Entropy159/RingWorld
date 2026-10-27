@@ -20,8 +20,6 @@ public final class FabricRingWorldServer {
             RingWorldServer.tickRingWorld(world);
             if (RingWorldApi.isRingWorld(world)) RingTerrainAtlasServer.tick(world);
         });
-        ServerTickEvents.END_SERVER_TICK.register(RingWorldProductionLifecycleTest::tick);
-        ServerTickEvents.END_SERVER_TICK.register(RingWorldStrongholdTest::tick);
         ServerChunkEvents.CHUNK_LOAD.register((world, chunk, generated) -> {
             if (!RingWorldApi.isRingWorld(world)) return;
             RingTerrainAtlasServer.captureLoadedChunk(world, chunk);

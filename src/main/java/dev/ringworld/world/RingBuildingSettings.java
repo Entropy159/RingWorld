@@ -2,7 +2,6 @@ package dev.ringworld.world;
 
 import com.mojang.serialization.Codec;
 import dev.ringworld.RingWorldMod;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -33,10 +32,6 @@ public final class RingBuildingSettings extends SavedData {
 
     public static RingBuildingSettings get(ServerLevel world) {
         return world.getDataStorage().computeIfAbsent(TYPE);
-    }
-
-    static Codec<RingBuildingSettings> codecForTests() {
-        return CODEC;
     }
 
     /**

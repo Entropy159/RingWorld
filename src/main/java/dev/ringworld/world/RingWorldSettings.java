@@ -2,6 +2,7 @@ package dev.ringworld.world;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -127,7 +128,7 @@ public final class RingWorldSettings extends SavedData {
 
         RingWorldConfig config = RingWorldConfig.load();
         RingWorldConfig.validateNewWorldLayout(config.widthBlocks(), config.circumferenceBlocks(), config.wallHeightBlocks(), config.wallStyle().thicknessBlocks(), RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
-        RingDimensionReport report = RingDimensionReport.evaluate(new RingGeometry(config.widthBlocks(), config.circumferenceBlocks()), config.wallHeightBlocks(), RingDimensionReport.VANILLA_OVERWORLD_BOTTOM_Y, RingDimensionReport.VANILLA_OVERWORLD_TOP_Y_EXCLUSIVE, config.wallStyle().thicknessBlocks(), RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
+        RingDimensionReport report = RingDimensionReport.evaluate(new RingGeometry(config.widthBlocks(), config.circumferenceBlocks()), config.wallHeightBlocks(), Constants.DEFAULT_MIN_Y, Constants.DEFAULT_MAX_Y, config.wallStyle().thicknessBlocks(), RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
         RingWorldSettings created = new RingWorldSettings(config.widthBlocks(), config.circumferenceBlocks(), world.getSeed(), config.wallHeightBlocks(), (int) RingGeometry.SURFACE_Y, RingTerrainNoiseMapping.CURRENT, config.wallStyle(), config.generationSettings(), FORMAT_VERSION);
         created.setDirty();
         manager.set(TYPE, created);
@@ -145,10 +146,6 @@ public final class RingWorldSettings extends SavedData {
     static RingWorldSettings upgradeToCurrentFormat(RingWorldSettings saved) {
         if (saved.formatVersion() == FORMAT_VERSION) return saved;
         return new RingWorldSettings(saved.widthBlocks(), saved.circumferenceBlocks(), saved.generatorSeed(), saved.wallHeightBlocks(), saved.surfaceReferenceY(), saved.terrainNoiseMapping(), saved.wallStyle(), saved.generationSettings(), FORMAT_VERSION);
-    }
-
-    static Codec<RingWorldSettings> codecForTests() {
-        return CODEC;
     }
 
     public int widthBlocks() {

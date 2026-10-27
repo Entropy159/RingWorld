@@ -1,7 +1,6 @@
 package dev.ringworld.client.mixin;
 
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.OffRingVisibilityTestClient;
 import dev.ringworld.world.RingGeometry;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -24,11 +23,5 @@ public abstract class ExteriorEntityVisibilityMixin {
         RingGeometry geometry = ClientRingState.geometry();
         if (geometry != null && (pos.getZ() < geometry.minWidthZ() || pos.getZ() > geometry.maxWidthZ())) return true;
         return renderer.isSectionCompiledAndVisible(pos);
-    }
-
-    // Test-only evidence that selection reached the real entity render pass.
-    @Inject(method = "extractEntity", at = @At("HEAD"))
-    private void ringworld$recordFixtureExtraction(Entity entity, float partialTick, CallbackInfoReturnable<EntityRenderState> cir) {
-        OffRingVisibilityTestClient.recordExtraction(entity);
     }
 }

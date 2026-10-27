@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,34 +21,8 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
                                   long estimatedAtlasBytes, long estimatedNoiseCoordinateBytes,
                                   RingDimensionCostEstimate costEstimate, List<String> errors, List<String> warnings) {
 
-    /**
-     * Vanilla 1.21.11 Overworld bounds. Revalidate against the live world too.
-     */
-    public static final int VANILLA_OVERWORLD_BOTTOM_Y = -64;
-    public static final int VANILLA_OVERWORLD_TOP_Y_EXCLUSIVE = 320;
-    public static final int MIN_WALL_HEIGHT_BLOCKS = 32;
-    public static final int MIN_RADIAL_CLEARANCE_BLOCKS = 64;
-    public static final int CLOUD_CLEARANCE_BLOCKS = 8;
-    public static final int MIN_PLAYABLE_INTERIOR_BLOCKS = 64;
-    /**
-     * Vanilla normal walking without sprinting, effects, or terrain slowdown.
-     */
-    public static final double NORMAL_WALKING_SPEED_BLOCKS_PER_SECOND = 4.317;
-
-    /**
-     * Technical envelope for the current integer noise cache and float shader
-     * phase. The product budget below normally becomes the tighter limit.
-     */
-    public static final int MAX_AXIS_BLOCKS = 1048576;
-    public static final long WARN_CANONICAL_CHUNKS = 500000L;
-    public static final long WARN_ATLAS_CELLS = 4000000L;
-    // Fits the Large preset (32,768 × 512) at one sample per block.
-    public static final long MAX_ATLAS_CELLS = 16777216L;
-    public static final long WARN_PREGENERATION_SECONDS = 30L * 60L;
-    public static final long WARN_GENERATED_WORLD_BYTES = 512L * 1024L * 1024L;
-
     public static String atlasLimitMessage(long cells) {
-        return "Ring Larger than Max Atlas Size: terrain atlas requires " + cells + " cells; current limit is " + MAX_ATLAS_CELLS + ". Reduce Around or Across until the ring fits within this limit.";
+        return "Ring Larger than Max Atlas Size: terrain atlas requires " + cells + " cells; current limit is " + Constants.MAX_ATLAS_CELLS + ". Reduce Around or Across until the ring fits within this limit.";
     }
 
     public RingDimensionReport {
@@ -63,7 +39,7 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
     }
 
     public static RingDimensionReport forVanillaOverworld(RingGeometry geometry, int wallHeightBlocks, int rimThicknessBlocks, int atlasSampleStepBlocks) {
-        return evaluate(geometry, wallHeightBlocks, VANILLA_OVERWORLD_BOTTOM_Y, VANILLA_OVERWORLD_TOP_Y_EXCLUSIVE, rimThicknessBlocks, atlasSampleStepBlocks);
+        return evaluate(geometry, wallHeightBlocks, Constants.DEFAULT_MIN_Y, Constants.DEFAULT_MAX_Y, rimThicknessBlocks, atlasSampleStepBlocks);
     }
 
     public static RingDimensionReport evaluate(RingGeometry geometry, int wallHeightBlocks, int worldBottomY, int worldTopYExclusive, int rimThicknessBlocks, int atlasSampleStepBlocks) {
@@ -84,15 +60,15 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
         int cloudBaseY;
         try {
             wallTopYExclusive = Math.addExact(worldBottomY, wallHeightBlocks);
-            cloudBaseY = Math.addExact(wallTopYExclusive, CLOUD_CLEARANCE_BLOCKS);
+            cloudBaseY = Math.addExact(wallTopYExclusive, Constants.CLOUD_CLEARANCE_BLOCKS);
         } catch (ArithmeticException exception) {
             wallTopYExclusive = Integer.MAX_VALUE;
             cloudBaseY = Integer.MAX_VALUE;
             errors.add("wall/cloud height arithmetic exceeds the integer coordinate range");
         }
 
-        if (wallHeightBlocks < MIN_WALL_HEIGHT_BLOCKS) {
-            errors.add("wall height must be at least " + MIN_WALL_HEIGHT_BLOCKS + " blocks");
+        if (wallHeightBlocks < Constants.MIN_WALL_HEIGHT_BLOCKS) {
+            errors.add("wall height must be at least " + Constants.MIN_WALL_HEIGHT_BLOCKS + " blocks");
         }
         if (wallTopYExclusive > worldTopYExclusive) {
             errors.add("wall top Y=" + wallTopYExclusive + " exceeds Overworld top Y=" + worldTopYExclusive);
@@ -103,15 +79,15 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
 
         int playableInterior = geometry.widthBlocks() - rimThicknessBlocks * 2;
         long playableInteriorArea = Math.multiplyExact((long) geometry.circumferenceBlocks(), playableInterior);
-        if (playableInterior < MIN_PLAYABLE_INTERIOR_BLOCKS) {
+        if (playableInterior < Constants.MIN_PLAYABLE_INTERIOR_BLOCKS) {
             errors.add("width leaves only " + playableInterior + " interior blocks after both " + rimThicknessBlocks + "-block rims");
         }
 
         int highestPhysicalPlane = Math.max(worldTopYExclusive, cloudBaseY);
         double radialClearance = geometry.physicalRadiusAt(highestPhysicalPlane);
-        int requiredCircumference = minimumCircumferenceBlocks(highestPhysicalPlane, RingGeometry.SURFACE_Y, MIN_RADIAL_CLEARANCE_BLOCKS);
-        if (radialClearance < MIN_RADIAL_CLEARANCE_BLOCKS) {
-            errors.add("circumference leaves only " + format(radialClearance) + " radial blocks at Y=" + highestPhysicalPlane + "; at least " + MIN_RADIAL_CLEARANCE_BLOCKS + " are required (minimum aligned circumference " + requiredCircumference + ")");
+        int requiredCircumference = minimumCircumferenceBlocks(highestPhysicalPlane, RingGeometry.SURFACE_Y, Constants.MIN_RADIAL_CLEARANCE_BLOCKS);
+        if (radialClearance < Constants.MIN_RADIAL_CLEARANCE_BLOCKS) {
+            errors.add("circumference leaves only " + format(radialClearance) + " radial blocks at Y=" + highestPhysicalPlane + "; at least " + Constants.MIN_RADIAL_CLEARANCE_BLOCKS + " are required (minimum aligned circumference " + requiredCircumference + ")");
         }
 
         double minimumNoiseRadius = RingTerrainNoiseMapping.minimumSampledRadius(geometry);
@@ -119,11 +95,11 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
             errors.add("periodic terrain-noise band reaches radius " + format(minimumNoiseRadius) + " blocks after its query margin; at least " + format(RingTerrainNoiseMapping.MINIMUM_NOISE_RADIUS_BLOCKS) + " blocks are required");
         }
 
-        if (geometry.widthBlocks() > MAX_AXIS_BLOCKS) {
-            errors.add("width exceeds the current " + MAX_AXIS_BLOCKS + "-block technical limit");
+        if (geometry.widthBlocks() > Constants.MAX_AXIS_BLOCKS) {
+            errors.add("width exceeds the current " + Constants.MAX_AXIS_BLOCKS + "-block technical limit");
         }
-        if (geometry.circumferenceBlocks() > MAX_AXIS_BLOCKS) {
-            errors.add("circumference exceeds the current " + MAX_AXIS_BLOCKS + "-block technical limit");
+        if (geometry.circumferenceBlocks() > Constants.MAX_AXIS_BLOCKS) {
+            errors.add("circumference exceeds the current " + Constants.MAX_AXIS_BLOCKS + "-block technical limit");
         }
 
         long chunks = Math.multiplyExact((long) geometry.circumferenceChunks(), geometry.widthChunks());
@@ -133,15 +109,15 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
         long atlasBytes = Math.multiplyExact(atlasCells, RingTerrainAtlas.ESTIMATED_BYTES_PER_CELL);
         long noiseCoordinateBytes = Math.multiplyExact((long) geometry.circumferenceBlocks(), 16L);
         RingDimensionCostEstimate costEstimate = RingDimensionCostEstimate.estimate(geometry, atlasSampleStepBlocks);
-        if (atlasCells > MAX_ATLAS_CELLS) {
+        if (atlasCells > Constants.MAX_ATLAS_CELLS) {
             errors.add(atlasLimitMessage(atlasCells));
-        } else if (atlasCells > WARN_ATLAS_CELLS) {
+        } else if (atlasCells > Constants.WARN_ATLAS_CELLS) {
             warnings.add("terrain atlas requires " + atlasCells + " cells (approximately " + atlasBytes + " raw bytes)");
         }
-        if (chunks > WARN_CANONICAL_CHUNKS) {
+        if (chunks > Constants.WARN_CANONICAL_CHUNKS) {
             warnings.add("complete-ring pregeneration requires " + chunks + " canonical chunks");
         }
-        if (costEstimate.estimatedPregenerationSeconds() > WARN_PREGENERATION_SECONDS || costEstimate.estimatedGeneratedWorldBytes() > WARN_GENERATED_WORLD_BYTES) {
+        if (costEstimate.estimatedPregenerationSeconds() > Constants.WARN_PREGENERATION_SECONDS || costEstimate.estimatedGeneratedWorldBytes() > Constants.WARN_GENERATED_WORLD_BYTES) {
             warnings.add("measured-reference full generation is about " + formatDuration(costEstimate.estimatedPregenerationSeconds()) + " and " + formatGiB(costEstimate.estimatedGeneratedWorldBytes()) + " GiB of generated world data");
         }
 
@@ -159,7 +135,7 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
      * Full walking lap at the named vanilla normal-walking reference speed.
      */
     public double normalWalkingLapSeconds() {
-        return geometry.circumferenceBlocks() / NORMAL_WALKING_SPEED_BLOCKS_PER_SECOND;
+        return geometry.circumferenceBlocks() / Constants.NORMAL_WALKING_SPEED_BLOCKS_PER_SECOND;
     }
 
     /**
@@ -173,7 +149,7 @@ public record RingDimensionReport(RingGeometry geometry, int rimThicknessBlocks,
      * Whether generation or atlas workload crosses a named cost threshold.
      */
     public boolean hasHighGenerationCost() {
-        return canonicalChunkCount > WARN_CANONICAL_CHUNKS || atlasCellCount > WARN_ATLAS_CELLS || costEstimate.estimatedPregenerationSeconds() > WARN_PREGENERATION_SECONDS || costEstimate.estimatedGeneratedWorldBytes() > WARN_GENERATED_WORLD_BYTES;
+        return canonicalChunkCount > Constants.WARN_CANONICAL_CHUNKS || atlasCellCount > Constants.WARN_ATLAS_CELLS || costEstimate.estimatedPregenerationSeconds() > Constants.WARN_PREGENERATION_SECONDS || costEstimate.estimatedGeneratedWorldBytes() > Constants.WARN_GENERATED_WORLD_BYTES;
     }
 
     public boolean isValid() {

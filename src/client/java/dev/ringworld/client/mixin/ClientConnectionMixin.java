@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
+import net.minecraft.world.level.block.state.properties.TestBlockMode;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -56,7 +57,7 @@ public abstract class ClientConnectionMixin {
             return new ServerboundJigsawGeneratePacket(canonical(jigsawGenerate.getPos(), geometry), jigsawGenerate.levels(), jigsawGenerate.keepJigsaws());
         }
         if (packet instanceof ServerboundSetTestBlockPacket(
-                BlockPos position, net.minecraft.world.level.block.state.properties.TestBlockMode mode, String message
+                BlockPos position, TestBlockMode mode, String message
         )) {
             return new ServerboundSetTestBlockPacket(canonical(position, geometry), mode, message);
         }

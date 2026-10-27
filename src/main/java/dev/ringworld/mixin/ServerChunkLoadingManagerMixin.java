@@ -2,14 +2,16 @@ package dev.ringworld.mixin;
 
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingChunkCoordinates;
+import dev.ringworld.world.RingChunkFilter;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingRegionContext;
 import net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket;
 import net.minecraft.server.level.*;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.entity.EntityAccess;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,16 +35,6 @@ public abstract class ServerChunkLoadingManagerMixin {
     @Shadow
     @Final
     private ServerLevel level;
-
-    @Inject(method = "updateChunkScheduling", at = @At("HEAD"))
-    private void ringworld$auditCanonicalHolderCreation(long packedPos, int ticketLevel, @Nullable ChunkHolder holder, int previousLevel, CallbackInfoReturnable<ChunkHolder> cir) {
-        if (!RingWorldApi.isRingWorld(level) || !RingWorldConfig.load().testMode()) return;
-        ChunkPos pos = ChunkPos.unpack(packedPos);
-        int circumferenceChunks = RingWorldServer.geometryFor(level).circumferenceChunks();
-        if (pos.x() < 0 || pos.x() >= circumferenceChunks) {
-            RingWorldServer.recordNonCanonicalHolderRequest();
-        }
-    }
 
     @ModifyVariable(method = "acquireGeneration", at = @At("HEAD"), argsOnly = true, name = "chunkNode")
     private long ringworld$canonicalGenerationAcquire(long packedPos) {

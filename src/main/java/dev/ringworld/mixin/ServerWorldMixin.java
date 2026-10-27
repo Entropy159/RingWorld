@@ -1,6 +1,5 @@
 package dev.ringworld.mixin;
 
-import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.*;
@@ -66,10 +65,6 @@ public abstract class ServerWorldMixin {
 
         RingEntityManagerAccess access = (RingEntityManagerAccess) entityManager;
         ChunkPos.rangeClosed(center, radius).forEach(access::ringworld$ensureLoaded);
-
-        if (Boolean.getBoolean("ringworld.multiplayerTest")) {
-            RingWorldMod.LOGGER.info("[multiplayer] waiting for entity chunks around {},{} radius={}", center.x(), center.z(), radius);
-        }
     }
 
     /**

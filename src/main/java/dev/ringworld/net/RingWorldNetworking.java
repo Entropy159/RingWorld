@@ -3,7 +3,6 @@ package dev.ringworld.net;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.server.HeadlessPrewarmCoordinator;
 import dev.ringworld.server.RingTerrainAtlasServer;
-import dev.ringworld.server.RingWorldMultiplayerTest;
 import dev.ringworld.world.RingSkySettings;
 import dev.ringworld.world.RingWorldSettings;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -33,7 +32,6 @@ public final class RingWorldNetworking {
         PayloadTypeRegistry.clientboundPlay().register(RingBuildingSettingsPayload.ID, RingBuildingSettingsPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RingBuildingControlPayload.ID, RingBuildingControlPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RingSettingsAckPayload.ID, RingSettingsAckPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RingMultiplayerTestPayload.ID, RingMultiplayerTestPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainAtlasMetadataPayload.ID, RingTerrainAtlasMetadataPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainAtlasTilePayload.ID, RingTerrainAtlasTilePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainAtlasRevisionPayload.ID, RingTerrainAtlasRevisionPayload.CODEC);
@@ -54,14 +52,6 @@ public final class RingWorldNetworking {
             RingTerrainAtlasServer.controlBuilding(context.player(), payload.fingerprint(), payload.enabled());
         }));
         ServerPlayNetworking.registerGlobalReceiver(RingSettingsAckPayload.ID, (payload, context) -> context.server().execute(() -> validateAcknowledgement(payload, context.player().connection)));
-        ServerPlayNetworking.registerGlobalReceiver(RingMultiplayerTestPayload.ID, (payload, context) -> {
-            if (!Boolean.getBoolean("ringworld.multiplayerTest")) return;
-            context.server().execute(() -> {
-                if (!requireAcknowledged(context.player())) return;
-                RingWorldMultiplayerTest.recordClientResult(payload.role(), payload.phase(), payload.passed());
-                RingWorldMod.LOGGER.info("[multiplayer:{}] client phase={} passed={} value={} player={}", payload.role(), payload.phase(), payload.passed(), payload.value(), context.player().getName().getString());
-            });
-        });
         ServerPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRequestPayload.ID, (payload, context) -> context.server().execute(() -> {
             if (!requireAcknowledged(context.player())) return;
             RingTerrainAtlasServer.requestTiles(context.player(), payload.worldHash(), payload.revision(), payload.cacheComplete());

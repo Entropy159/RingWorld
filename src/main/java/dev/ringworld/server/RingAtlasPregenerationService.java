@@ -45,9 +45,6 @@ public final class RingAtlasPregenerationService {
     private static final AtlasPregenerationListener NOOP_LISTENER = progress -> {
     };
 
-    private RingAtlasPregenerationService() {
-    }
-
     /**
      * Distinct by identity from every vanilla ticket and never persisted.
      * Keep initialization behind the runtime scheduling path: loading this
@@ -114,7 +111,6 @@ public final class RingAtlasPregenerationService {
         // fails this unload closed with the state still reachable.
         if (state.job != null) state.job.cancelForUnload();
         if (!flushCheckpoint(state)) throw new IllegalStateException("could not flush Atlas on world unload");
-        if (state.probe != null) state.probe.close(state.atlas);
         state.checkpoints.close();
         WORLDS.remove(world, state);
     }
@@ -209,8 +205,6 @@ public final class RingAtlasPregenerationService {
             state.checkpoints.request(state.atlas, false);
         }
         state.checkpoints.advance(state.atlas);
-        if (state.probe != null && !state.checkpoints.busy()) state.probe.tick(world.getServer(), state.atlas);
-        if (Boolean.getBoolean("ringworld.atlasCaptureTimings")) logCaptureTimings(world, state);
     }
 
     /**
@@ -699,7 +693,6 @@ public final class RingAtlasPregenerationService {
         private final RingAtlasRecaptureQueue recaptures = new RingAtlasRecaptureQueue();
         private final RingAtlasLoadedChunkQueue loadedChunks = new RingAtlasLoadedChunkQueue();
         private final RingAtlasCheckpointWriter checkpoints;
-        private final RingAtlasCheckpointProbe probe;
         private boolean stopping;
         private boolean hasFrameFeedback;
         private double localFps;
@@ -719,7 +712,6 @@ public final class RingAtlasPregenerationService {
             this.atlas = atlas;
             this.path = path;
             this.checkpoints = new RingAtlasCheckpointWriter(path, dirty);
-            this.probe = Boolean.getBoolean("ringworld.atlasCheckpointProbe") ? new RingAtlasCheckpointProbe(path) : null;
         }
     }
 
@@ -828,7 +820,7 @@ public final class RingAtlasPregenerationService {
                 finishCheckpoint();
                 return;
             }
-            if (!RingAtlasPregenerationSchedulingPolicy.maySchedule(state)) return;
+            if (state != AtlasPregenerationState.RUNNING) return;
             if (owner.atlas.isComplete()) {
                 // Chunk-load callbacks can finish the Atlas before futures are consumed.
                 if (requests.inFlight() == 0) finish();

@@ -1,7 +1,6 @@
 package dev.ringworld.mixin;
 
 import dev.ringworld.api.RingWorldApi;
-import dev.ringworld.server.RingWorldMultiplayerTest;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingPlayerMovementAccess;
@@ -11,7 +10,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -52,7 +50,6 @@ public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovemen
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         double presentationX = packet.getX(player.getX());
         double nearestX = geometry.nearestImageX(presentationX, player.getX());
-        RingWorldMultiplayerTest.recordPlayerMovementPacket(player, nearestX, geometry);
         double canonicalTargetX = geometry.wrapX(nearestX);
 
         // Server-owned pose changes such as entering a bed can choose the
@@ -79,7 +76,6 @@ public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovemen
                 player.setPos(localSourceX, player.getY(), player.getZ());
                 firstGoodX += sourceShift;
                 lastGoodX += sourceShift;
-                RingWorldServer.recordPlayerCanonicalWrap(player);
             }
         }
 
@@ -93,7 +89,6 @@ public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovemen
         if (!RingWorldApi.isRingWorld(world)) return;
         double shift = RingWorldServer.canonicalizeEntityPosition(player, RingWorldServer.geometryFor(world));
         if (shift == 0.0) return;
-        RingWorldServer.recordPlayerCanonicalWrap(player);
         // Vanilla's anti-cheat baselines must move to the same coordinate
         // chart or the next perfectly ordinary packet looks C blocks long.
         firstGoodX += shift;

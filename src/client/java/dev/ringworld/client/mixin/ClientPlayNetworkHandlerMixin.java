@@ -241,21 +241,13 @@ public abstract class ClientPlayNetworkHandlerMixin {
             }
             double nearestX = geometry.nearestImageX(pos.getX(), client.player.getX());
             BlockPos mapped = new BlockPos((int) Math.floor(nearestX), pos.getY(), pos.getZ());
-            if (!System.getProperty("ringworld.multiplayerTestRole", "").isEmpty() && pos.getX() == 1 && pos.getY() == 119 && pos.getZ() == 0) {
-                RingWorldMod.LOGGER.info("[multiplayer:{}] seam block delta {} -> {} state={} playerX={}", System.getProperty("ringworld.multiplayerTestRole"), pos, mapped, state.getBlock(), client.player.getX());
-            }
             consumer.accept(mapped, state);
         });
     }
 
     @Redirect(method = "handleBlockUpdate", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundBlockUpdatePacket;getPos()Lnet/minecraft/core/BlockPos;"))
     private BlockPos ringworld$mapBlockUpdate(ClientboundBlockUpdatePacket packet) {
-        BlockPos mapped = mapBlockPos(packet.getPos());
-        if (!System.getProperty("ringworld.multiplayerTestRole", "").isEmpty() && packet.getPos().equals(new BlockPos(1, 119, 0))) {
-            Minecraft client = Minecraft.getInstance();
-            RingWorldMod.LOGGER.info("[multiplayer:{}] seam block update {} -> {} state={} playerX={}", System.getProperty("ringworld.multiplayerTestRole"), packet.getPos(), mapped, packet.getBlockState().getBlock(), client.player == null ? Double.NaN : client.player.getX());
-        }
-        return mapped;
+        return mapBlockPos(packet.getPos());
     }
 
     @Redirect(method = "handleBlockEntityData", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket;getPos()Lnet/minecraft/core/BlockPos;"))
