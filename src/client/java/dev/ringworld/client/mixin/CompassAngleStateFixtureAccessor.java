@@ -7,7 +7,9 @@ import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-/** Test-only bridge that exercises the real compass property after mixins apply. */
+/**
+ * Test-only bridge that exercises the real compass property after mixins apply.
+ */
 @Mixin(CompassAngleState.class)
 public interface CompassAngleStateFixtureAccessor {
     @Invoker("calculate")

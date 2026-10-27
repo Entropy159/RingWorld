@@ -3,9 +3,11 @@ package dev.ringworld.world;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/** Shared immutable cylindrical coordinate lookup used by every chunk sampler. */
+/**
+ * Shared immutable cylindrical coordinate lookup used by every chunk sampler.
+ */
 public final class RingNoiseCoordinates {
-    private static final int MAX_PRECOMPUTED_CIRCUMFERENCE = 1_048_576;
+    private static final int MAX_PRECOMPUTED_CIRCUMFERENCE = 1048576;
     private static final ConcurrentMap<CacheKey, RingNoiseCoordinates> CACHE = new ConcurrentHashMap<>();
 
     private final int circumference;
@@ -22,11 +24,12 @@ public final class RingNoiseCoordinates {
 
     public static RingNoiseCoordinates forGeometry(RingGeometry geometry, int mappingVersion) {
         int supported = RingTerrainNoiseMapping.requireSupported(mappingVersion);
-        return CACHE.computeIfAbsent(new CacheKey(geometry, supported),
-                key -> new RingNoiseCoordinates(key.geometry(), key.mappingVersion()));
+        return CACHE.computeIfAbsent(new CacheKey(geometry, supported), key -> new RingNoiseCoordinates(key.geometry(), key.mappingVersion()));
     }
 
-    /** Drops per-layout lookup arrays when the owning Overworld unloads. */
+    /**
+     * Drops per-layout lookup arrays when the owning Overworld unloads.
+     */
     public static void clearCache() {
         CACHE.clear();
     }
@@ -36,14 +39,10 @@ public final class RingNoiseCoordinates {
         radius = geometry.radius();
         this.mappingVersion = mappingVersion;
         if (circumference <= MAX_PRECOMPUTED_CIRCUMFERENCE) {
-            legacyRingX = mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL
-                    ? new int[circumference] : null;
-            legacyRingZOffset = mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL
-                    ? new int[circumference] : null;
-            sine = mappingVersion != RingTerrainNoiseMapping.LEGACY_AXIAL
-                    ? new double[circumference] : null;
-            cosine = mappingVersion != RingTerrainNoiseMapping.LEGACY_AXIAL
-                    ? new double[circumference] : null;
+            legacyRingX = mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL ? new int[circumference] : null;
+            legacyRingZOffset = mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL ? new int[circumference] : null;
+            sine = mappingVersion != RingTerrainNoiseMapping.LEGACY_AXIAL ? new double[circumference] : null;
+            cosine = mappingVersion != RingTerrainNoiseMapping.LEGACY_AXIAL ? new double[circumference] : null;
             for (int x = 0; x < circumference; x++) {
                 double angle = Math.PI * 2.0 * x / circumference;
                 if (mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL) {
@@ -66,7 +65,9 @@ public final class RingNoiseCoordinates {
         return mappingVersion;
     }
 
-    /** Horizontal noise X. The annular mapping deliberately depends on intrinsic Z. */
+    /**
+     * Horizontal noise X. The annular mapping deliberately depends on intrinsic Z.
+     */
     public int noiseX(int sourceX, int sourceZ) {
         int canonicalX = Math.floorMod(sourceX, circumference);
         if (mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL) {
@@ -77,13 +78,13 @@ public final class RingNoiseCoordinates {
         return rounded((radius + sourceZ) * sin);
     }
 
-    /** Horizontal noise Z. */
+    /**
+     * Horizontal noise Z.
+     */
     public int noiseZ(int sourceX, int sourceZ) {
         int canonicalX = Math.floorMod(sourceX, circumference);
         if (mappingVersion == RingTerrainNoiseMapping.LEGACY_AXIAL) {
-            int offset = legacyRingZOffset != null
-                    ? legacyRingZOffset[canonicalX]
-                    : rounded(radius * Math.cos(angle(canonicalX)));
+            int offset = legacyRingZOffset != null ? legacyRingZOffset[canonicalX] : rounded(radius * Math.cos(angle(canonicalX)));
             // Preserve the public-alpha mapping bit-for-bit for existing worlds.
             return sourceZ + offset;
         }
@@ -91,12 +92,16 @@ public final class RingNoiseCoordinates {
         return rounded((radius + sourceZ) * cos);
     }
 
-    /** Legacy source-compatible centreline helper retained for focused tests. */
+    /**
+     * Legacy source-compatible centreline helper retained for focused tests.
+     */
     public int ringX(int sourceX) {
         return noiseX(sourceX, 0);
     }
 
-    /** Legacy source-compatible helper retained while callers move to the joint transform. */
+    /**
+     * Legacy source-compatible helper retained while callers move to the joint transform.
+     */
     public int ringZ(int sourceX, int sourceZ) {
         return noiseZ(sourceX, sourceZ);
     }
@@ -112,5 +117,6 @@ public final class RingNoiseCoordinates {
         return (int) Math.round(value);
     }
 
-    private record CacheKey(RingGeometry geometry, int mappingVersion) { }
+    private record CacheKey(RingGeometry geometry, int mappingVersion) {
+    }
 }

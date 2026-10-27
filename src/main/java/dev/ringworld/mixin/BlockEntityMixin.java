@@ -11,10 +11,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(BlockEntity.class)
-abstract class BlockEntityMixin {
+public abstract class BlockEntityMixin {
     @Inject(method = "getPosFromTag", at = @At("RETURN"), cancellable = true)
-    private static void ringworld$restoreSavedPeriodicAlias(
-            ChunkPos owner, CompoundTag tag, CallbackInfoReturnable<BlockPos> cir) {
+    private static void ringworld$restoreSavedPeriodicAlias(ChunkPos owner, CompoundTag tag, CallbackInfoReturnable<BlockPos> cir) {
         cir.setReturnValue(RingBlockEntityLoadContext.restoreSavedAlias(owner, tag, cir.getReturnValue()));
     }
 }

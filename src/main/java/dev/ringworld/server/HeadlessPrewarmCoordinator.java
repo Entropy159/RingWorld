@@ -4,16 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.world.AtlasPregenerationHandle;
-import dev.ringworld.world.AtlasPregenerationHeadlessPolicy;
-import dev.ringworld.world.AtlasPregenerationOptions;
-import dev.ringworld.world.AtlasPregenerationProgress;
-import dev.ringworld.world.AtlasPregenerationReport;
-import dev.ringworld.world.AtlasPregenerationReportStatus;
-import dev.ringworld.world.AtlasPregenerationResult;
-import dev.ringworld.world.RingAtlasPregenerationCursor;
-import dev.ringworld.world.RingTerrainAtlas;
-import dev.ringworld.world.RingWorldSettings;
+import dev.ringworld.world.*;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.LevelResource;
@@ -41,7 +32,12 @@ public final class HeadlessPrewarmCoordinator {
     private static final Gson JSON = new GsonBuilder().serializeNulls().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Map<MinecraftServer, Run> RUNS = new IdentityHashMap<>();
 
-    private HeadlessPrewarmCoordinator() { }
+    private static void resetForNewRun(Path resultPath) throws IOException {
+        Files.deleteIfExists(resultPath);
+        Files.deleteIfExists(resultPath.resolveSibling("progress.json"));
+        Files.deleteIfExists(resultPath.resolveSibling(resultPath.getFileName() + ".tmp"));
+        Files.deleteIfExists(resultPath.resolveSibling("progress.json.tmp"));
+    }
 
     public static boolean requested(MinecraftServer server) {
         return Boolean.getBoolean(ENABLE_PROPERTY) && server.isDedicatedServer();
@@ -55,12 +51,14 @@ public final class HeadlessPrewarmCoordinator {
         return RUNS.containsKey(server);
     }
 
-    /** Records a constructor-time rejection before a platform publishes the Overworld-load event. */
+    /**
+     * Records a constructor-time rejection before a platform publishes the Overworld-load event.
+     */
     public static void recordPreLoadRejection(MinecraftServer server, Throwable failure) {
         if (!requested(server)) return;
         Path resultPath = reportPathUnchecked(server);
         try {
-            HeadlessPrewarmEvidenceFiles.resetForNewRun(resultPath);
+            resetForNewRun(resultPath);
         } catch (IOException resetFailure) {
             failure.addSuppressed(resetFailure);
             RingWorldMod.LOGGER.error("[headless-prewarm] could not clear stale startup evidence", resetFailure);
@@ -83,15 +81,13 @@ public final class HeadlessPrewarmCoordinator {
             RingWorldSettings settings = RingWorldSettings.get(world);
             RingTerrainAtlas atlas = RingAtlasPregenerationService.atlas(world);
             Path resultPath = reportPath(world);
-            HeadlessPrewarmEvidenceFiles.resetForNewRun(resultPath);
+            resetForNewRun(resultPath);
             run = new Run(world, settings, atlas, resultPath);
-            run.handle = RingAtlasPregenerationService.pregenerate(world,
-                    AtlasPregenerationOptions.headlessPrewarmDefaults(), progress -> { });
+            run.handle = RingAtlasPregenerationService.pregenerate(world, AtlasPregenerationOptions.headlessPrewarmDefaults(), progress -> {
+            });
             run.writeProgress();
             RUNS.put(server, run);
-            RingWorldMod.LOGGER.info("[headless-prewarm] START worldHash={} layoutFingerprint={} report={}",
-                    Long.toUnsignedString(atlas.worldHash()), Long.toUnsignedString(settings.layoutFingerprint()),
-                    run.resultPath);
+            RingWorldMod.LOGGER.info("[headless-prewarm] START worldHash={} layoutFingerprint={} report={}", Long.toUnsignedString(atlas.worldHash()), Long.toUnsignedString(settings.layoutFingerprint()), run.resultPath);
         } catch (Throwable failure) {
             if (run != null && run.handle != null) RingAtlasPregenerationService.interruptForServerStop(world);
             failStartup(server, world, failure);
@@ -180,13 +176,14 @@ public final class HeadlessPrewarmCoordinator {
         }
     }
 
-    private static Path reportPath(ServerLevel world) { return reportPath(world.getServer()); }
+    private static Path reportPath(ServerLevel world) {
+        return reportPath(world.getServer());
+    }
 
     private static Path reportPath(MinecraftServer server) {
         String filename = System.getProperty(REPORT_PROPERTY, "result.json");
         Path candidate = Path.of(filename);
-        if (candidate.isAbsolute() || candidate.getNameCount() != 1 || !filename.endsWith(".json")
-                || filename.equals("progress.json")) {
+        if (candidate.isAbsolute() || candidate.getNameCount() != 1 || !filename.endsWith(".json") || filename.equals("progress.json")) {
             throw new IllegalArgumentException("-D" + REPORT_PROPERTY + " must be one relative .json filename");
         }
         return server.getWorldPath(LevelResource.ROOT).resolve("ringworld-prewarm").resolve(filename);
@@ -201,8 +198,7 @@ public final class HeadlessPrewarmCoordinator {
     }
 
     private static String message(Throwable failure) {
-        Throwable cause = failure instanceof CompletionException && failure.getCause() != null
-                ? failure.getCause() : failure;
+        Throwable cause = failure instanceof CompletionException && failure.getCause() != null ? failure.getCause() : failure;
         String value = cause.getMessage();
         return value == null || value.isBlank() ? cause.getClass().getSimpleName() : value;
     }
@@ -228,13 +224,13 @@ public final class HeadlessPrewarmCoordinator {
             this.resultPath = resultPath;
         }
 
-        private static Run rejected(Path resultPath) { return new Run(null, null, null, resultPath); }
+        private static Run rejected(Path resultPath) {
+            return new Run(null, null, null, resultPath);
+        }
 
         private void writeProgress() {
             if (finished) return;
-            AtlasPregenerationProgress progress = handle == null ? new AtlasPregenerationProgress(
-                    dev.ringworld.world.AtlasPregenerationState.FAILED, 0, 0, 0, 0, 0,
-                    Duration.ZERO, Optional.empty(), Optional.of("headless prewarm did not start")) : handle.progress();
+            AtlasPregenerationProgress progress = handle == null ? new AtlasPregenerationProgress(dev.ringworld.world.AtlasPregenerationState.FAILED, 0, 0, 0, 0, 0, Duration.ZERO, Optional.empty(), Optional.of("headless prewarm did not start")) : handle.progress();
             JsonObject json = new JsonObject();
             json.addProperty("type", "progress");
             json.addProperty("state", progress.state().name());
@@ -246,8 +242,7 @@ public final class HeadlessPrewarmCoordinator {
             json.addProperty("circumferenceBlocks", settings.circumferenceBlocks());
             json.addProperty("widthBlocks", settings.widthBlocks());
             json.addProperty("completedChunks", atlas.presentChunkCount());
-            json.addProperty("totalChunks", RingAtlasPregenerationCursor.checkedTotalChunks(
-                    atlas.geometry().circumferenceChunks(), atlas.geometry().widthChunks()));
+            json.addProperty("totalChunks", RingAtlasPregenerationCursor.checkedTotalChunks(atlas.geometry().circumferenceChunks(), atlas.geometry().widthChunks()));
             json.addProperty("generatedChunksThisRun", progress.completedChunks());
             json.addProperty("inFlightChunks", RingAtlasPregenerationService.inFlightChunks(world));
             json.addProperty("maxInFlightChunks", RingAtlasPregenerationService.maxInFlightChunks(world));
@@ -256,30 +251,15 @@ public final class HeadlessPrewarmCoordinator {
             json.addProperty("totalCells", progress.totalCells());
             json.addProperty("elapsedMillis", progress.elapsed().toMillis());
             json.addProperty("cellsPerSecond", progress.cellsPerSecond());
-            progress.eta().ifPresentOrElse(value -> json.addProperty("etaMillis", value.toMillis()),
-                    () -> json.add("etaMillis", null));
-            progress.lastError().ifPresentOrElse(value -> json.addProperty("lastError", value),
-                    () -> json.add("lastError", null));
+            progress.eta().ifPresentOrElse(value -> json.addProperty("etaMillis", value.toMillis()), () -> json.add("etaMillis", null));
+            progress.lastError().ifPresentOrElse(value -> json.addProperty("lastError", value), () -> json.add("lastError", null));
             writeAtomically(progressPath, JSON.toJson(json));
         }
 
         private void finish(AtlasPregenerationReportStatus status, Optional<String> failure) {
             if (finished) return;
-            AtlasPregenerationProgress progress = handle == null ? new AtlasPregenerationProgress(
-                    dev.ringworld.world.AtlasPregenerationState.FAILED, 0, 0, 0, 0, 0,
-                    Duration.ZERO, Optional.empty(), failure) : handle.progress();
             boolean identityAvailable = atlas != null && settings != null;
-            AtlasPregenerationReport report = new AtlasPregenerationReport(2, status, identityAvailable,
-                    identityAvailable ? atlas.worldHash() : 0L,
-                    identityAvailable ? settings.layoutFingerprint() : 0L,
-                    identityAvailable ? settings.terrainNoiseMapping() : 0,
-                    identityAvailable ? atlas.presentChunkCount() : 0L,
-                    identityAvailable ? RingAtlasPregenerationCursor.checkedTotalChunks(
-                            atlas.geometry().circumferenceChunks(), atlas.geometry().widthChunks()) : 0L,
-                    identityAvailable ? atlas.presentCount() : 0,
-                    identityAvailable ? atlas.cellCount() : 0,
-                    result == null ? Duration.ofNanos(System.nanoTime() - startedNanos) : result.elapsed(),
-                    identityAvailable ? Optional.of(result == null ? RingAtlasPregenerationService.cachePath(world) : result.atlasPath()) : Optional.empty(), failure);
+            AtlasPregenerationReport report = new AtlasPregenerationReport(2, status, identityAvailable, identityAvailable ? atlas.worldHash() : 0L, identityAvailable ? settings.layoutFingerprint() : 0L, identityAvailable ? settings.terrainNoiseMapping() : 0, identityAvailable ? atlas.presentChunkCount() : 0L, identityAvailable ? RingAtlasPregenerationCursor.checkedTotalChunks(atlas.geometry().circumferenceChunks(), atlas.geometry().widthChunks()) : 0L, identityAvailable ? atlas.presentCount() : 0, identityAvailable ? atlas.cellCount() : 0, result == null ? Duration.ofNanos(System.nanoTime() - startedNanos) : result.elapsed(), identityAvailable ? Optional.of(result == null ? RingAtlasPregenerationService.cachePath(world) : result.atlasPath()) : Optional.empty(), failure);
             JsonObject json = new JsonObject();
             json.addProperty("schemaVersion", report.schemaVersion());
             json.addProperty("status", report.status().name());
@@ -303,10 +283,8 @@ public final class HeadlessPrewarmCoordinator {
             json.addProperty("completedCells", report.completedCells());
             json.addProperty("totalCells", report.totalCells());
             json.addProperty("elapsedMillis", report.elapsed().toMillis());
-            report.atlasPath().ifPresentOrElse(value -> json.addProperty("atlasPath", value.toString()),
-                    () -> json.add("atlasPath", null));
-            report.failureReason().ifPresentOrElse(value -> json.addProperty("failureReason", value),
-                    () -> json.add("failureReason", null));
+            report.atlasPath().ifPresentOrElse(value -> json.addProperty("atlasPath", value.toString()), () -> json.add("atlasPath", null));
+            report.failureReason().ifPresentOrElse(value -> json.addProperty("failureReason", value), () -> json.add("failureReason", null));
             metrics.addReport(json);
             writeAtomically(resultPath, JSON.toJson(json));
             finished = true;

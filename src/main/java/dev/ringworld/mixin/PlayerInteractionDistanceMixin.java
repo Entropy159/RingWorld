@@ -1,25 +1,27 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingTopology;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Applies periodic distance to server-authoritative block/entity reach. */
+/**
+ * Applies periodic distance to server-authoritative block/entity reach.
+ */
 @Mixin(Player.class)
-abstract class PlayerInteractionDistanceMixin {
+public abstract class PlayerInteractionDistanceMixin {
     @Inject(method = "isWithinBlockInteractionRange", at = @At("HEAD"), cancellable = true)
-    private void ringworld$periodicBlockReach(BlockPos pos, double additionalRange,
-                                              CallbackInfoReturnable<Boolean> cir) {
+    private void ringworld$periodicBlockReach(BlockPos pos, double additionalRange, CallbackInfoReturnable<Boolean> cir) {
         Player player = (Player) (Object) this;
         RingGeometry geometry = geometry(player);
         if (geometry == null) return;
@@ -29,8 +31,7 @@ abstract class PlayerInteractionDistanceMixin {
     }
 
     @Inject(method = "isWithinEntityInteractionRange(Lnet/minecraft/world/phys/AABB;D)Z", at = @At("HEAD"), cancellable = true)
-    private void ringworld$periodicEntityReach(AABB box, double additionalRange,
-                                               CallbackInfoReturnable<Boolean> cir) {
+    private void ringworld$periodicEntityReach(AABB box, double additionalRange, CallbackInfoReturnable<Boolean> cir) {
         Player player = (Player) (Object) this;
         RingGeometry geometry = geometry(player);
         if (geometry == null) return;
@@ -45,18 +46,16 @@ abstract class PlayerInteractionDistanceMixin {
      * nearest periodic image before the server validates the attack packet.
      */
     @Inject(method = "isWithinAttackRange", at = @At("HEAD"), cancellable = true)
-    private void ringworld$periodicAttackReach(ItemStack weaponItem, AABB box, double additionalRange,
-                                               CallbackInfoReturnable<Boolean> cir) {
+    private void ringworld$periodicAttackReach(ItemStack weaponItem, AABB box, double additionalRange, CallbackInfoReturnable<Boolean> cir) {
         Player player = (Player) (Object) this;
         RingGeometry geometry = geometry(player);
         if (geometry == null) return;
         AABB entityImage = new RingTopology(geometry).projectBoxNear(box, player.getX());
-        cir.setReturnValue(player.getAttackRangeWith(weaponItem)
-                .isInRange(player, entityImage, additionalRange));
+        cir.setReturnValue(player.getAttackRangeWith(weaponItem).isInRange(player, entityImage, additionalRange));
     }
 
+    @Unique
     private static RingGeometry geometry(Player player) {
-        return player.level() instanceof ServerLevel world && world.dimension() == Level.OVERWORLD
-                ? RingWorldServer.geometryFor(world) : null;
+        return player.level() instanceof ServerLevel world && RingWorldApi.isRingWorld(world) ? RingWorldServer.geometryFor(world) : null;
     }
 }

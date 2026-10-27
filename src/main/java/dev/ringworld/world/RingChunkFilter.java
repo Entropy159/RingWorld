@@ -2,23 +2,23 @@ package dev.ringworld.world;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import java.util.function.Consumer;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.world.level.ChunkPos;
+import org.jspecify.annotations.NonNull;
 
-/** A bounded periodic view window; generation width does not limit player builds. */
-public record RingChunkFilter(ChunkPos center, int logicalCenterX,
-                              int viewDistance, int circumferenceChunks,
+import java.util.function.Consumer;
+
+/**
+ * A bounded periodic view window; generation width does not limit player builds.
+ */
+public record RingChunkFilter(ChunkPos center, int logicalCenterX, int viewDistance, int circumferenceChunks,
                               int minChunkZ, int maxChunkZ) implements ChunkTrackingView {
     public RingChunkFilter(ChunkPos logicalCenter, int viewDistance, RingGeometry geometry) {
-        this(logicalCenter, viewDistance, geometry.circumferenceChunks(),
-                geometry.minChunkZ(), geometry.maxChunkZ());
+        this(logicalCenter, viewDistance, geometry.circumferenceChunks(), geometry.minChunkZ(), geometry.maxChunkZ());
     }
 
-    public RingChunkFilter(ChunkPos logicalCenter, int viewDistance, int circumferenceChunks,
-                           int minChunkZ, int maxChunkZ) {
-        this(new ChunkPos(Math.floorMod(logicalCenter.x(), circumferenceChunks), logicalCenter.z()),
-                logicalCenter.x(), viewDistance, circumferenceChunks, minChunkZ, maxChunkZ);
+    public RingChunkFilter(ChunkPos logicalCenter, int viewDistance, int circumferenceChunks, int minChunkZ, int maxChunkZ) {
+        this(new ChunkPos(Math.floorMod(logicalCenter.x(), circumferenceChunks), logicalCenter.z()), logicalCenter.x(), viewDistance, circumferenceChunks, minChunkZ, maxChunkZ);
     }
 
     public RingChunkFilter {
@@ -29,25 +29,22 @@ public record RingChunkFilter(ChunkPos center, int logicalCenterX,
 
     @Override
     public boolean contains(int x, int z, boolean includeEdge) {
-        return isWithinRingDistance(circumferenceChunks, center.x(), center.z(),
-                viewDistance, minChunkZ, maxChunkZ, x, z, includeEdge);
+        return isWithinRingDistance(circumferenceChunks, center.x(), center.z(), viewDistance, minChunkZ, maxChunkZ, x, z, includeEdge);
     }
 
-    /** Same bounded periodic window, including entities over the exterior void. */
+    /**
+     * Same bounded periodic window, including entities over the exterior void.
+     */
     public boolean containsEntity(int x, int z) {
-        return RingChunkTopology.isWithinVanillaDistance(circumferenceChunks,
-                center.x(), center.z(), viewDistance, x, z, true);
+        return RingChunkTopology.isWithinVanillaDistance(circumferenceChunks, center.x(), center.z(), viewDistance, x, z, true);
     }
 
-    static boolean isWithinRingDistance(int circumferenceChunks, int centerX, int centerZ,
-                                        int viewDistance, int minChunkZ, int maxChunkZ,
-                                        int x, int z, boolean includeEdge) {
-        return RingChunkTopology.isWithinVanillaDistance(
-                circumferenceChunks, centerX, centerZ, viewDistance, x, z, includeEdge);
+    static boolean isWithinRingDistance(int circumferenceChunks, int centerX, int centerZ, int viewDistance, int minChunkZ, int maxChunkZ, int x, int z, boolean includeEdge) {
+        return RingChunkTopology.isWithinVanillaDistance(circumferenceChunks, centerX, centerZ, viewDistance, x, z, includeEdge);
     }
 
     @Override
-    public void forEach(Consumer<ChunkPos> consumer) {
+    public void forEach(@NonNull Consumer<ChunkPos> consumer) {
         LongSet emitted = new LongOpenHashSet();
         int extent = viewDistance + 1;
         for (int dx = -extent; dx <= extent; dx++) {
@@ -62,16 +59,13 @@ public record RingChunkFilter(ChunkPos center, int logicalCenterX,
         }
     }
 
-    /** Diffs any two filters without relying on vanilla's flat-cylinder fast path. */
-    public static void forEachChanged(ChunkTrackingView oldFilter, ChunkTrackingView newFilter,
-                                      Consumer<ChunkPos> newlyIncluded, Consumer<ChunkPos> justRemoved) {
+    /**
+     * Diffs any two filters without relying on vanilla's flat-cylinder fast path.
+     */
+    public static void forEachChanged(ChunkTrackingView oldFilter, ChunkTrackingView newFilter, Consumer<ChunkPos> newlyIncluded, Consumer<ChunkPos> justRemoved) {
         if (oldFilter.equals(newFilter)) return;
         if (oldFilter instanceof RingChunkFilter oldRing && newFilter instanceof RingChunkFilter newRing) {
-            if (requiresFullRekey(oldRing.center.x(), newRing.center.x(),
-                    oldRing.viewDistance, newRing.viewDistance,
-                    oldRing.circumferenceChunks, newRing.circumferenceChunks,
-                    oldRing.minChunkZ, oldRing.maxChunkZ,
-                    newRing.minChunkZ, newRing.maxChunkZ)) {
+            if (requiresFullRekey(oldRing.center.x(), newRing.center.x(), oldRing.viewDistance, newRing.viewDistance, oldRing.circumferenceChunks, newRing.circumferenceChunks, oldRing.minChunkZ, oldRing.maxChunkZ, newRing.minChunkZ, newRing.maxChunkZ)) {
                 // An intentional long teleport needs a full chart re-key.
                 // A natural C-1 -> 0 seam step has periodic distance one and
                 // must remain an incremental window update.
@@ -90,11 +84,7 @@ public record RingChunkFilter(ChunkPos center, int logicalCenterX,
         }
     }
 
-    static boolean requiresFullRekey(int oldCenterX, int newCenterX,
-                                     int oldViewDistance, int newViewDistance,
-                                     int oldCircumference, int newCircumference,
-                                     int oldMinChunkZ, int oldMaxChunkZ,
-                                     int newMinChunkZ, int newMaxChunkZ) {
+    static boolean requiresFullRekey(int oldCenterX, int newCenterX, int oldViewDistance, int newViewDistance, int oldCircumference, int newCircumference, int oldMinChunkZ, int oldMaxChunkZ, int newMinChunkZ, int newMaxChunkZ) {
         if (oldCircumference != newCircumference) return true;
         if (oldMinChunkZ != newMinChunkZ || oldMaxChunkZ != newMaxChunkZ) return true;
         int rawDistance = Math.abs(newCenterX - oldCenterX);

@@ -5,10 +5,10 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Fabric command and payload transport adapter for the shared atlas coordinator. */
+/**
+ * Fabric command and payload transport adapter for the shared atlas coordinator.
+ */
 public final class FabricTerrainAtlasPlatform {
-    private FabricTerrainAtlasPlatform() { }
-
     public static void register() {
         RingTerrainAtlasServer.configureTransport(new RingTerrainAtlasServer.PayloadTransport() {
             @Override
@@ -21,7 +21,6 @@ public final class FabricTerrainAtlasPlatform {
                 ServerPlayNetworking.send(player, payload);
             }
         });
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-                RingTerrainAtlasServer.registerCommands(dispatcher));
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> RingTerrainAtlasServer.registerCommands(dispatcher));
     }
 }

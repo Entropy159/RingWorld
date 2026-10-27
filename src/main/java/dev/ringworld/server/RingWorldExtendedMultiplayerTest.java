@@ -15,17 +15,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.Relative;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BedBlock;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.ChestBlock;
-import net.minecraft.world.level.block.LecternBlock;
-import net.minecraft.world.level.block.Portal;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.entity.LecternBlockEntity;
@@ -33,8 +29,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.ChestType;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -42,9 +38,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-/** Additional real-client lifecycle and stateful-block seam regression. */
+/**
+ * Additional real-client lifecycle and stateful-block seam regression.
+ */
 final class RingWorldExtendedMultiplayerTest {
-    private static final int TIMEOUT_TICKS = 1_200;
+    private static final int TIMEOUT_TICKS = 1200;
     private static final String NAVIGATOR_TAG = "ringworld_extended_seam_navigator";
 
     private static int stage;
@@ -81,11 +79,13 @@ final class RingWorldExtendedMultiplayerTest {
     private static RingMultiplayerReadinessGate postEndWeatherGate;
     private static boolean weatherArmed;
 
-    private RingWorldExtendedMultiplayerTest() { }
+    private RingWorldExtendedMultiplayerTest() {
+    }
 
-    /** @return true once the expanded matrix has emitted its terminal result. */
-    static boolean tick(ServerLevel world, RingGeometry geometry, ServerPlayer playerA,
-                        ServerPlayer playerB, boolean priorPassed) {
+    /**
+     * @return true once the expanded matrix has emitted its terminal result.
+     */
+    static boolean tick(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB, boolean priorPassed) {
         playerA = currentPlayer(world, "RingTesterA", playerA);
         playerB = currentPlayer(world, "RingTesterB", playerB);
         ticks++;
@@ -111,15 +111,13 @@ final class RingWorldExtendedMultiplayerTest {
         return false;
     }
 
-    private static void prepareFixture(ServerLevel world, RingGeometry geometry,
-                                       ServerPlayer playerA, ServerPlayer playerB,
-                                       boolean priorPassed) {
+    private static void prepareFixture(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB, boolean priorPassed) {
         if (playerA == null || playerB == null) return;
         baselinePassed = priorPassed;
         prepareCreativePlayer(playerA);
         prepareCreativePlayer(playerB);
         var weather = world.getWeatherData();
-        weather.setClearWeatherTime(6_000);
+        weather.setClearWeatherTime(6000);
         weather.setRainTime(0);
         weather.setThunderTime(0);
         weather.setRaining(false);
@@ -127,34 +125,24 @@ final class RingWorldExtendedMultiplayerTest {
         world.setRainLevel(0.0F);
         world.setThunderLevel(0.0F);
         COLD_TELEMETRY.record("extended-fixture-before", world);
-        playerA.teleportTo(world, geometry.circumferenceBlocks() - 2.5, 120.0, 0.5,
-                Set.<Relative>of(), 90.0f, 10.0f, false);
-        playerB.teleportTo(world, 2.5, 120.0, 0.5,
-                Set.<Relative>of(), -90.0f, 10.0f, false);
+        playerA.teleportTo(world, geometry.circumferenceBlocks() - 2.5, 120.0, 0.5, Set.<Relative>of(), 90.0f, 10.0f, false);
+        playerB.teleportTo(world, 2.5, 120.0, 0.5, Set.<Relative>of(), -90.0f, 10.0f, false);
 
         BlockPos chest = chestPos();
         BlockPos chestHigh = chestHighPos(geometry);
         BlockPos lectern = lecternPos();
         world.setBlock(chestHigh, Blocks.AIR.defaultBlockState(), 3);
         world.setBlock(chest, Blocks.AIR.defaultBlockState(), 3);
-        BlockState highChestState = Blocks.CHEST.defaultBlockState()
-                .setValue(ChestBlock.FACING, Direction.NORTH)
-                .setValue(ChestBlock.TYPE, ChestType.LEFT);
-        BlockState lowChestState = Blocks.CHEST.defaultBlockState()
-                .setValue(ChestBlock.FACING, Direction.NORTH)
-                .setValue(ChestBlock.TYPE, ChestType.RIGHT);
+        BlockState highChestState = Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, Direction.NORTH).setValue(ChestBlock.TYPE, ChestType.LEFT);
+        BlockState lowChestState = Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, Direction.NORTH).setValue(ChestBlock.TYPE, ChestType.RIGHT);
         world.setBlock(chestHigh, highChestState, 3);
         world.setBlock(chest, lowChestState, 3);
         seedDoubleChest(world, geometry);
-        RingWorldMod.LOGGER.info("[multiplayer-extended] double chest prepared {}",
-                doubleChestDiagnostic(world, geometry));
+        RingWorldMod.LOGGER.info("[multiplayer-extended] double chest prepared {}", doubleChestDiagnostic(world, geometry));
         aliasRecoveryPassed = verifyAliasCollisionRecovery(world, geometry);
-        RingWorldMod.LOGGER.info(
-                "[multiplayer-extended] alias block-entity recovery policy result={}",
-                aliasRecoveryPassed);
+        RingWorldMod.LOGGER.info("[multiplayer-extended] alias block-entity recovery policy result={}", aliasRecoveryPassed);
         world.setBlock(lectern, Blocks.LECTERN.defaultBlockState(), 3);
-        LecternBlock.tryPlaceBook(null, world, lectern, world.getBlockState(lectern),
-                new ItemStack(Items.WRITABLE_BOOK));
+        LecternBlock.tryPlaceBook(null, world, lectern, world.getBlockState(lectern), new ItemStack(Items.WRITABLE_BOOK));
 
         int highX = geometry.circumferenceBlocks() - 1;
         world.setBlock(new BlockPos(highX, 120, -5), Blocks.AIR.defaultBlockState(), 3);
@@ -171,8 +159,7 @@ final class RingWorldExtendedMultiplayerTest {
         world.setBlock(new BlockPos(highX, 120, 7), Blocks.STONE.defaultBlockState(), 3);
         world.setBlock(new BlockPos(0, 120, 5), Blocks.STONE.defaultBlockState(), 3);
         world.setBlock(new BlockPos(0, 120, 7), Blocks.STONE.defaultBlockState(), 3);
-        world.setBlock(new BlockPos(geometry.circumferenceBlocks() - 2, 120, 6),
-                Blocks.STONE.defaultBlockState(), 3);
+        world.setBlock(new BlockPos(geometry.circumferenceBlocks() - 2, 120, 6), Blocks.STONE.defaultBlockState(), 3);
         world.setBlock(new BlockPos(1, 120, 6), Blocks.STONE.defaultBlockState(), 3);
         world.setBlock(new BlockPos(highX, 121, 6), Blocks.STONE.defaultBlockState(), 3);
         world.setBlock(new BlockPos(0, 121, 6), Blocks.STONE.defaultBlockState(), 3);
@@ -185,58 +172,36 @@ final class RingWorldExtendedMultiplayerTest {
         armSeamNavigator(world, geometry);
 
         prepareCrossSeamExplosionCell(world, geometry);
-        world.explode(null, highX + 0.5, 124.5, 9.5, 2.5F,
-                Level.ExplosionInteraction.BLOCK);
+        world.explode(null, highX + 0.5, 124.5, 9.5, 2.5F, Level.ExplosionInteraction.BLOCK);
         COLD_TELEMETRY.record("extended-fixture-after", world);
 
         RingWorldMod.LOGGER.info("[multiplayer-extended] fixture armed across canonical seam");
         advance(1);
     }
 
-    private static void awaitFixture(ServerLevel world, RingGeometry geometry,
-                                     ServerPlayer playerA, ServerPlayer playerB) {
+    private static void awaitFixture(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
         NAVIGATION_TRACE.record(world, geometry, seamNavigator, ticks, "progress");
         boolean serverChest = doubleChestValid(world, geometry);
-        boolean serverLectern = world.getBlockEntity(lecternPos()) instanceof LecternBlockEntity lectern
-                && lectern.hasBook()
-                && world.getBlockState(lecternPos()).getValue(LecternBlock.HAS_BOOK);
-        boolean redstone = world.getBlockState(redstoneLampPos()).getOptionalValue(
-                BlockStateProperties.LIT).orElse(false);
+        boolean serverLectern = world.getBlockEntity(lecternPos()) instanceof LecternBlockEntity lectern && lectern.hasBook() && world.getBlockState(lecternPos()).getValue(LecternBlock.HAS_BOOK);
+        boolean redstone = world.getBlockState(redstoneLampPos()).getOptionalValue(BlockStateProperties.LIT).orElse(false);
         // A sealed two-cell trough clears X=0 before placing its only water
         // source at C-1.
         // Observing water here proves the scheduled flow crossed the canonical seam;
         // observing C-1 would only re-observe the source block.
         boolean waterReachedDestination = !world.getFluidState(fluidDestination()).isEmpty();
-        boolean navigatorFolded = seamNavigator != null && seamNavigator.isAlive()
-                && seamNavigator.getX() >= 0.0
-                && seamNavigator.getX() < geometry.circumferenceBlocks() / 2.0;
-        boolean navigatorPathDone = seamNavigator != null
-                && seamNavigator.getNavigation().isDone();
-        boolean navigatorReachedTarget = navigatorFolded
-                && geometry.isWithinPeriodicBox(
-                        seamNavigator.getX(), seamNavigator.getY(), seamNavigator.getZ(),
-                        2.5, 120.0, 15.5, 1.75, 1.5, 1.75);
+        boolean navigatorFolded = seamNavigator != null && seamNavigator.isAlive() && seamNavigator.getX() >= 0.0 && seamNavigator.getX() < geometry.circumferenceBlocks() / 2.0;
+        boolean navigatorPathDone = seamNavigator != null && seamNavigator.getNavigation().isDone();
+        boolean navigatorReachedTarget = navigatorFolded && geometry.isWithinPeriodicBox(seamNavigator.getX(), seamNavigator.getY(), seamNavigator.getZ(), 2.5, 120.0, 15.5, 1.75, 1.5, 1.75);
         boolean explosion = world.getBlockState(explosionTarget()).isAir();
-        serverFixturePassed = serverChest && aliasRecoveryPassed && serverLectern
-                && redstone && waterReachedDestination
-                && navigationStarted && navigatorPathDone && navigatorReachedTarget && explosion;
-        boolean clientsPassed = RingWorldMultiplayerTest.clientPassed("A", "extended_fixture")
-                && RingWorldMultiplayerTest.clientPassed("B", "extended_fixture");
+        serverFixturePassed = serverChest && aliasRecoveryPassed && serverLectern && redstone && waterReachedDestination && navigationStarted && navigatorPathDone && navigatorReachedTarget && explosion;
+        boolean clientsPassed = RingWorldMultiplayerTest.clientPassed("A", "extended_fixture") && RingWorldMultiplayerTest.clientPassed("B", "extended_fixture");
         if (serverFixturePassed && clientsPassed) {
             NAVIGATION_TRACE.record(world, geometry, seamNavigator, ticks, "arrival");
             prepareBed(world, geometry, playerA);
             advance(2);
         } else if (ticks >= TIMEOUT_TICKS) {
             NAVIGATION_TRACE.record(world, geometry, seamNavigator, ticks, "failure");
-            RingWorldMod.LOGGER.error(
-                    "[multiplayer-extended] fixture result=false (doubleChest={}, aliasRecovery={}, lectern={}, redstone={}, waterReachedDestination={}, navigationStarted={}, navigatorFolded={}, navigatorPathDone={}, navigatorReachedTarget={}, navigatorX={}, navigatorZ={}, explosion={}, clientA={}, clientB={})",
-                    serverChest, aliasRecoveryPassed, serverLectern, redstone,
-                    waterReachedDestination, navigationStarted,
-                    navigatorFolded, navigatorPathDone, navigatorReachedTarget,
-                    seamNavigator == null ? Double.NaN : seamNavigator.getX(),
-                    seamNavigator == null ? Double.NaN : seamNavigator.getZ(), explosion,
-                    RingWorldMultiplayerTest.clientPassed("A", "extended_fixture"),
-                    RingWorldMultiplayerTest.clientPassed("B", "extended_fixture"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] fixture result=false (doubleChest={}, aliasRecovery={}, lectern={}, redstone={}, waterReachedDestination={}, navigationStarted={}, navigatorFolded={}, navigatorPathDone={}, navigatorReachedTarget={}, navigatorX={}, navigatorZ={}, explosion={}, clientA={}, clientB={})", serverChest, aliasRecoveryPassed, serverLectern, redstone, waterReachedDestination, navigationStarted, navigatorFolded, navigatorPathDone, navigatorReachedTarget, seamNavigator == null ? Double.NaN : seamNavigator.getX(), seamNavigator == null ? Double.NaN : seamNavigator.getZ(), explosion, RingWorldMultiplayerTest.clientPassed("A", "extended_fixture"), RingWorldMultiplayerTest.clientPassed("B", "extended_fixture"));
             advance(12);
         }
     }
@@ -244,21 +209,18 @@ final class RingWorldExtendedMultiplayerTest {
     private static void prepareBed(ServerLevel world, RingGeometry geometry, ServerPlayer playerA) {
         BlockPos foot = bedFoot();
         BlockPos head = bedHead();
-        var base = RingWorldVanillaFixtureRegistries.block("red_bed")
-                .defaultBlockState().setValue(BedBlock.FACING, Direction.EAST);
+        var base = RingWorldVanillaFixtureRegistries.block("red_bed").defaultBlockState().setValue(BedBlock.FACING, Direction.EAST);
         world.setBlock(foot, base.setValue(BedBlock.PART, BedPart.FOOT), 3);
         world.setBlock(head, base.setValue(BedBlock.PART, BedPart.HEAD), 3);
-        var clock = world.dimensionType().defaultClock()
-                .orElseThrow(() -> new IllegalStateException("Overworld has no default clock"));
+        var clock = world.dimensionType().defaultClock().orElseThrow(() -> new IllegalStateException("Overworld has no default clock"));
         // World clocks are monotonic in 26.1. A reused fixture may already be
         // beyond day zero, so move to the next night's 13,000-tick phase
         // instead of attempting to rewind the clock to absolute tick 13,000.
         long currentTicks = dev.ringworld.world.RingMinecraftFixtureAccess.clockTicks(world, clock);
-        long nextNight = (Math.floorDiv(currentTicks, 24_000L) + 1L) * 24_000L + 13_000L;
+        long nextNight = (Math.floorDiv(currentTicks, 24000L) + 1L) * 24000L + 13000L;
         world.clockManager().setTotalTicks(clock, nextNight);
         prepareSurvivalPlayer(playerA);
-        playerA.teleportTo(world, geometry.circumferenceBlocks() - 1.5, 120.0, -1.5,
-                Set.<Relative>of(), 90.0f, 10.0f, false);
+        playerA.teleportTo(world, geometry.circumferenceBlocks() - 1.5, 120.0, -1.5, Set.<Relative>of(), 90.0f, 10.0f, false);
         // NeoForge asks the environment-attribute system whether sleeping is
         // allowed before vanilla performs the same check. Let the clock change
         // advance through one server tick so both loaders observe the new
@@ -291,19 +253,14 @@ final class RingWorldExtendedMultiplayerTest {
         // Reserve MOVE for the one command below. The zombie keeps vanilla
         // navigation/physics and its other AI, but random strolling must not
         // replace the fixture's destination midway through the seam crossing.
-        ((MobFixtureGoalsAccessor) seamNavigator).ringworld$fixtureGoals()
-                .addGoal(0, new RingFixtureNavigationGoal());
+        ((MobFixtureGoalsAccessor) seamNavigator).ringworld$fixtureGoals().addGoal(0, new RingFixtureNavigationGoal());
         world.addFreshEntity(seamNavigator);
         seamNavigator.setOnGround(true);
         NAVIGATION_TRACE.reset();
         navigationStarted = false;
         navigationStarted = seamNavigator.getNavigation().moveTo(2.5, 120.0, 15.5, 1.0);
         NAVIGATION_TRACE.record(world, geometry, seamNavigator, 0, "armed");
-        RingWorldMod.LOGGER.info(
-                "[multiplayer-extended] seam navigator armed started={} sourceX={} target={} path={}",
-                navigationStarted, seamNavigator.getX(), seamNavigator.getNavigation().getTargetPos(),
-                seamNavigator.getNavigation().getPath() == null ? null
-                        : seamNavigator.getNavigation().getPath().getTarget());
+        RingWorldMod.LOGGER.info("[multiplayer-extended] seam navigator armed started={} sourceX={} target={} path={}", navigationStarted, seamNavigator.getX(), seamNavigator.getNavigation().getTargetPos(), seamNavigator.getNavigation().getPath() == null ? null : seamNavigator.getNavigation().getPath().getTarget());
     }
 
     /**
@@ -330,17 +287,14 @@ final class RingWorldExtendedMultiplayerTest {
         Either<Player.BedSleepingProblem, net.minecraft.util.Unit> result = dev.ringworld.world.RingMinecraftFixtureAccess.sleep(playerA, head);
         sleepStarted = result.right().isPresent();
         if (sleepStarted) sleepingReconnectBaseline = playerA;
-        RingWorldMod.LOGGER.info("[multiplayer-extended] seam bed sleep start={} problem={} canonicalBed={}",
-                sleepStarted, result.left().orElse(null), playerA.getSleepingPos().orElse(null));
+        RingWorldMod.LOGGER.info("[multiplayer-extended] seam bed sleep start={} problem={} canonicalBed={}", sleepStarted, result.left().orElse(null), playerA.getSleepingPos().orElse(null));
     }
 
     private static void awaitSleep(ServerLevel world, RingGeometry geometry, ServerPlayer playerA) {
         if (playerA == null) {
             if (sleepingReconnectBaseline != null) sleepingDisconnectObserved = true;
             if (ticks >= TIMEOUT_TICKS) {
-                RingWorldMod.LOGGER.error(
-                        "[multiplayer-extended] seam bed reconnect result=false reason=reconnect-timeout disconnect={}",
-                        sleepingDisconnectObserved);
+                RingWorldMod.LOGGER.error("[multiplayer-extended] seam bed reconnect result=false reason=reconnect-timeout disconnect={}", sleepingDisconnectObserved);
                 advance(12);
             }
             return;
@@ -349,95 +303,63 @@ final class RingWorldExtendedMultiplayerTest {
             attemptSleep(playerA);
             return;
         }
-        boolean canonicalBed = playerA.getSleepingPos()
-                .map(pos -> pos.equals(bedHead()) && pos.getX() >= 0
-                        && pos.getX() < geometry.circumferenceBlocks())
-                .orElse(false);
-        boolean replacementInstance = sleepingReconnectBaseline != null
-                && playerA != sleepingReconnectBaseline;
+        boolean canonicalBed = playerA.getSleepingPos().map(pos -> pos.equals(bedHead()) && pos.getX() >= 0 && pos.getX() < geometry.circumferenceBlocks()).orElse(false);
+        boolean replacementInstance = sleepingReconnectBaseline != null && playerA != sleepingReconnectBaseline;
         // A cold server can miss the brief null-player interval when the
         // disconnect and login complete between two ticks. A different
         // ServerPlayer object is itself definitive reconnect evidence.
         if (replacementInstance) sleepingDisconnectObserved = true;
         boolean replacement = sleepingDisconnectObserved && replacementInstance;
-        boolean canonicalPlayer = playerA.getX() >= 0.0
-                && playerA.getX() < geometry.circumferenceBlocks();
-        boolean adjacentToBed = Math.abs(geometry.shortestCircumferenceDelta(
-                playerA.getX(), bedHead().getX())) < 4.0
-                && Math.abs(playerA.getY() - bedHead().getY()) < 4.0
-                && Math.abs(playerA.getZ() - bedHead().getZ()) < 4.0;
-        boolean bedStillLoaded = world.hasChunkAt(bedHead())
-                && world.getBlockState(bedHead()).is(RingWorldVanillaFixtureRegistries.block("red_bed"));
-        if (replacement && !playerA.isSleeping() && playerA.getSleepingPos().isEmpty()
-                && canonicalPlayer && adjacentToBed && bedStillLoaded
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_reconnect")
-                && !sleepRestartAttempted) {
+        boolean canonicalPlayer = playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks();
+        boolean adjacentToBed = Math.abs(geometry.shortestCircumferenceDelta(playerA.getX(), bedHead().getX())) < 4.0 && Math.abs(playerA.getY() - bedHead().getY()) < 4.0 && Math.abs(playerA.getZ() - bedHead().getZ()) < 4.0;
+        boolean bedStillLoaded = world.hasChunkAt(bedHead()) && world.getBlockState(bedHead()).is(RingWorldVanillaFixtureRegistries.block("red_bed"));
+        if (replacement && !playerA.isSleeping() && playerA.getSleepingPos().isEmpty() && canonicalPlayer && adjacentToBed && bedStillLoaded && RingWorldMultiplayerTest.clientPassed("A", "bed_reconnect") && !sleepRestartAttempted) {
             sleepingReconnectPassed = true;
             sleepRestartAttempted = true;
             // The disposable server's default mode is creative. Reassert the
             // intended survival state on the replacement ServerPlayer before
             // testing ordinary post-reconnect sleep damage.
             prepareSurvivalPlayer(playerA);
-            Either<Player.BedSleepingProblem, net.minecraft.util.Unit> result =
-                    dev.ringworld.world.RingMinecraftFixtureAccess.sleep(playerA, bedHead());
+            Either<Player.BedSleepingProblem, net.minecraft.util.Unit> result = dev.ringworld.world.RingMinecraftFixtureAccess.sleep(playerA, bedHead());
             sleepRestarted = result.right().isPresent();
             sleepRestartTick = ticks;
-            RingWorldMod.LOGGER.info(
-                    "[multiplayer-extended] seam bed reconnect result=true canonicalX={} vanillaAwake=true; sleep restart={} problem={}",
-                    playerA.getX(), sleepRestarted, result.left().orElse(null));
+            RingWorldMod.LOGGER.info("[multiplayer-extended] seam bed reconnect result=true canonicalX={} vanillaAwake=true; sleep restart={} problem={}", playerA.getX(), sleepRestarted, result.left().orElse(null));
             return;
         }
-        if (sleepingReconnectPassed && sleepRestarted
-                && ticks - sleepRestartTick >= 100 && playerA.isSleeping()
-                && canonicalBed
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_sleep_restart")) {
+        if (sleepingReconnectPassed && sleepRestarted && ticks - sleepRestartTick >= 100 && playerA.isSleeping() && canonicalBed && RingWorldMultiplayerTest.clientPassed("A", "bed_sleep_restart")) {
             BlockPos sleepingPosBeforeDamage = playerA.getSleepingPos().orElse(null);
             boolean damaged = playerA.hurtServer(world, world.damageSources().generic(), 1.0F);
-            RingWorldMod.LOGGER.info(
-                    "[multiplayer-extended] post-reconnect sleep result=true canonicalX={} canonicalBed={}; damage applied={}",
-                    playerA.getX(), sleepingPosBeforeDamage, damaged);
+            RingWorldMod.LOGGER.info("[multiplayer-extended] post-reconnect sleep result=true canonicalX={} canonicalBed={}; damage applied={}", playerA.getX(), sleepingPosBeforeDamage, damaged);
             advance(3);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error(
-                    "[multiplayer-extended] seam bed reconnect result=false started={} disconnect={} replacement={} sleeping={} canonicalBed={} canonicalPlayer={} adjacent={} bedLoaded={} sleepClient={} reconnectClient={} restart={} restartClient={}",
-                    sleepStarted, sleepingDisconnectObserved, replacement, playerA.isSleeping(),
-                    canonicalBed, canonicalPlayer, adjacentToBed, bedStillLoaded,
-                    RingWorldMultiplayerTest.clientPassed("A", "bed_sleep"),
-                    RingWorldMultiplayerTest.clientPassed("A", "bed_reconnect"), sleepRestarted,
-                    RingWorldMultiplayerTest.clientPassed("A", "bed_sleep_restart"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] seam bed reconnect result=false started={} disconnect={} replacement={} sleeping={} canonicalBed={} canonicalPlayer={} adjacent={} bedLoaded={} sleepClient={} reconnectClient={} restart={} restartClient={}", sleepStarted, sleepingDisconnectObserved, replacement, playerA.isSleeping(), canonicalBed, canonicalPlayer, adjacentToBed, bedStillLoaded, RingWorldMultiplayerTest.clientPassed("A", "bed_sleep"), RingWorldMultiplayerTest.clientPassed("A", "bed_reconnect"), sleepRestarted, RingWorldMultiplayerTest.clientPassed("A", "bed_sleep_restart"));
             advance(12);
         }
     }
 
     private static void awaitDamageWake(ServerLevel world, ServerPlayer playerA) {
         if (playerA == null) return;
-        damageWakePassed = !playerA.isSleeping()
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_damage_wake");
+        damageWakePassed = !playerA.isSleeping() && RingWorldMultiplayerTest.clientPassed("A", "bed_damage_wake");
         if (ticks >= 20 && damageWakePassed) {
             world.setBlock(bedFoot(), Blocks.AIR.defaultBlockState(), 3);
             world.setBlock(bedHead(), Blocks.AIR.defaultBlockState(), 3);
             advance(4);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error("[multiplayer-extended] damage wake result=false sleeping={} client={}",
-                    playerA.isSleeping(),
-                    RingWorldMultiplayerTest.clientPassed("A", "bed_damage_wake"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] damage wake result=false sleeping={} client={}", playerA.isSleeping(), RingWorldMultiplayerTest.clientPassed("A", "bed_damage_wake"));
             advance(12);
         }
     }
 
     private static void awaitBedDestruction(ServerLevel world, ServerPlayer playerA) {
         if (playerA == null) return;
-        bedDestroyedPassed = playerA.getSleepingPos().isEmpty()
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_destroyed");
+        bedDestroyedPassed = playerA.getSleepingPos().isEmpty() && RingWorldMultiplayerTest.clientPassed("A", "bed_destroyed");
         if (ticks >= 20 && bedDestroyedPassed) {
             preDeathPlayer = playerA;
             prepareSurvivalPlayer(playerA);
             playerA.kill(world);
             advance(5);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error("[multiplayer-extended] bed destruction result=false serverBed={} client={}",
-                    playerA.getSleepingPos().orElse(null),
-                    RingWorldMultiplayerTest.clientPassed("A", "bed_destroyed"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] bed destruction result=false serverBed={} client={}", playerA.getSleepingPos().orElse(null), RingWorldMultiplayerTest.clientPassed("A", "bed_destroyed"));
             advance(12);
         }
     }
@@ -445,103 +367,62 @@ final class RingWorldExtendedMultiplayerTest {
     private static void awaitDeath(ServerLevel world, RingGeometry geometry, ServerPlayer playerA) {
         deathObserved |= RingWorldMultiplayerTest.clientPassed("A", "death_seen");
         boolean replacement = playerA != null && playerA != preDeathPlayer && playerA.isAlive();
-        boolean canonical = replacement && playerA.getX() >= 0.0
-                && playerA.getX() < geometry.circumferenceBlocks();
+        boolean canonical = replacement && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks();
         boolean clientRespawn = RingWorldMultiplayerTest.clientPassed("A", "death_respawn");
         if (deathObserved && replacement && canonical && clientRespawn) {
             deathRespawnPassed = true;
-            RingWorldMod.LOGGER.info("[multiplayer-extended] death/respawn result=true x={} canonical=true",
-                    playerA.getX());
+            RingWorldMod.LOGGER.info("[multiplayer-extended] death/respawn result=true x={} canonical=true", playerA.getX());
             advance(6);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error(
-                    "[multiplayer-extended] death/respawn result=false (deathSeen={}, replacement={}, canonical={}, clientRespawn={})",
-                    deathObserved, replacement, canonical, clientRespawn);
+            RingWorldMod.LOGGER.error("[multiplayer-extended] death/respawn result=false (deathSeen={}, replacement={}, canonical={}, clientRespawn={})", deathObserved, replacement, canonical, clientRespawn);
             advance(12);
         }
     }
 
-    private static void startNetherPortal(ServerLevel overworld, RingGeometry geometry,
-                                          ServerPlayer playerA) {
+    private static void startNetherPortal(ServerLevel overworld, RingGeometry geometry, ServerPlayer playerA) {
         if (playerA == null || playerA.level() != overworld) return;
         prepareSurvivalPlayer(playerA);
         BlockPos requested = new BlockPos(geometry.circumferenceBlocks() - 8, 120, 12);
         COLD_TELEMETRY.record("nether-before-create", overworld);
-        Optional<net.minecraft.util.BlockUtil.FoundRectangle> created = overworld.getPortalForcer()
-                .createPortal(requested, Direction.Axis.Z);
+        Optional<net.minecraft.util.BlockUtil.FoundRectangle> created = overworld.getPortalForcer().createPortal(requested, Direction.Axis.Z);
         if (created.isEmpty()) {
             RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=source-create");
             advance(12);
             return;
         }
         overworldNetherPortal = created.get().minCorner;
-        playerA.teleportTo(overworld, overworldNetherPortal.getX() + 0.5,
-                overworldNetherPortal.getY(), overworldNetherPortal.getZ() + 0.5,
-                Set.<Relative>of(), playerA.getYRot(), playerA.getXRot(), false);
-        expectedPortalWait = ((Portal) Blocks.NETHER_PORTAL)
-                .getPortalTransitionTime(overworld, playerA);
+        playerA.teleportTo(overworld, overworldNetherPortal.getX() + 0.5, overworldNetherPortal.getY(), overworldNetherPortal.getZ() + 0.5, Set.<Relative>of(), playerA.getYRot(), playerA.getXRot(), false);
+        expectedPortalWait = ((Portal) Blocks.NETHER_PORTAL).getPortalTransitionTime(overworld, playerA);
         portalWaitStarted = overworld.getGameTime();
-        RingWorldMod.LOGGER.info(
-                "[multiplayer-extended] ordinary Nether portal wait armed source={} expectedTicks={}",
-                overworldNetherPortal, expectedPortalWait);
+        RingWorldMod.LOGGER.info("[multiplayer-extended] ordinary Nether portal wait armed source={} expectedTicks={}", overworldNetherPortal, expectedPortalWait);
         COLD_TELEMETRY.record("nether-wait-armed", overworld);
         advance(7);
     }
 
-    private static void awaitNetherAndReturn(ServerLevel overworld, RingGeometry geometry,
-                                              ServerPlayer playerA) {
+    private static void awaitNetherAndReturn(ServerLevel overworld, RingGeometry geometry, ServerPlayer playerA) {
         if (playerA == null) return;
-        if (playerA.level().dimension() == Level.NETHER
-                && RingWorldMultiplayerTest.clientPassed("A", "nether_enter")) {
+        if (playerA.level().dimension() == Level.NETHER && RingWorldMultiplayerTest.clientPassed("A", "nether_enter")) {
             ServerLevel nether = (ServerLevel) playerA.level();
             COLD_TELEMETRY.record("nether-entered", nether);
             long elapsed = overworld.getGameTime() - portalWaitStarted;
             outboundPortalWaitPassed = elapsed >= expectedPortalWait;
-            Optional<BlockPos> exit = nether.getPortalForcer().findClosestPortalPosition(
-                    playerA.blockPosition(), true, nether.getWorldBorder());
+            Optional<BlockPos> exit = nether.getPortalForcer().findClosestPortalPosition(playerA.blockPosition(), true, nether.getWorldBorder());
             if (exit.isEmpty()) {
                 RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=no-linked-exit");
                 advance(12);
                 return;
             }
             int targetX = geometry.circumferenceBlocks() / 2 + 17;
-            BlockPos lowRawTarget = new BlockPos(
-                    targetX - geometry.circumferenceBlocks() * 3,
-                    120,
-                    geometry.minWidthZ() - 10_000);
-            BlockPos highRawTarget = new BlockPos(
-                    targetX + geometry.circumferenceBlocks() * 4,
-                    120,
-                    geometry.maxWidthZ() + 10_000);
-            Optional<BlockPos> seamFound = overworld.getPortalForcer().findClosestPortalPosition(
-                    new BlockPos(2, overworldNetherPortal.getY(), overworldNetherPortal.getZ()),
-                    false,
-                    overworld.getWorldBorder());
-            Optional<net.minecraft.util.BlockUtil.FoundRectangle> lowCreated =
-                    overworld.getPortalForcer().createPortal(lowRawTarget, Direction.Axis.Z);
-            Optional<net.minecraft.util.BlockUtil.FoundRectangle> highCreated =
-                    overworld.getPortalForcer().createPortal(highRawTarget, Direction.Axis.Z);
-            Optional<BlockPos> lowFound = overworld.getPortalForcer().findClosestPortalPosition(
-                    lowRawTarget, false, overworld.getWorldBorder());
-            Optional<BlockPos> highFound = overworld.getPortalForcer().findClosestPortalPosition(
-                    highRawTarget, false, overworld.getWorldBorder());
-            boolean routing = seamFound.isPresent()
-                    && Math.abs(geometry.shortestCircumferenceDelta(
-                            overworldNetherPortal.getX(), seamFound.get().getX())) <= 16.0
-                    && lowCreated.isPresent() && highCreated.isPresent()
-                    && lowFound.isPresent() && highFound.isPresent()
-                    && lowFound.get().getX() >= 0
-                    && lowFound.get().getX() < geometry.circumferenceBlocks()
-                    && highFound.get().getX() >= 0
-                    && highFound.get().getX() < geometry.circumferenceBlocks()
-                    && Math.abs(geometry.shortestCircumferenceDelta(targetX, lowFound.get().getX())) <= 16.0
-                    && Math.abs(geometry.shortestCircumferenceDelta(targetX, highFound.get().getX())) <= 16.0
-                    && RingPortalDestinationBounds.isSafePortalBlock(geometry, lowFound.get())
-                    && RingPortalDestinationBounds.isSafePortalBlock(geometry, highFound.get());
+            BlockPos lowRawTarget = new BlockPos(targetX - geometry.circumferenceBlocks() * 3, 120, geometry.minWidthZ() - 10000);
+            BlockPos highRawTarget = new BlockPos(targetX + geometry.circumferenceBlocks() * 4, 120, geometry.maxWidthZ() + 10000);
+            Optional<BlockPos> seamFound = overworld.getPortalForcer().findClosestPortalPosition(new BlockPos(2, overworldNetherPortal.getY(), overworldNetherPortal.getZ()), false, overworld.getWorldBorder());
+            Optional<net.minecraft.util.BlockUtil.FoundRectangle> lowCreated = overworld.getPortalForcer().createPortal(lowRawTarget, Direction.Axis.Z);
+            Optional<net.minecraft.util.BlockUtil.FoundRectangle> highCreated = overworld.getPortalForcer().createPortal(highRawTarget, Direction.Axis.Z);
+            Optional<BlockPos> lowFound = overworld.getPortalForcer().findClosestPortalPosition(lowRawTarget, false, overworld.getWorldBorder());
+            Optional<BlockPos> highFound = overworld.getPortalForcer().findClosestPortalPosition(highRawTarget, false, overworld.getWorldBorder());
+            boolean routing = seamFound.isPresent() && Math.abs(geometry.shortestCircumferenceDelta(overworldNetherPortal.getX(), seamFound.get().getX())) <= 16.0 && lowCreated.isPresent() && highCreated.isPresent() && lowFound.isPresent() && highFound.isPresent() && lowFound.get().getX() >= 0 && lowFound.get().getX() < geometry.circumferenceBlocks() && highFound.get().getX() >= 0 && highFound.get().getX() < geometry.circumferenceBlocks() && Math.abs(geometry.shortestCircumferenceDelta(targetX, lowFound.get().getX())) <= 16.0 && Math.abs(geometry.shortestCircumferenceDelta(targetX, highFound.get().getX())) <= 16.0 && RingPortalDestinationBounds.isSafePortalBlock(geometry, lowFound.get()) && RingPortalDestinationBounds.isSafePortalBlock(geometry, highFound.get());
             if (!routing) {
-                RingWorldMod.LOGGER.error(
-                        "[multiplayer-extended] multi-lap Nether portal routing result=false seamFound={} lowCreated={} highCreated={} lowFound={} highFound={}",
-                        seamFound, lowCreated, highCreated, lowFound, highFound);
+                RingWorldMod.LOGGER.error("[multiplayer-extended] multi-lap Nether portal routing result=false seamFound={} lowCreated={} highCreated={} lowFound={} highFound={}", seamFound, lowCreated, highCreated, lowFound, highFound);
                 advance(12);
                 return;
             }
@@ -550,13 +431,8 @@ final class RingWorldExtendedMultiplayerTest {
             // Vanilla performs the 8:1 scaling from this deliberately remote
             // Nether pose. Four complete X laps must resolve to targetX and
             // the extreme positive Z must remain inside the safe ring band.
-            playerA.teleportTo(nether,
-                    highRawTarget.getX() / 8.0,
-                    playerA.getY(),
-                    highRawTarget.getZ() / 8.0,
-                    Set.<Relative>of(), playerA.getYRot(), playerA.getXRot(), false);
-            var transition = ((Portal) Blocks.NETHER_PORTAL)
-                    .getPortalDestination(nether, playerA, exit.get());
+            playerA.teleportTo(nether, highRawTarget.getX() / 8.0, playerA.getY(), highRawTarget.getZ() / 8.0, Set.<Relative>of(), playerA.getYRot(), playerA.getXRot(), false);
+            var transition = ((Portal) Blocks.NETHER_PORTAL).getPortalDestination(nether, playerA, exit.get());
             if (transition == null) {
                 RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=no-return-transition");
                 advance(12);
@@ -564,43 +440,27 @@ final class RingWorldExtendedMultiplayerTest {
             }
             playerA.teleport(transition);
             playerA.setPortalCooldown();
-            RingWorldMod.LOGGER.info(
-                    "[multiplayer-extended] ordinary Nether portal wait result={} elapsedTicks={} expectedTicks={}",
-                    outboundPortalWaitPassed, elapsed, expectedPortalWait);
-            RingWorldMod.LOGGER.info(
-                    "[multiplayer-extended] multi-lap Nether portal routing result=true seam={} low={} high={} expectedReturn={}",
-                    seamFound.get(), lowFound.get(), highFound.get(), expectedOverworldPortalReturn);
+            RingWorldMod.LOGGER.info("[multiplayer-extended] ordinary Nether portal wait result={} elapsedTicks={} expectedTicks={}", outboundPortalWaitPassed, elapsed, expectedPortalWait);
+            RingWorldMod.LOGGER.info("[multiplayer-extended] multi-lap Nether portal routing result=true seam={} low={} high={} expectedReturn={}", seamFound.get(), lowFound.get(), highFound.get(), expectedOverworldPortalReturn);
             COLD_TELEMETRY.record("nether-return-armed", overworld);
             advance(8);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=enter-timeout dimension={} client={}",
-                    playerA.level().dimension().identifier(),
-                    RingWorldMultiplayerTest.clientPassed("A", "nether_enter"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=enter-timeout dimension={} client={}", playerA.level().dimension().identifier(), RingWorldMultiplayerTest.clientPassed("A", "nether_enter"));
             advance(12);
         }
     }
 
-    private static void awaitOverworldAndStartEnd(ServerLevel overworld, RingGeometry geometry,
-                                                   ServerPlayer playerA) {
+    private static void awaitOverworldAndStartEnd(ServerLevel overworld, RingGeometry geometry, ServerPlayer playerA) {
         if (playerA == null) return;
-        boolean returned = playerA.level() == overworld
-                && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks()
-                && Math.abs(geometry.shortestCircumferenceDelta(
-                        expectedOverworldPortalReturn.getX(), playerA.getX())) < 16.0
-                && Math.abs(expectedOverworldPortalReturn.getZ() - playerA.getZ()) < 16.0
-                && RingPortalDestinationBounds.isSafePortalBlock(
-                        geometry, playerA.blockPosition())
-                && RingWorldMultiplayerTest.clientPassed("A", "nether_return");
+        boolean returned = playerA.level() == overworld && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks() && Math.abs(geometry.shortestCircumferenceDelta(expectedOverworldPortalReturn.getX(), playerA.getX())) < 16.0 && Math.abs(expectedOverworldPortalReturn.getZ() - playerA.getZ()) < 16.0 && RingPortalDestinationBounds.isSafePortalBlock(geometry, playerA.blockPosition()) && RingWorldMultiplayerTest.clientPassed("A", "nether_return");
         if (returned) {
             netherPortalPassed = outboundPortalWaitPassed && netherPortalRoutingPassed;
             double netherReturnX = playerA.getX();
             COLD_TELEMETRY.record("nether-returned", overworld);
             BlockPos endPortal = new BlockPos(geometry.circumferenceBlocks() - 12, 120, 16);
             overworld.setBlock(endPortal, Blocks.END_PORTAL.defaultBlockState(), 3);
-            playerA.teleportTo(overworld, endPortal.getX() + 0.5, endPortal.getY() + 1.0,
-                    endPortal.getZ() + 0.5, Set.<Relative>of(), 0.0F, 0.0F, false);
-            var transition = ((Portal) Blocks.END_PORTAL)
-                    .getPortalDestination(overworld, playerA, endPortal);
+            playerA.teleportTo(overworld, endPortal.getX() + 0.5, endPortal.getY() + 1.0, endPortal.getZ() + 0.5, Set.<Relative>of(), 0.0F, 0.0F, false);
+            var transition = ((Portal) Blocks.END_PORTAL).getPortalDestination(overworld, playerA, endPortal);
             if (transition == null) {
                 RingWorldMod.LOGGER.error("[multiplayer-extended] End portal result=false reason=no-outbound-transition");
                 advance(12);
@@ -608,28 +468,23 @@ final class RingWorldExtendedMultiplayerTest {
             }
             playerA.teleport(transition);
             playerA.setPortalCooldown();
-            RingWorldMod.LOGGER.info("[multiplayer-extended] physical Nether portal result=true returnX={}; End outbound armed",
-                    netherReturnX);
+            RingWorldMod.LOGGER.info("[multiplayer-extended] physical Nether portal result=true returnX={}; End outbound armed", netherReturnX);
             COLD_TELEMETRY.record("end-outbound-armed", (ServerLevel) playerA.level());
             advance(9);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=return-timeout dimension={} x={} client={}",
-                    playerA.level().dimension().identifier(), playerA.getX(),
-                    RingWorldMultiplayerTest.clientPassed("A", "nether_return"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] Nether portal result=false reason=return-timeout dimension={} x={} client={}", playerA.level().dimension().identifier(), playerA.getX(), RingWorldMultiplayerTest.clientPassed("A", "nether_return"));
             advance(12);
         }
     }
 
     private static void awaitEndAndReturn(ServerLevel overworld, ServerPlayer playerA) {
         if (playerA == null) return;
-        if (playerA.level().dimension() == Level.END
-                && RingWorldMultiplayerTest.clientPassed("A", "end_enter")) {
+        if (playerA.level().dimension() == Level.END && RingWorldMultiplayerTest.clientPassed("A", "end_enter")) {
             ServerLevel end = (ServerLevel) playerA.level();
             COLD_TELEMETRY.record("end-entered", end);
             BlockPos returnPortal = playerA.blockPosition();
             end.setBlock(returnPortal, Blocks.END_PORTAL.defaultBlockState(), 3);
-            var transition = ((Portal) Blocks.END_PORTAL)
-                    .getPortalDestination(end, playerA, returnPortal);
+            var transition = ((Portal) Blocks.END_PORTAL).getPortalDestination(end, playerA, returnPortal);
             if (transition == null) {
                 RingWorldMod.LOGGER.error("[multiplayer-extended] End portal result=false reason=no-return-transition");
                 advance(12);
@@ -640,48 +495,35 @@ final class RingWorldExtendedMultiplayerTest {
             COLD_TELEMETRY.record("end-return-armed", overworld);
             advance(10);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error("[multiplayer-extended] End portal result=false reason=enter-timeout dimension={} client={}",
-                    playerA.level().dimension().identifier(),
-                    RingWorldMultiplayerTest.clientPassed("A", "end_enter"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] End portal result=false reason=enter-timeout dimension={} client={}", playerA.level().dimension().identifier(), RingWorldMultiplayerTest.clientPassed("A", "end_enter"));
             advance(12);
         }
     }
 
-    private static void awaitFinalOverworld(ServerLevel overworld, RingGeometry geometry,
-                                             ServerPlayer playerA) {
+    private static void awaitFinalOverworld(ServerLevel overworld, RingGeometry geometry, ServerPlayer playerA) {
         if (playerA == null) return;
-        boolean returned = playerA.level() == overworld
-                && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks()
-                && RingWorldMultiplayerTest.clientPassed("A", "end_return");
+        boolean returned = playerA.level() == overworld && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks() && RingWorldMultiplayerTest.clientPassed("A", "end_return");
         if (returned) {
             endPortalPassed = true;
-            RingWorldMod.LOGGER.info("[multiplayer-extended] physical End portal result=true returnX={} canonical=true",
-                    playerA.getX());
+            RingWorldMod.LOGGER.info("[multiplayer-extended] physical End portal result=true returnX={} canonical=true", playerA.getX());
             COLD_TELEMETRY.record("end-returned", overworld);
             postEndWeatherGate = new RingMultiplayerReadinessGate();
             weatherArmed = false;
             advance(11);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error("[multiplayer-extended] End portal result=false reason=return-timeout dimension={} x={} client={}",
-                    playerA.level().dimension().identifier(), playerA.getX(),
-                    RingWorldMultiplayerTest.clientPassed("A", "end_return"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] End portal result=false reason=return-timeout dimension={} x={} client={}", playerA.level().dimension().identifier(), playerA.getX(), RingWorldMultiplayerTest.clientPassed("A", "end_return"));
             advance(12);
         }
     }
 
-    private static void awaitWeather(ServerLevel world, RingGeometry geometry,
-                                     ServerPlayer playerA, ServerPlayer playerB) {
+    private static void awaitWeather(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
         if (playerA == null || playerB == null) return;
         if (!weatherArmed) {
             if (postEndWeatherGate == null) postEndWeatherGate = new RingMultiplayerReadinessGate();
             RingMultiplayerReadinessGate.Result readiness = postEndWeatherGate.observe(System.nanoTime());
             if (readiness == RingMultiplayerReadinessGate.Result.TIMED_OUT) {
                 COLD_TELEMETRY.record("weather-stability-timeout", world);
-                RingWorldMod.LOGGER.error(
-                        "[multiplayer-cold] post-End weather stability timed out "
-                                + "(observedTicks={}, consecutiveOnTimeTicks={}, longestTickIntervalMs={})",
-                        postEndWeatherGate.observedTicks(), postEndWeatherGate.consecutiveOnTimeTicks(),
-                        postEndWeatherGate.longestTickIntervalNanos() / 1_000_000.0);
+                RingWorldMod.LOGGER.error("[multiplayer-cold] post-End weather stability timed out " + "(observedTicks={}, consecutiveOnTimeTicks={}, longestTickIntervalMs={})", postEndWeatherGate.observedTicks(), postEndWeatherGate.consecutiveOnTimeTicks(), postEndWeatherGate.longestTickIntervalNanos() / 1000000.0);
                 advance(12);
                 return;
             }
@@ -693,20 +535,17 @@ final class RingWorldExtendedMultiplayerTest {
         if (ticks == 1) {
             prepareCreativePlayer(playerA);
             prepareCreativePlayer(playerB);
-            playerA.teleportTo(world, geometry.circumferenceBlocks() - 2.5, 120.0, 0.5,
-                    Set.<Relative>of(), 90.0F, 10.0F, false);
-            playerB.teleportTo(world, 2.5, 120.0, 0.5,
-                    Set.<Relative>of(), -90.0F, 10.0F, false);
+            playerA.teleportTo(world, geometry.circumferenceBlocks() - 2.5, 120.0, 0.5, Set.<Relative>of(), 90.0F, 10.0F, false);
+            playerB.teleportTo(world, 2.5, 120.0, 0.5, Set.<Relative>of(), -90.0F, 10.0F, false);
             var weather = world.getWeatherData();
             weather.setClearWeatherTime(0);
-            weather.setRainTime(6_000);
-            weather.setThunderTime(6_000);
+            weather.setRainTime(6000);
+            weather.setThunderTime(6000);
             weather.setRaining(true);
             weather.setThundering(true);
         }
         if (ticks >= 40 && ticks % 10 == 0) {
-            LightningBolt lightning = RingWorldVanillaFixtureRegistries.createEntity(
-                    "lightning_bolt", LightningBolt.class, world, EntitySpawnReason.TRIGGERED);
+            LightningBolt lightning = RingWorldVanillaFixtureRegistries.createEntity("lightning_bolt", LightningBolt.class, world, EntitySpawnReason.TRIGGERED);
             if (lightning != null) {
                 lightning.setVisualOnly(true);
                 lightning.setPos(0.5, 121.0, 0.5);
@@ -714,53 +553,24 @@ final class RingWorldExtendedMultiplayerTest {
             }
         }
         boolean serverWeather = world.isRaining() && world.isThundering();
-        boolean clients = RingWorldMultiplayerTest.clientPassed("A", "seam_weather")
-                && RingWorldMultiplayerTest.clientPassed("B", "seam_weather");
+        boolean clients = RingWorldMultiplayerTest.clientPassed("A", "seam_weather") && RingWorldMultiplayerTest.clientPassed("B", "seam_weather");
         if (serverWeather && clients) {
             weatherPassed = true;
-            RingWorldMod.LOGGER.info(
-                    "[multiplayer-extended] seam thunder/lightning result=true rain={} thunder={}",
-                    world.getRainLevel(1.0F), world.getThunderLevel(1.0F));
+            RingWorldMod.LOGGER.info("[multiplayer-extended] seam thunder/lightning result=true rain={} thunder={}", world.getRainLevel(1.0F), world.getThunderLevel(1.0F));
             advance(12);
         } else if (ticks >= TIMEOUT_TICKS) {
-            RingWorldMod.LOGGER.error(
-                    "[multiplayer-extended] seam thunder/lightning result=false server={} clientA={} clientB={}",
-                    serverWeather, RingWorldMultiplayerTest.clientPassed("A", "seam_weather"),
-                    RingWorldMultiplayerTest.clientPassed("B", "seam_weather"));
+            RingWorldMod.LOGGER.error("[multiplayer-extended] seam thunder/lightning result=false server={} clientA={} clientB={}", serverWeather, RingWorldMultiplayerTest.clientPassed("A", "seam_weather"), RingWorldMultiplayerTest.clientPassed("B", "seam_weather"));
             advance(12);
         }
     }
 
-    private static void finish(ServerLevel world, RingGeometry geometry,
-                               ServerPlayer playerA, ServerPlayer playerB) {
-        boolean clientFixture = RingWorldMultiplayerTest.clientPassed("A", "extended_fixture")
-                && RingWorldMultiplayerTest.clientPassed("B", "extended_fixture");
-        boolean clientLifecycle = RingWorldMultiplayerTest.clientPassed("A", "bed_sleep")
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_reconnect")
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_sleep_restart")
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_damage_wake")
-                && RingWorldMultiplayerTest.clientPassed("A", "bed_destroyed")
-                && RingWorldMultiplayerTest.clientPassed("A", "death_seen")
-                && RingWorldMultiplayerTest.clientPassed("A", "death_respawn")
-                && RingWorldMultiplayerTest.clientPassed("A", "nether_enter")
-                && RingWorldMultiplayerTest.clientPassed("A", "nether_return")
-                && RingWorldMultiplayerTest.clientPassed("A", "end_enter")
-                && RingWorldMultiplayerTest.clientPassed("A", "end_return");
-        boolean canonicalPlayers = playerA != null && playerB != null
-                && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks()
-                && playerB.getX() >= 0.0 && playerB.getX() < geometry.circumferenceBlocks();
-        boolean passed = baselinePassed && serverFixturePassed && sleepingReconnectPassed
-                && damageWakePassed
-                && bedDestroyedPassed && deathObserved && deathRespawnPassed
-                && netherPortalPassed && netherPortalRoutingPassed && endPortalPassed && weatherPassed
-                && clientFixture && clientLifecycle
-                && canonicalPlayers;
+    private static void finish(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
+        boolean clientFixture = RingWorldMultiplayerTest.clientPassed("A", "extended_fixture") && RingWorldMultiplayerTest.clientPassed("B", "extended_fixture");
+        boolean clientLifecycle = RingWorldMultiplayerTest.clientPassed("A", "bed_sleep") && RingWorldMultiplayerTest.clientPassed("A", "bed_reconnect") && RingWorldMultiplayerTest.clientPassed("A", "bed_sleep_restart") && RingWorldMultiplayerTest.clientPassed("A", "bed_damage_wake") && RingWorldMultiplayerTest.clientPassed("A", "bed_destroyed") && RingWorldMultiplayerTest.clientPassed("A", "death_seen") && RingWorldMultiplayerTest.clientPassed("A", "death_respawn") && RingWorldMultiplayerTest.clientPassed("A", "nether_enter") && RingWorldMultiplayerTest.clientPassed("A", "nether_return") && RingWorldMultiplayerTest.clientPassed("A", "end_enter") && RingWorldMultiplayerTest.clientPassed("A", "end_return");
+        boolean canonicalPlayers = playerA != null && playerB != null && playerA.getX() >= 0.0 && playerA.getX() < geometry.circumferenceBlocks() && playerB.getX() >= 0.0 && playerB.getX() < geometry.circumferenceBlocks();
+        boolean passed = baselinePassed && serverFixturePassed && sleepingReconnectPassed && damageWakePassed && bedDestroyedPassed && deathObserved && deathRespawnPassed && netherPortalPassed && netherPortalRoutingPassed && endPortalPassed && weatherPassed && clientFixture && clientLifecycle && canonicalPlayers;
         COLD_TELEMETRY.record("terminal-result", world);
-        RingWorldMod.LOGGER.info(
-                "[multiplayer] full scenario result={} (baseline={}, fixture={}, sleepingReconnect={}, damageWake={}, bedDestroyed={}, deathRespawn={}, netherPortal={}, netherPortalRouting={}, endPortal={}, weather={}, clientFixture={}, clientLifecycle={}, canonicalPlayers={})",
-                passed, baselinePassed, serverFixturePassed, sleepingReconnectPassed, damageWakePassed,
-                bedDestroyedPassed, deathRespawnPassed, netherPortalPassed, netherPortalRoutingPassed, endPortalPassed,
-                weatherPassed, clientFixture, clientLifecycle, canonicalPlayers);
+        RingWorldMod.LOGGER.info("[multiplayer] full scenario result={} (baseline={}, fixture={}, sleepingReconnect={}, damageWake={}, bedDestroyed={}, deathRespawn={}, netherPortal={}, netherPortalRouting={}, endPortal={}, weather={}, clientFixture={}, clientLifecycle={}, canonicalPlayers={})", passed, baselinePassed, serverFixturePassed, sleepingReconnectPassed, damageWakePassed, bedDestroyedPassed, deathRespawnPassed, netherPortalPassed, netherPortalRoutingPassed, endPortalPassed, weatherPassed, clientFixture, clientLifecycle, canonicalPlayers);
     }
 
     private static void prepareCreativePlayer(ServerPlayer player) {
@@ -794,8 +604,7 @@ final class RingWorldExtendedMultiplayerTest {
     private static void seedDoubleChest(ServerLevel world, RingGeometry geometry) {
         Container fromHigh = doubleChestContainer(world, chestHighPos(geometry));
         Container fromLow = doubleChestContainer(world, chestPos());
-        if (fromHigh == null || fromLow == null
-                || fromHigh.getContainerSize() != 54 || fromLow.getContainerSize() != 54) {
+        if (fromHigh == null || fromLow == null || fromHigh.getContainerSize() != 54 || fromLow.getContainerSize() != 54) {
             return;
         }
         fromHigh.setItem(0, new ItemStack(Items.DIAMOND, 3));
@@ -809,19 +618,10 @@ final class RingWorldExtendedMultiplayerTest {
         BlockPos low = chestPos();
         Container fromHigh = doubleChestContainer(world, high);
         Container fromLow = doubleChestContainer(world, low);
-        boolean combined = fromHigh != null && fromLow != null
-                && fromHigh.getContainerSize() == 54 && fromLow.getContainerSize() == 54;
-        boolean sharedInventory = combined
-                && fromHigh.getItem(0).is(Items.DIAMOND) && fromHigh.getItem(0).getCount() == 3
-                && fromLow.getItem(0).is(Items.DIAMOND) && fromLow.getItem(0).getCount() == 3
-                && fromHigh.getItem(53).is(Items.EMERALD) && fromHigh.getItem(53).getCount() == 5
-                && fromLow.getItem(53).is(Items.EMERALD) && fromLow.getItem(53).getCount() == 5;
-        boolean canonicalAliases = world.getBlockEntity(new BlockPos(
-                geometry.circumferenceBlocks(), low.getY(), low.getZ())) == world.getBlockEntity(low)
-                && world.getBlockEntity(new BlockPos(-1, high.getY(), high.getZ()))
-                == world.getBlockEntity(high);
-        boolean connectedStates = connectedChestState(world.getBlockState(high))
-                && connectedChestState(world.getBlockState(low));
+        boolean combined = fromHigh != null && fromLow != null && fromHigh.getContainerSize() == 54 && fromLow.getContainerSize() == 54;
+        boolean sharedInventory = combined && fromHigh.getItem(0).is(Items.DIAMOND) && fromHigh.getItem(0).getCount() == 3 && fromLow.getItem(0).is(Items.DIAMOND) && fromLow.getItem(0).getCount() == 3 && fromHigh.getItem(53).is(Items.EMERALD) && fromHigh.getItem(53).getCount() == 5 && fromLow.getItem(53).is(Items.EMERALD) && fromLow.getItem(53).getCount() == 5;
+        boolean canonicalAliases = world.getBlockEntity(new BlockPos(geometry.circumferenceBlocks(), low.getY(), low.getZ())) == world.getBlockEntity(low) && world.getBlockEntity(new BlockPos(-1, high.getY(), high.getZ())) == world.getBlockEntity(high);
+        boolean connectedStates = connectedChestState(world.getBlockState(high)) && connectedChestState(world.getBlockState(low));
         return combined && sharedInventory && canonicalAliases && connectedStates;
     }
 
@@ -830,21 +630,7 @@ final class RingWorldExtendedMultiplayerTest {
         BlockPos low = chestPos();
         Container fromHigh = doubleChestContainer(world, high);
         Container fromLow = doubleChestContainer(world, low);
-        return "highState=" + world.getBlockState(high)
-                + ", lowState=" + world.getBlockState(low)
-                + ", highSize=" + (fromHigh == null ? -1 : fromHigh.getContainerSize())
-                + ", lowSize=" + (fromLow == null ? -1 : fromLow.getContainerSize())
-                + ", highSlot0=" + (fromHigh == null ? null : fromHigh.getItem(0))
-                + ", lowSlot0=" + (fromLow == null ? null : fromLow.getItem(0))
-                + ", highSlot53=" + (fromHigh == null || fromHigh.getContainerSize() <= 53
-                        ? null : fromHigh.getItem(53))
-                + ", lowSlot53=" + (fromLow == null || fromLow.getContainerSize() <= 53
-                        ? null : fromLow.getItem(53))
-                + ", lowAliasSame=" + (world.getBlockEntity(new BlockPos(
-                        geometry.circumferenceBlocks(), low.getY(), low.getZ()))
-                        == world.getBlockEntity(low))
-                + ", highAliasSame=" + (world.getBlockEntity(new BlockPos(
-                        -1, high.getY(), high.getZ())) == world.getBlockEntity(high));
+        return "highState=" + world.getBlockState(high) + ", lowState=" + world.getBlockState(low) + ", highSize=" + (fromHigh == null ? -1 : fromHigh.getContainerSize()) + ", lowSize=" + (fromLow == null ? -1 : fromLow.getContainerSize()) + ", highSlot0=" + (fromHigh == null ? null : fromHigh.getItem(0)) + ", lowSlot0=" + (fromLow == null ? null : fromLow.getItem(0)) + ", highSlot53=" + (fromHigh == null || fromHigh.getContainerSize() <= 53 ? null : fromHigh.getItem(53)) + ", lowSlot53=" + (fromLow == null || fromLow.getContainerSize() <= 53 ? null : fromLow.getItem(53)) + ", lowAliasSame=" + (world.getBlockEntity(new BlockPos(geometry.circumferenceBlocks(), low.getY(), low.getZ())) == world.getBlockEntity(low)) + ", highAliasSame=" + (world.getBlockEntity(new BlockPos(-1, high.getY(), high.getZ())) == world.getBlockEntity(high));
     }
 
     /**
@@ -882,26 +668,12 @@ final class RingWorldExtendedMultiplayerTest {
         BlockEntity loadedAlias = chunk.getBlockEntity(alias);
         BlockEntity loadedCanonical = chunk.getBlockEntity(canonical);
         CompoundTag aliasNbt = chunk.getBlockEntityNbtForSaving(alias, world.registryAccess());
-        ChestBlockEntity canonicalChest = loadedCanonical instanceof ChestBlockEntity chest
-                ? chest : null;
-        ChestBlockEntity loadedAliasChest = loadedAlias instanceof ChestBlockEntity chest
-                ? chest : null;
-        boolean preserved = canonicalChest != null && loadedAliasChest != null
-                && pendingAliasNbt != null
-                && pendingAliasNbt.getIntOr("x", Integer.MIN_VALUE) == alias.getX()
-                && pendingCanonicalNbt != null
-                && pendingCanonicalNbt.getIntOr("x", Integer.MIN_VALUE) == canonical.getX()
-                && chunk.getBlockEntity(canonical) == canonicalChest
-                && chunk.getBlockEntity(alias) == loadedAliasChest
-                && canonicalChest.getItem(0).is(Items.GOLD_INGOT)
-                && canonicalChest.getItem(0).getCount() == 2
-                && loadedAliasChest.getItem(0).is(Items.IRON_INGOT)
-                && loadedAliasChest.getItem(0).getCount() == 4
-                && aliasNbt != null;
+        ChestBlockEntity canonicalChest = loadedCanonical instanceof ChestBlockEntity chest ? chest : null;
+        ChestBlockEntity loadedAliasChest = loadedAlias instanceof ChestBlockEntity chest ? chest : null;
+        boolean preserved = canonicalChest != null && loadedAliasChest != null && pendingAliasNbt != null && pendingAliasNbt.getIntOr("x", Integer.MIN_VALUE) == alias.getX() && pendingCanonicalNbt != null && pendingCanonicalNbt.getIntOr("x", Integer.MIN_VALUE) == canonical.getX() && chunk.getBlockEntity(canonical) == canonicalChest && chunk.getBlockEntity(alias) == loadedAliasChest && canonicalChest.getItem(0).is(Items.GOLD_INGOT) && canonicalChest.getItem(0).getCount() == 2 && loadedAliasChest.getItem(0).is(Items.IRON_INGOT) && loadedAliasChest.getItem(0).getCount() == 4 && aliasNbt != null;
 
         chunk.removeBlockEntity(alias);
-        boolean exactAliasRemoved = !chunk.getBlockEntities().containsKey(alias)
-                && chunk.getBlockEntity(canonical) == canonicalChest;
+        boolean exactAliasRemoved = !chunk.getBlockEntities().containsKey(alias) && chunk.getBlockEntity(canonical) == canonicalChest;
         world.setBlock(canonical, Blocks.AIR.defaultBlockState(), 3);
 
         BlockPos directCanonical = new BlockPos(6, 120, -7);
@@ -918,13 +690,7 @@ final class RingWorldExtendedMultiplayerTest {
             directChunk.setBlockEntity(directCanonicalChest);
         });
         RingBlockEntityOwnership.reconcileLoadedAliases(directChunk, geometry);
-        boolean directAliasFirstPreserved = directChunk.getBlockEntity(directAlias)
-                == directAliasChest
-                && directChunk.getBlockEntity(directCanonical) == directCanonicalChest
-                && directAliasChest.getItem(0).is(Items.IRON_INGOT)
-                && directAliasChest.getItem(0).getCount() == 7
-                && directCanonicalChest.getItem(0).is(Items.GOLD_INGOT)
-                && directCanonicalChest.getItem(0).getCount() == 8;
+        boolean directAliasFirstPreserved = directChunk.getBlockEntity(directAlias) == directAliasChest && directChunk.getBlockEntity(directCanonical) == directCanonicalChest && directAliasChest.getItem(0).is(Items.IRON_INGOT) && directAliasChest.getItem(0).getCount() == 7 && directCanonicalChest.getItem(0).is(Items.GOLD_INGOT) && directCanonicalChest.getItem(0).getCount() == 8;
         directChunk.removeBlockEntity(directAlias);
         world.setBlock(directCanonical, Blocks.AIR.defaultBlockState(), 3);
 
@@ -936,41 +702,51 @@ final class RingWorldExtendedMultiplayerTest {
         ChestBlockEntity loneAlias = new ChestBlockEntity(repairedAlias, chestState);
         loneAlias.setItem(0, new ItemStack(Items.COPPER_INGOT, 6));
         CompoundTag savedLoneAlias = loneAlias.saveWithFullMetadata(world.registryAccess());
-        RingBlockEntityLoadContext.withGeometry(
-                geometry, () -> repairedChunk.setBlockEntityNbt(savedLoneAlias));
+        RingBlockEntityLoadContext.withGeometry(geometry, () -> repairedChunk.setBlockEntityNbt(savedLoneAlias));
         BlockEntity repaired = repairedChunk.getBlockEntity(repairedAlias);
-        boolean singleAliasRepaired = repaired instanceof ChestBlockEntity repairedChest
-                && repaired.getBlockPos().equals(repairedCanonical)
-                && repairedChunk.getBlockEntity(repairedCanonical) == repaired
-                && repairedChunk.getBlockEntity(repairedAlias) == repaired
-                && repairedChest.getItem(0).is(Items.COPPER_INGOT)
-                && repairedChest.getItem(0).getCount() == 6
-                && !repairedChunk.getBlockEntities().containsKey(repairedAlias);
+        boolean singleAliasRepaired = repaired instanceof ChestBlockEntity repairedChest && repaired.getBlockPos().equals(repairedCanonical) && repairedChunk.getBlockEntity(repairedCanonical) == repaired && repairedChunk.getBlockEntity(repairedAlias) == repaired && repairedChest.getItem(0).is(Items.COPPER_INGOT) && repairedChest.getItem(0).getCount() == 6 && !repairedChunk.getBlockEntities().containsKey(repairedAlias);
         world.setBlock(repairedCanonical, Blocks.AIR.defaultBlockState(), 3);
-        return preserved && exactAliasRemoved && directAliasFirstPreserved
-                && singleAliasRepaired;
+        return preserved && exactAliasRemoved && directAliasFirstPreserved && singleAliasRepaired;
     }
 
     private static Container doubleChestContainer(ServerLevel world, BlockPos position) {
         BlockState state = world.getBlockState(position);
-        return state.getBlock() instanceof ChestBlock chest
-                ? ChestBlock.getContainer(chest, state, world, position, true)
-                : null;
+        return state.getBlock() instanceof ChestBlock chest ? ChestBlock.getContainer(chest, state, world, position, true) : null;
     }
 
     private static boolean connectedChestState(BlockState state) {
-        return state.is(Blocks.CHEST) && state.getValue(ChestBlock.TYPE)
-                != ChestType.SINGLE;
+        return state.is(Blocks.CHEST) && state.getValue(ChestBlock.TYPE) != ChestType.SINGLE;
     }
 
-    private static BlockPos chestPos() { return new BlockPos(0, 120, -3); }
+    private static BlockPos chestPos() {
+        return new BlockPos(0, 120, -3);
+    }
+
     private static BlockPos chestHighPos(RingGeometry geometry) {
         return new BlockPos(geometry.circumferenceBlocks() - 1, 120, -3);
     }
-    private static BlockPos lecternPos() { return new BlockPos(1, 120, -3); }
-    private static BlockPos redstoneLampPos() { return new BlockPos(0, 120, -5); }
-    private static BlockPos fluidDestination() { return new BlockPos(0, 120, 6); }
-    private static BlockPos explosionTarget() { return new BlockPos(0, 124, 9); }
-    private static BlockPos bedFoot() { return new BlockPos(0, 120, -1); }
-    private static BlockPos bedHead() { return new BlockPos(1, 120, -1); }
+
+    private static BlockPos lecternPos() {
+        return new BlockPos(1, 120, -3);
+    }
+
+    private static BlockPos redstoneLampPos() {
+        return new BlockPos(0, 120, -5);
+    }
+
+    private static BlockPos fluidDestination() {
+        return new BlockPos(0, 120, 6);
+    }
+
+    private static BlockPos explosionTarget() {
+        return new BlockPos(0, 124, 9);
+    }
+
+    private static BlockPos bedFoot() {
+        return new BlockPos(0, 120, -1);
+    }
+
+    private static BlockPos bedHead() {
+        return new BlockPos(1, 120, -1);
+    }
 }

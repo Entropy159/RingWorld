@@ -4,12 +4,13 @@ import dev.ringworld.RingWorldMod;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingTerrainAtlas;
 import dev.ringworld.world.RingWorldStorageAccess;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Opt-in same-process saved-world switch regression.
@@ -21,7 +22,7 @@ import net.minecraft.world.level.storage.LevelResource;
  */
 public final class LayoutSwitchTestClient {
     private static final int JOIN_SETTLE_TICKS = 80;
-    private static final int STAGE_TIMEOUT_TICKS = 2_400;
+    private static final int STAGE_TIMEOUT_TICKS = 2400;
     private static final String EXPECTATION_PROPERTY = "ringworld.layoutSwitchExpectation";
 
     private final String firstWorld = System.getProperty("ringworld.layoutSwitchFirst", "").trim();
@@ -38,8 +39,7 @@ public final class LayoutSwitchTestClient {
     private long firstAtlasContentFingerprint;
     private boolean disconnectClearedState;
     private boolean firstStorageVerified;
-    private RingIntegratedCaptureControl.PlayerSafety playerSafety =
-            new RingIntegratedCaptureControl.PlayerSafety();
+    private RingIntegratedCaptureControl.PlayerSafety playerSafety = new RingIntegratedCaptureControl.PlayerSafety();
 
     public boolean tick(Minecraft client) {
         if (firstWorld.isEmpty() || secondWorld.isEmpty()) return false;
@@ -48,8 +48,7 @@ public final class LayoutSwitchTestClient {
             finish(client, false, "timed out in stage " + stage);
             return true;
         }
-        if ((stage == 1 || stage == 3) && client.player != null
-                && !playerSafety.ensure(client, detail -> finish(client, false, detail))) {
+        if ((stage == 1 || stage == 3) && client.player != null && !playerSafety.ensure(client, detail -> finish(client, false, detail))) {
             return true;
         }
 
@@ -68,8 +67,7 @@ public final class LayoutSwitchTestClient {
         if (!client.isGameLoadFinished() || client.level != null || client.getSingleplayerServer() != null) return;
         RingWorldMod.LOGGER.info("[layout-switch] opening first save '{}'", firstWorld);
         advanceTo(1);
-        client.createWorldOpenFlows().openWorld(firstWorld,
-                () -> finish(client, false, "first save load cancelled"));
+        client.createWorldOpenFlows().openWorld(firstWorld, () -> finish(client, false, "first save load cancelled"));
     }
 
     private void captureFirstWorld(Minecraft client) {
@@ -90,15 +88,7 @@ public final class LayoutSwitchTestClient {
         firstAtlasWorldHash = atlas.worldHash();
         firstAtlasContentFingerprint = atlasContentFingerprint(atlas);
         firstStorageVerified = true;
-        RingWorldMod.LOGGER.info(
-                "[layout-switch] first session ready: {}x{}, wallHeight={}, surfaceY={}, "
-                        + "fingerprint={}, worldHash={}, contentFingerprint={}, atlas={}x{}",
-                geometry.circumferenceBlocks(), geometry.widthBlocks(),
-                firstWallHeightBlocks, firstSurfaceReferenceY,
-                Long.toUnsignedString(firstFingerprint, 16),
-                Long.toUnsignedString(firstAtlasWorldHash, 16),
-                Long.toUnsignedString(firstAtlasContentFingerprint, 16),
-                atlas.columns(), atlas.rows());
+        RingWorldMod.LOGGER.info("[layout-switch] first session ready: {}x{}, wallHeight={}, surfaceY={}, " + "fingerprint={}, worldHash={}, contentFingerprint={}, atlas={}x{}", geometry.circumferenceBlocks(), geometry.widthBlocks(), firstWallHeightBlocks, firstSurfaceReferenceY, Long.toUnsignedString(firstFingerprint, 16), Long.toUnsignedString(firstAtlasWorldHash, 16), Long.toUnsignedString(firstAtlasContentFingerprint, 16), atlas.columns(), atlas.rows());
         client.disconnectFromWorld(Component.literal("RingWorld layout-switch regression"));
         advanceTo(2);
     }
@@ -108,15 +98,13 @@ public final class LayoutSwitchTestClient {
         // Equal-size worlds are the stale-GPU failure case: geometry alone
         // cannot prove that a previous world's texture was released.
         disconnectClearedState = RingWorldClientSession.isCleared();
-        RingWorldMod.LOGGER.info("[layout-switch] disconnect cleared client state={}",
-                disconnectClearedState);
+        RingWorldMod.LOGGER.info("[layout-switch] disconnect cleared client state={}", disconnectClearedState);
         RingWorldMod.LOGGER.info("[layout-switch] opening second save '{}'", secondWorld);
         // The second integrated server has a new ServerPlayer. Do not reuse
         // the first session's completed safety acknowledgement.
         playerSafety = new RingIntegratedCaptureControl.PlayerSafety();
         advanceTo(3);
-        client.createWorldOpenFlows().openWorld(secondWorld,
-                () -> finish(client, false, "second save load cancelled"));
+        client.createWorldOpenFlows().openWorld(secondWorld, () -> finish(client, false, "second save load cancelled"));
     }
 
     private void verifySecondWorld(Minecraft client) {
@@ -128,30 +116,18 @@ public final class LayoutSwitchTestClient {
         long fingerprint = ClientRingState.layoutFingerprint();
         long atlasContentFingerprint = atlasContentFingerprint(atlas);
         boolean sameGeometry = firstGeometry != null && firstGeometry.equals(geometry);
-        boolean sameWorldDimensions = sameGeometry
-                && firstWallHeightBlocks == ClientRingState.wallHeightBlocks()
-                && firstSurfaceReferenceY == ClientRingState.surfaceReferenceY();
-        boolean changedIdentity = firstFingerprint != 0L && fingerprint != firstFingerprint
-                && atlas.worldHash() != firstAtlasWorldHash;
+        boolean sameWorldDimensions = sameGeometry && firstWallHeightBlocks == ClientRingState.wallHeightBlocks() && firstSurfaceReferenceY == ClientRingState.surfaceReferenceY();
+        boolean changedIdentity = firstFingerprint != 0L && fingerprint != firstFingerprint && atlas.worldHash() != firstAtlasWorldHash;
         boolean expectedRelation = switch (expectation) {
             case DIFFERENT_LAYOUT -> !sameGeometry && changedIdentity;
-            case SAME_GEOMETRY_DIFFERENT_SEED -> sameWorldDimensions && changedIdentity
-                    && atlasContentFingerprint != firstAtlasContentFingerprint;
+            case SAME_GEOMETRY_DIFFERENT_SEED ->
+                    sameWorldDimensions && changedIdentity && atlasContentFingerprint != firstAtlasContentFingerprint;
         };
-        boolean atlasMatchesSecond = geometry.equals(atlas.geometry())
-                && ClientRingState.hasServerAtlasWorldHash()
-                && ClientRingState.serverAtlasWorldHash() == atlas.worldHash();
+        boolean atlasMatchesSecond = geometry.equals(atlas.geometry()) && ClientRingState.hasServerAtlasWorldHash() && ClientRingState.serverAtlasWorldHash() == atlas.worldHash();
         boolean secondStorageVerified = verifyDimensionOwnedStorage(client, secondWorld);
         if (!secondStorageVerified) return;
-        boolean passed = disconnectClearedState && firstStorageVerified && expectedRelation
-                && atlasMatchesSecond;
-        finish(client, passed, "expectation=" + expectation.id + ", second="
-                + geometry.circumferenceBlocks() + "x" + geometry.widthBlocks()
-                + ", fingerprint="
-                + Long.toUnsignedString(fingerprint, 16) + ", atlas="
-                + atlas.columns() + "x" + atlas.rows() + ", worldHash="
-                + Long.toUnsignedString(atlas.worldHash(), 16) + ", contentFingerprint="
-                + Long.toUnsignedString(atlasContentFingerprint, 16));
+        boolean passed = disconnectClearedState && firstStorageVerified && expectedRelation && atlasMatchesSecond;
+        finish(client, passed, "expectation=" + expectation.id + ", second=" + geometry.circumferenceBlocks() + "x" + geometry.widthBlocks() + ", fingerprint=" + Long.toUnsignedString(fingerprint, 16) + ", atlas=" + atlas.columns() + "x" + atlas.rows() + ", worldHash=" + Long.toUnsignedString(atlas.worldHash(), 16) + ", contentFingerprint=" + Long.toUnsignedString(atlasContentFingerprint, 16));
     }
 
     private boolean checkExpectation(Minecraft client) {
@@ -160,9 +136,7 @@ public final class LayoutSwitchTestClient {
         String configured = System.getProperty(EXPECTATION_PROPERTY, Expectation.DIFFERENT_LAYOUT.id).trim();
         expectation = Expectation.byId(configured);
         if (expectation == null) {
-            finish(client, false, "invalid " + EXPECTATION_PROPERTY + "='" + configured
-                    + "'; use '" + Expectation.DIFFERENT_LAYOUT.id + "' or '"
-                    + Expectation.SAME_GEOMETRY_DIFFERENT_SEED.id + "'");
+            finish(client, false, "invalid " + EXPECTATION_PROPERTY + "='" + configured + "'; use '" + Expectation.DIFFERENT_LAYOUT.id + "' or '" + Expectation.SAME_GEOMETRY_DIFFERENT_SEED.id + "'");
             return false;
         }
         RingWorldMod.LOGGER.info("[layout-switch] expectation={}", expectation.id);
@@ -177,8 +151,7 @@ public final class LayoutSwitchTestClient {
         long fingerprint = 0xCBF29CE484222325L;
         for (int row = 0; row < atlas.rows(); row++) {
             for (int column = 0; column < atlas.columns(); column++) {
-                long sample = ((long) atlas.cellHeight(column, row) & 0xFFFFL) << 32
-                        | Integer.toUnsignedLong(atlas.cellColor(column, row));
+                long sample = ((long) atlas.cellHeight(column, row) & 0xFFFFL) << 32 | Integer.toUnsignedLong(atlas.cellColor(column, row));
                 fingerprint ^= sample;
                 fingerprint *= 0x100000001B3L;
             }
@@ -197,14 +170,12 @@ public final class LayoutSwitchTestClient {
         if (stage == 4) return;
         stage = 4;
         RingWorldMod.LOGGER.info("[layout-switch] result={}, {}", passed, detail);
-        RingWorldMod.LOGGER.info("[layout-switch] result-json={\"passed\":{},\"detail\":\"{}\"}",
-                passed, detail.replace("\\", "\\\\").replace("\"", "\\\""));
+        RingWorldMod.LOGGER.info("[layout-switch] result-json={\"passed\":{},\"detail\":\"{}\"}", passed, detail.replace("\\", "\\\\").replace("\"", "\\\""));
         client.stop();
     }
 
     private enum Expectation {
-        DIFFERENT_LAYOUT("different-layout"),
-        SAME_GEOMETRY_DIFFERENT_SEED("same-geometry-different-seed");
+        DIFFERENT_LAYOUT("different-layout"), SAME_GEOMETRY_DIFFERENT_SEED("same-geometry-different-seed");
 
         private final String id;
 
@@ -238,16 +209,13 @@ public final class LayoutSwitchTestClient {
         if (!Files.isRegularFile(settings) || !Files.isRegularFile(atlas)) return false;
 
         Path worldRoot = server.getWorldPath(LevelResource.ROOT);
-        boolean legacySettingsPreserved = !Files.exists(worldRoot.resolve("data/ringworld_settings.dat"))
-                || Files.isRegularFile(worldRoot.resolve("data/ringworld_settings.dat"));
-        boolean legacyAtlasPreserved = !Files.exists(worldRoot.resolve("data/ringworld-terrain-atlas.rwat.gz"))
-                || Files.isRegularFile(worldRoot.resolve("data/ringworld-terrain-atlas.rwat.gz"));
+        boolean legacySettingsPreserved = !Files.exists(worldRoot.resolve("data/ringworld_settings.dat")) || Files.isRegularFile(worldRoot.resolve("data/ringworld_settings.dat"));
+        boolean legacyAtlasPreserved = !Files.exists(worldRoot.resolve("data/ringworld-terrain-atlas.rwat.gz")) || Files.isRegularFile(worldRoot.resolve("data/ringworld-terrain-atlas.rwat.gz"));
         if (!legacySettingsPreserved || !legacyAtlasPreserved) {
             finish(client, false, "legacy storage changed while opening " + worldName);
             return false;
         }
-        RingWorldMod.LOGGER.info("[layout-switch] dimension storage ready for '{}': settings={}, atlas={}",
-                worldName, settings, atlas);
+        RingWorldMod.LOGGER.info("[layout-switch] dimension storage ready for '{}': settings={}, atlas={}", worldName, settings, atlas);
         return true;
     }
 }

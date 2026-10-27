@@ -2,7 +2,9 @@ package dev.ringworld.world;
 
 import java.util.concurrent.CompletionStage;
 
-/** Loader-neutral control and observation contract for one pregeneration job. */
+/**
+ * Loader-neutral control and observation contract for one pregeneration job.
+ */
 public interface AtlasPregenerationHandle {
     AtlasPregenerationProgress progress();
 

@@ -5,15 +5,11 @@ import dev.ringworld.world.RingTerrainAtlas;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.BitSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
-/** Server-owned checkpoint bookkeeping; only immutable snapshots reach the worker. */
+/**
+ * Server-owned checkpoint bookkeeping; only immutable snapshots reach the worker.
+ */
 final class RingAtlasCheckpointWriter implements AutoCloseable {
     private final Path path;
     private final Executor executor;
@@ -29,12 +25,11 @@ final class RingAtlasCheckpointWriter implements AutoCloseable {
     private long maxCopyStepNanos;
     private boolean verify;
     // 192 KiB per slice; check the time budget between slices.
-    private static final int SLICE_CELLS = 16_384;
-    private static final long COPY_BUDGET_NANOS = 2_000_000;
+    private static final int SLICE_CELLS = 16384;
+    private static final long COPY_BUDGET_NANOS = 2000000;
 
     RingAtlasCheckpointWriter(Path path, boolean dirty) {
-        this(path, dirty, new ThreadPoolExecutor(0, 1, 1, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(), task -> new Thread(task, "RingWorld server Atlas persistence")));
+        this(path, dirty, new ThreadPoolExecutor(0, 1, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), task -> new Thread(task, "RingWorld server Atlas persistence")));
     }
 
     RingAtlasCheckpointWriter(Path path, boolean dirty, Executor executor) {
@@ -43,18 +38,33 @@ final class RingAtlasCheckpointWriter implements AutoCloseable {
         mutation = dirty ? 1 : 0;
     }
 
-    void markDirty() { mutation = Math.incrementExact(mutation); }
-    boolean dirty() { return persisted != mutation; }
-    boolean busy() { return active != null; }
-    boolean preparing() { return allocation != null; }
+    void markDirty() {
+        mutation = Math.incrementExact(mutation);
+    }
 
-    /** Records changes to already copied slices; later slices see them on their first pass. */
+    boolean dirty() {
+        return persisted != mutation;
+    }
+
+    boolean busy() {
+        return active != null;
+    }
+
+    boolean preparing() {
+        return allocation != null;
+    }
+
+    /**
+     * Records changes to already copied slices; later slices see them on their first pass.
+     */
     void changedCell(int column, int row, int columns) {
         int index = row * columns + column;
         if (copying != null && index < copiedCells) repairs.set(index / SLICE_CELLS);
     }
 
-    /** Null means busy or no work. Allocation runs off-thread; copying advances on owner ticks. */
+    /**
+     * Null means busy or no work. Allocation runs off-thread; copying advances on owner ticks.
+     */
     CompletableFuture<Result> request(RingTerrainAtlas atlas, boolean verify) {
         if (busy() || (!dirty() && !verify)) return null;
         this.verify = verify;
@@ -75,8 +85,12 @@ final class RingAtlasCheckpointWriter implements AutoCloseable {
         return active;
     }
 
-    /** One bounded owner-thread copy step. No worker reads the live Atlas. */
-    void advance(RingTerrainAtlas atlas) { advance(atlas, COPY_BUDGET_NANOS); }
+    /**
+     * One bounded owner-thread copy step. No worker reads the live Atlas.
+     */
+    void advance(RingTerrainAtlas atlas) {
+        advance(atlas, COPY_BUDGET_NANOS);
+    }
 
     void advance(RingTerrainAtlas atlas, long budget) {
         if (active == null || active.isDone() || allocation == null) return;
@@ -128,21 +142,21 @@ final class RingAtlasCheckpointWriter implements AutoCloseable {
             long verifyStart = System.nanoTime();
             if (verify) {
                 RingTerrainAtlas reopened = RingTerrainAtlas.load(path, snapshot.geometry(), snapshot.worldHash());
-                if (!reopened.isComplete() || reopened.revision() != snapshot.revision()
-                        || reopened.presentCount() != snapshot.presentCount()) {
+                if (!reopened.isComplete() || reopened.revision() != snapshot.revision() || reopened.presentCount() != snapshot.presentCount()) {
                     throw new IOException("reopened Atlas does not match completed checkpoint");
                 }
             }
             reusable = snapshot;
-            completion.complete(new Result(generation, snapshot.revision(), snapshot.presentCount(),
-                    copyNanos, writeNanos, verify ? System.nanoTime() - verifyStart : 0, maxCopyStepNanos));
+            completion.complete(new Result(generation, snapshot.revision(), snapshot.presentCount(), copyNanos, writeNanos, verify ? System.nanoTime() - verifyStart : 0, maxCopyStepNanos));
         } catch (Throwable exception) {
             reusable = snapshot;
             completion.completeExceptionally(exception);
         }
     }
 
-    /** Called on the owning thread; failed writes leave mutations dirty and can be retried. */
+    /**
+     * Called on the owning thread; failed writes leave mutations dirty and can be retried.
+     */
     Result poll() {
         if (active == null || !active.isDone()) return null;
         CompletableFuture<Result> completed = active;
@@ -152,7 +166,9 @@ final class RingAtlasCheckpointWriter implements AutoCloseable {
         return result;
     }
 
-    /** Teardown only. Does not depend on server-queue callbacks. */
+    /**
+     * Teardown only. Does not depend on server-queue callbacks.
+     */
     void awaitActive(RingTerrainAtlas atlas) {
         if (active == null) return;
         try {
@@ -168,11 +184,13 @@ final class RingAtlasCheckpointWriter implements AutoCloseable {
         }
     }
 
-    @Override public void close() {
+    @Override
+    public void close() {
         if (busy()) throw new IllegalStateException("Atlas persistence still active");
         if (executor instanceof ExecutorService service) service.shutdown();
     }
 
-    record Result(long generation, long revision, int cells,
-                  long snapshotNanos, long writeNanos, long verificationNanos, long maxCopyStepNanos) { }
+    record Result(long generation, long revision, int cells, long snapshotNanos, long writeNanos,
+                  long verificationNanos, long maxCopyStepNanos) {
+    }
 }

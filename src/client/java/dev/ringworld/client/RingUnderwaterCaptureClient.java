@@ -11,7 +11,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.FogType;
 
-/** Opt-in, muted, disposable submerged-camera regression, shared by both loaders. */
+/**
+ * Opt-in, muted, disposable submerged-camera regression, shared by both loaders.
+ */
 public final class RingUnderwaterCaptureClient {
     private static final RingUnderwaterCaptureClient INSTANCE = new RingUnderwaterCaptureClient();
     private static final double[] HEIGHTS = {127.0, 121.0, 124.25, 127.0, 121.0, 127.0};
@@ -30,10 +32,8 @@ public final class RingUnderwaterCaptureClient {
         client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(0.0);
         client.options.pauseOnLostFocus = false;
         client.options.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
-        if (++ticks > 6_000) return fail(client, "timeout stage=" + stage
-                + " atlasReady=" + RingSurfaceTextureRenderer.captureReady()
-                + " screen=" + RingMinecraftClientAccess.screen(client)
-                + " reload=" + (reload == null ? "not requested" : reload.isDone()));
+        if (++ticks > 6000)
+            return fail(client, "timeout stage=" + stage + " atlasReady=" + RingSurfaceTextureRenderer.captureReady() + " screen=" + RingMinecraftClientAccess.screen(client) + " reload=" + (reload == null ? "not requested" : reload.isDone()));
         if (failure != null) return fail(client, failure);
         if (client.level == null || client.player == null) {
             if (!client.isGameLoadFinished() || creating) return true;
@@ -51,8 +51,7 @@ public final class RingUnderwaterCaptureClient {
             }
             return true;
         }
-        client.options.renderDistance().set(Math.clamp(
-                Integer.getInteger("ringworld.underwaterViewDistance", 8), 2, 32));
+        client.options.renderDistance().set(Math.clamp(Integer.getInteger("ringworld.underwaterViewDistance", 8), 2, 32));
         client.options.cloudStatus().set(net.minecraft.client.CloudStatus.OFF);
         client.options.vignette().set(false);
         RingMinecraftClientAccess.setGuiHidden(client, true);
@@ -65,8 +64,7 @@ public final class RingUnderwaterCaptureClient {
                     RingIntegratedCaptureControl.normalizeEnvironment(context, 6000, false);
                     // A sealed pool above terrain leaves an unobstructed view of the far ring.
                     for (BlockPos pos : BlockPos.betweenClosed(480, 117, -24, 544, 126, 24)) {
-                        boolean shell = pos.getY() == 117 || pos.getX() == 480 || pos.getX() == 544
-                                || pos.getZ() == -24 || pos.getZ() == 24;
+                        boolean shell = pos.getY() == 117 || pos.getX() == 480 || pos.getX() == 544 || pos.getZ() == -24 || pos.getZ() == 24;
                         context.world().setBlock(pos, (shell ? Blocks.GLASS : Blocks.WATER).defaultBlockState(), 2);
                     }
                     // Nearby real blocks must remain visible through the environmental fog.
@@ -85,9 +83,8 @@ public final class RingUnderwaterCaptureClient {
         if (!positionRequested) {
             positionRequested = true;
             double height = HEIGHTS[stage];
-            RingIntegratedCaptureControl.execute(client, "underwater pose", context ->
-                    RingIntegratedCaptureControl.teleport(context, 512.5, height, 0.5),
-                    () -> { }, detail -> failure = detail);
+            RingIntegratedCaptureControl.execute(client, "underwater pose", context -> RingIntegratedCaptureControl.teleport(context, 512.5, height, 0.5), () -> {
+            }, detail -> failure = detail);
             return true;
         }
         if (Math.abs(client.player.getY() - HEIGHTS[stage]) > 0.05) return true;
@@ -101,22 +98,26 @@ public final class RingUnderwaterCaptureClient {
         // Sodium can legitimately omit the whole sky pass underwater. After
         // reload its Atlas buffers stay absent until resurfacing; require their
         // recovery in stage 5 instead of waiting forever in submerged stage 4.
-        if (stage != 4 && !RingSurfaceTextureRenderer.captureReady()) { settle = 0; return true; }
+        if (stage != 4 && !RingSurfaceTextureRenderer.captureReady()) {
+            settle = 0;
+            return true;
+        }
         FogType expected = stage == 0 || stage == 3 || stage == 5 ? FogType.NONE : FogType.WATER;
-        if (RingMinecraftClientAccess.camera(client).getFluidInCamera() != expected
-                || !client.level.getChunkSource().hasChunk(32, 0)
-                || !client.levelRenderer.hasRenderedAllSections()) { settle = 0; return true; }
+        if (RingMinecraftClientAccess.camera(client).getFluidInCamera() != expected || !client.level.getChunkSource().hasChunk(32, 0) || !client.levelRenderer.hasRenderedAllSections()) {
+            settle = 0;
+            return true;
+        }
         if (++settle < 120) return true;
-        RingWorldMod.LOGGER.info("[underwater-capture] {} fluid={} camera={} atlasReady={}",
-                NAMES[stage], expected, RingMinecraftClientAccess.camera(client).position(),
-                RingSurfaceTextureRenderer.captureReady());
+        RingWorldMod.LOGGER.info("[underwater-capture] {} fluid={} camera={} atlasReady={}", NAMES[stage], expected, RingMinecraftClientAccess.camera(client).position(), RingSurfaceTextureRenderer.captureReady());
         pending = true;
         String name = "underwater-" + NAMES[stage] + ".png";
-        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name,
-                RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> client.execute(() -> {
-                    RingWorldMod.LOGGER.info("[underwater-capture] screenshot {}", message.getString());
-                    pending = false; stage++; settle = 0; positionRequested = false;
-                }));
+        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name, RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> client.execute(() -> {
+            RingWorldMod.LOGGER.info("[underwater-capture] screenshot {}", message.getString());
+            pending = false;
+            stage++;
+            settle = 0;
+            positionRequested = false;
+        }));
         return true;
     }
 

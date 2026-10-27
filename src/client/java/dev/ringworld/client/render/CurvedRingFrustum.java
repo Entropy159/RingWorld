@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Frustum adapter matching the cylindrical terrain vertex transform.
@@ -26,7 +27,7 @@ public final class CurvedRingFrustum extends Frustum {
     }
 
     @Override
-    public int cubeInFrustum(BoundingBox box) {
+    public int cubeInFrustum(@NonNull BoundingBox box) {
         // Octree branches are only an acceleration structure. Always
         // descending them prevents a flat parent box from discarding curved
         // children which rise into the camera's view.
@@ -34,7 +35,7 @@ public final class CurvedRingFrustum extends Frustum {
     }
 
     @Override
-    public boolean isVisible(AABB canonicalBox) {
+    public boolean isVisible(@NonNull AABB canonicalBox) {
         AABB local = view.bounds(canonicalBox);
         // Frustum stores an absolute camera origin and subtracts it internally.
         // Rebase the already camera-local curved envelope to that origin.

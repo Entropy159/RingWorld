@@ -4,10 +4,13 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "FidelityGalleryWindowMixin",
+    "CompassAngleStateFixtureAccessor",
     "CompassAngleStateMixin",
+    "CreateWorldScreenInvoker",
     "CreateWorldScreenMixin",
     "CreateWorldSeedTabMixin",
     "PauseScreenMixin",
+    "ConfirmScreenAccessor",
     "EntityRenderManagerMixin",
     "ExteriorSkyLightMixin",
     "ExteriorEntityVisibilityMixin",

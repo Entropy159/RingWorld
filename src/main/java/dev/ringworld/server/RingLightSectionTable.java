@@ -2,9 +2,11 @@ package dev.ringworld.server;
 
 import it.unimi.dsi.fastutil.HashCommon;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
 import java.util.Arrays;
 
-/** Single-writer lighting lookup with independently owned published snapshots.
+/**
+ * Single-writer lighting lookup with independently owned published snapshots.
  * Publish copied tables and never mutate a published instance.
  * Values retain vanilla DataLayer copy-on-write ownership; only the lookup is partitioned.
  */

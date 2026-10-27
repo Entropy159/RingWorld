@@ -2,11 +2,11 @@ package dev.ringworld.client;
 
 import dev.ringworld.world.RingAtlasLightProfile;
 
-/** Process-local Atlas lighting controls used by the dual-loader debug command. */
+/**
+ * Process-local Atlas lighting controls used by the dual-loader debug command.
+ */
 public final class RingAtlasLightTuning {
     private static volatile RingAtlasLightProfile profile = RingAtlasLightProfile.GAMMA;
-
-    private RingAtlasLightTuning() { }
 
     public static RingAtlasLightProfile profile() {
         return profile;

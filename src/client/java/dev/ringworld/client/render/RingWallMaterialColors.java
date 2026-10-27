@@ -3,9 +3,6 @@ package dev.ringworld.client.render;
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.ringworld.client.mixin.SpriteContentsAccessor;
 import dev.ringworld.world.RingMaterialColorAverage;
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -17,7 +14,13 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** Small render-thread palette cache; workers receive only the resulting RGB array. */
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.Map;
+
+/**
+ * Small render-thread palette cache; workers receive only the resulting RGB array.
+ */
 final class RingWallMaterialColors {
     private static BlockStateModelSet models;
     private static final Map<BlockState, Integer> COLORS = new IdentityHashMap<>();
@@ -56,13 +59,12 @@ final class RingWallMaterialColors {
         if (quad.direction() != Direction.NORTH && quad.direction() != Direction.SOUTH) return;
         // Unknown biome tint cannot be reconstructed from a palette-only input.
         if (quad.materialInfo().isTinted()) return;
-        int rgb = SPRITES.computeIfAbsent(quad.materialInfo().sprite().contents(),
-                RingWallMaterialColors::spriteColor);
+        int rgb = SPRITES.computeIfAbsent(quad.materialInfo().sprite().contents(), RingWallMaterialColors::spriteColor);
         if (rgb >= 0) average.add(0xFF000000 | rgb);
     }
 
     private static int spriteColor(SpriteContents sprite) {
-        NativeImage[] levels = ((SpriteContentsAccessor)(Object)sprite).ringworld$mipImages();
+        NativeImage[] levels = ((SpriteContentsAccessor) (Object) sprite).ringworld$mipImages();
         if (levels == null || levels.length == 0) return -1;
         // Use Minecraft's filtered mip pixels, retaining its colour filtering.
         // Animated materials contribute all frames without reading a GPU texture.

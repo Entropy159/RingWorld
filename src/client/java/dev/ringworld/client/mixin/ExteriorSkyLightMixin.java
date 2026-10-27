@@ -13,16 +13,19 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** The unsent finite exterior is open sky, not an unlit unloaded interior. */
+/**
+ * The unsent finite exterior is open sky, not an unlit unloaded interior.
+ */
 @Mixin(LightEngine.class)
-abstract class ExteriorSkyLightMixin {
-    @Shadow @Final protected LightChunkGetter chunkSource;
+public abstract class ExteriorSkyLightMixin {
+    @Shadow
+    @Final
+    protected LightChunkGetter chunkSource;
 
     @Inject(method = "getLightValue", at = @At("HEAD"), cancellable = true)
     private void ringworld$lightExteriorSky(BlockPos pos, CallbackInfoReturnable<Integer> cir) {
         var geometry = ClientRingState.geometry();
-        if ((Object)this instanceof SkyLightEngine && chunkSource.getLevel() instanceof ClientLevel
-                && geometry != null && (pos.getZ() < geometry.minWidthZ() || pos.getZ() > geometry.maxWidthZ()))
+        if ((Object) this instanceof SkyLightEngine && chunkSource.getLevel() instanceof ClientLevel && geometry != null && (pos.getZ() < geometry.minWidthZ() || pos.getZ() > geometry.maxWidthZ()))
             cir.setReturnValue(15);
     }
 }

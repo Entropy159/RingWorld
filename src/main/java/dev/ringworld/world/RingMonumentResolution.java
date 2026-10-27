@@ -2,8 +2,9 @@ package dev.ringworld.world;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Locale;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Locale;
 
 /**
  * Immutable, saved resolution of the optional built-in ocean-monument request.
@@ -11,16 +12,7 @@ import org.jetbrains.annotations.Nullable;
  * the same policy to their worldgen adapters.
  */
 public record RingMonumentResolution(Status status, @Nullable Candidate candidate, Reason reason) {
-    public static final Codec<RingMonumentResolution> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.STRING.xmap(value -> Status.valueOf(value.toUpperCase(Locale.ROOT)),
-                    value -> value.name().toLowerCase(Locale.ROOT)).fieldOf("status")
-                    .forGetter(RingMonumentResolution::status),
-            Candidate.CODEC.optionalFieldOf("candidate").forGetter(value -> java.util.Optional.ofNullable(value.candidate())),
-            Codec.STRING.xmap(value -> Reason.valueOf(value.toUpperCase(Locale.ROOT)),
-                    value -> value.name().toLowerCase(Locale.ROOT)).fieldOf("reason")
-                    .forGetter(RingMonumentResolution::reason)
-    ).apply(instance, (status, candidate, reason) -> new RingMonumentResolution(
-            status, candidate.orElse(null), reason)));
+    public static final Codec<RingMonumentResolution> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.STRING.xmap(value -> Status.valueOf(value.toUpperCase(Locale.ROOT)), value -> value.name().toLowerCase(Locale.ROOT)).fieldOf("status").forGetter(RingMonumentResolution::status), Candidate.CODEC.optionalFieldOf("candidate").forGetter(value -> java.util.Optional.ofNullable(value.candidate())), Codec.STRING.xmap(value -> Reason.valueOf(value.toUpperCase(Locale.ROOT)), value -> value.name().toLowerCase(Locale.ROOT)).fieldOf("reason").forGetter(RingMonumentResolution::reason)).apply(instance, (status, candidate, reason) -> new RingMonumentResolution(status, candidate.orElse(null), reason)));
 
     public RingMonumentResolution {
         switch (status) {
@@ -40,8 +32,7 @@ public record RingMonumentResolution(Status status, @Nullable Candidate candidat
                 }
             }
             case UNSATISFIED -> {
-                if (candidate != null || reason == Reason.NOT_REQUESTED
-                        || reason == Reason.NOT_YET_RESOLVED || reason == Reason.VALIDATED) {
+                if (candidate != null || reason == Reason.NOT_REQUESTED || reason == Reason.NOT_YET_RESOLVED || reason == Reason.VALIDATED) {
                     throw new IllegalArgumentException("unsatisfied monument state needs a failure reason");
                 }
             }
@@ -57,8 +48,7 @@ public record RingMonumentResolution(Status status, @Nullable Candidate candidat
     }
 
     public static RingMonumentResolution satisfied(RingMonumentPlacement.Candidate candidate) {
-        return new RingMonumentResolution(Status.SATISFIED,
-                new Candidate(candidate.chunkX(), candidate.chunkZ()), Reason.VALIDATED);
+        return new RingMonumentResolution(Status.SATISFIED, new Candidate(candidate.chunkX(), candidate.chunkZ()), Reason.VALIDATED);
     }
 
     public static RingMonumentResolution unsatisfied(Reason reason) {
@@ -72,23 +62,16 @@ public record RingMonumentResolution(Status status, @Nullable Candidate candidat
         return status == Status.SATISFIED || status == Status.UNSATISFIED || status == Status.DISABLED;
     }
 
-    public enum Status { DISABLED, PENDING, SATISFIED, UNSATISFIED }
+    public enum Status {DISABLED, PENDING, SATISFIED, UNSATISFIED}
 
-    /** Stable saved failure codes; do not replace a resolved failure with a new search on reload. */
+    /**
+     * Stable saved failure codes; do not replace a resolved failure with a new search on reload.
+     */
     public enum Reason {
-        NOT_REQUESTED,
-        NOT_YET_RESOLVED,
-        VALIDATED,
-        BUILTIN_REGISTRY_UNAVAILABLE,
-        NO_CANDIDATE_IN_BOUNDS,
-        NO_CANDIDATE_MATCHED_BIOME,
-        SEARCH_BUDGET_EXHAUSTED
+        NOT_REQUESTED, NOT_YET_RESOLVED, VALIDATED, BUILTIN_REGISTRY_UNAVAILABLE, NO_CANDIDATE_IN_BOUNDS, NO_CANDIDATE_MATCHED_BIOME, SEARCH_BUDGET_EXHAUSTED
     }
 
     public record Candidate(int chunkX, int chunkZ) {
-        static final Codec<Candidate> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                Codec.INT.fieldOf("chunk_x").forGetter(Candidate::chunkX),
-                Codec.INT.fieldOf("chunk_z").forGetter(Candidate::chunkZ)
-        ).apply(instance, Candidate::new));
+        static final Codec<Candidate> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.INT.fieldOf("chunk_x").forGetter(Candidate::chunkX), Codec.INT.fieldOf("chunk_z").forGetter(Candidate::chunkZ)).apply(instance, Candidate::new));
     }
 }

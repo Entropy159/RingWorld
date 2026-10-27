@@ -1,8 +1,18 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingNavigationAccess;
 import dev.ringworld.world.RingTopology;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.Node;
+import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -13,32 +23,40 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.navigation.PathNavigation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.pathfinder.Node;
-import net.minecraft.world.level.pathfinder.Path;
-import net.minecraft.world.phys.Vec3;
 
-/** Projects AI path targets into the circumference image nearest the mob. */
+/**
+ * Projects AI path targets into the circumference image nearest the mob.
+ */
 @Mixin(PathNavigation.class)
-abstract class EntityNavigationMixin implements RingNavigationAccess {
-    @Shadow @Final protected Mob mob;
-    @Shadow @Final protected Level level;
-    @Shadow protected Path path;
-    @Shadow protected double speedModifier;
-    @Shadow protected int tick;
-    @Shadow protected int lastStuckCheck;
-    @Shadow protected Vec3 lastStuckCheckPos;
-    @Shadow protected Vec3i timeoutCachedNode;
-    @Shadow protected long timeoutTimer;
-    @Shadow protected long lastTimeoutCheck;
-    @Shadow protected double timeoutLimit;
-    @Shadow private BlockPos targetPos;
-    @Shadow private boolean isStuck;
+public abstract class EntityNavigationMixin implements RingNavigationAccess {
+    @Shadow
+    @Final
+    protected Mob mob;
+    @Shadow
+    @Final
+    protected Level level;
+    @Shadow
+    protected Path path;
+    @Shadow
+    protected double speedModifier;
+    @Shadow
+    protected int tick;
+    @Shadow
+    protected int lastStuckCheck;
+    @Shadow
+    protected Vec3 lastStuckCheckPos;
+    @Shadow
+    protected Vec3i timeoutCachedNode;
+    @Shadow
+    protected long timeoutTimer;
+    @Shadow
+    protected long lastTimeoutCheck;
+    @Shadow
+    protected double timeoutLimit;
+    @Shadow
+    private BlockPos targetPos;
+    @Shadow
+    private boolean isStuck;
 
     @Override
     public void ringworld$foldPath(int deltaX) {
@@ -50,8 +68,7 @@ abstract class EntityNavigationMixin implements RingNavigationAccess {
                 Node node = path.getNode(index);
                 shiftedNodes.add(node.cloneAndMove(node.x + deltaX, node.y, node.z));
             }
-            Path shiftedPath = new Path(shiftedNodes,
-                    path.getTarget().offset(deltaX, 0, 0), path.canReach());
+            Path shiftedPath = new Path(shiftedNodes, path.getTarget().offset(deltaX, 0, 0), path.canReach());
             shiftedPath.setNextNodeIndex(path.getNextNodeIndex());
             path = shiftedPath;
             if (!path.isDone()) {
@@ -70,12 +87,10 @@ abstract class EntityNavigationMixin implements RingNavigationAccess {
         isStuck = false;
     }
 
-    @ModifyVariable(
-            method = "createPath(Ljava/util/Set;IZIF)Lnet/minecraft/world/level/pathfinder/Path;",
-            at = @At("HEAD"), argsOnly = true)
+    @ModifyVariable(method = "createPath(Ljava/util/Set;IZIF)Lnet/minecraft/world/level/pathfinder/Path;", at = @At("HEAD"), argsOnly = true, name = "targets")
     private Set<BlockPos> ringworld$nearestPathTargets(Set<BlockPos> targets) {
-        if (!(level instanceof ServerLevel serverWorld)
-                || serverWorld.dimension() != Level.OVERWORLD || targets.isEmpty()) return targets;
+        if (!(level instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld) || targets.isEmpty())
+            return targets;
 
         RingTopology topology = new RingTopology(RingWorldServer.geometryFor(serverWorld));
         Set<BlockPos> projected = new LinkedHashSet<>(targets.size());
@@ -83,8 +98,7 @@ abstract class EntityNavigationMixin implements RingNavigationAccess {
         for (BlockPos target : targets) {
             int imageX = topology.imageBlockNear(target.getX(), mob.getX());
             changed |= imageX != target.getX();
-            projected.add(imageX == target.getX() ? target
-                    : new BlockPos(imageX, target.getY(), target.getZ()));
+            projected.add(imageX == target.getX() ? target : new BlockPos(imageX, target.getY(), target.getZ()));
         }
         return changed ? Set.copyOf(projected) : targets;
     }

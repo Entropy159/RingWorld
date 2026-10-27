@@ -10,16 +10,13 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
 
-/** Saved presentation settings; deliberately separate from terrain/layout identity. */
+/**
+ * Saved presentation settings; deliberately separate from terrain/layout identity.
+ */
 public final class RingSkySettings extends SavedData {
-    public static final Identifier STORAGE_ID =
-            Identifier.fromNamespaceAndPath(RingWorldMod.MOD_ID, "sky_settings");
-    private static final Codec<RingSkySettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            RingSkyProfile.CODEC.fieldOf("profile").forGetter(RingSkySettings::profile)
-    ).apply(instance, RingSkySettings::new));
-    private static final SavedDataType<RingSkySettings> TYPE = new SavedDataType<>(
-            STORAGE_ID, () -> new RingSkySettings(RingSkyProfile.DEFAULT), CODEC,
-            DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
+    public static final Identifier STORAGE_ID = RingWorldMod.id("sky_settings");
+    private static final Codec<RingSkySettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(RingSkyProfile.CODEC.fieldOf("profile").forGetter(RingSkySettings::profile)).apply(instance, RingSkySettings::new));
+    private static final SavedDataType<RingSkySettings> TYPE = new SavedDataType<>(STORAGE_ID, () -> new RingSkySettings(RingSkyProfile.DEFAULT), CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
     private final RingSkyProfile profile;
 
@@ -27,7 +24,9 @@ public final class RingSkySettings extends SavedData {
         this.profile = java.util.Objects.requireNonNull(profile, "profile");
     }
 
-    public RingSkyProfile profile() { return profile; }
+    public RingSkyProfile profile() {
+        return profile;
+    }
 
     public static RingSkySettings get(ServerLevel world) {
         SavedDataStorage storage = world.getDataStorage();
@@ -46,13 +45,14 @@ public final class RingSkySettings extends SavedData {
         return replacement;
     }
 
-    static RingSkySettings createForNewWorld(
-            SavedDataStorage storage, RingSkyProfile profile) {
+    static RingSkySettings createForNewWorld(SavedDataStorage storage, RingSkyProfile profile) {
         RingSkySettings created = new RingSkySettings(profile);
         created.setDirty();
         storage.set(TYPE, created);
         return created;
     }
 
-    static Codec<RingSkySettings> codecForTests() { return CODEC; }
+    static Codec<RingSkySettings> codecForTests() {
+        return CODEC;
+    }
 }

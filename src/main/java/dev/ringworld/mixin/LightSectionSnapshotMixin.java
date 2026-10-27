@@ -7,9 +7,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(targets = {"net.minecraft.world.level.lighting.SkyLightSectionStorage$SkyDataLayerStorageMap",
-        "net.minecraft.world.level.lighting.BlockLightSectionStorage$BlockDataLayerStorageMap"})
-abstract class LightSectionSnapshotMixin {
+@Mixin(targets = {"net.minecraft.world.level.lighting.SkyLightSectionStorage$SkyDataLayerStorageMap", "net.minecraft.world.level.lighting.BlockLightSectionStorage$BlockDataLayerStorageMap"})
+public abstract class LightSectionSnapshotMixin {
     @Inject(method = "copy", at = @At("RETURN"))
     private void ringworld$copyTable(CallbackInfoReturnable<DataLayerStorageMap<?>> cir) {
         var source = (RingLightSectionStorage) this;

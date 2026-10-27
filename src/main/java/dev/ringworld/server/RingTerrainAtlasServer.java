@@ -1,30 +1,13 @@
 package dev.ringworld.server;
 
-import dev.ringworld.RingWorldMod;
-import dev.ringworld.net.RingAtlasPregenerationStatusPayload;
-import dev.ringworld.net.RingTerrainAtlasMetadataPayload;
-import dev.ringworld.net.RingTerrainAtlasRevisionPayload;
-import dev.ringworld.net.RingTerrainAtlasTilePayload;
-import dev.ringworld.net.RingTerrainPreviewPayload;
-import dev.ringworld.net.RingSkyProfilePayload;
-import dev.ringworld.world.AtlasPregenerationAccess;
-import dev.ringworld.world.AtlasPregenerationAction;
-import dev.ringworld.world.AtlasPregenerationHandle;
-import dev.ringworld.world.AtlasPregenerationOptions;
-import dev.ringworld.world.AtlasPregenerationProgress;
-import dev.ringworld.world.AtlasPregenerationState;
-import dev.ringworld.world.AtlasPregenerationStatus;
-import dev.ringworld.world.RingAtlasPregenerationCursor;
-import dev.ringworld.world.RingTerrainAtlas;
-import dev.ringworld.world.RingTerrainPreview;
-import dev.ringworld.world.RingTerrainPreviewStage;
-import dev.ringworld.world.RingSkyProfile;
-import dev.ringworld.world.RingSkySettings;
-import dev.ringworld.world.RingWorldSettings;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import net.minecraft.commands.Commands;
+import dev.ringworld.RingWorldMod;
+import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.net.*;
+import dev.ringworld.world.*;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
@@ -32,26 +15,19 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permission;
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.players.NameAndId;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 
-import java.nio.file.Path;
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.UUID;
-import java.util.WeakHashMap;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.Future;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-/** Loader-neutral command and streaming coordinator for the authoritative atlas service. */
+/**
+ * Loader-neutral command and streaming coordinator for the authoritative atlas service.
+ */
 public final class RingTerrainAtlasServer {
     private static final int STREAM_TILES_PER_TICK = 8;
     private static final int PROGRESS_INTERVAL_TICKS = 20;
@@ -64,13 +40,19 @@ public final class RingTerrainAtlasServer {
         return thread;
     });
     private static PayloadTransport transport = new PayloadTransport() {
-        @Override public boolean canSend(ServerPlayer player, CustomPacketPayload.Type<?> type) { return false; }
-        @Override public void send(ServerPlayer player, CustomPacketPayload payload) {
+        @Override
+        public boolean canSend(ServerPlayer player, CustomPacketPayload.Type<?> type) {
+            return false;
+        }
+
+        @Override
+        public void send(ServerPlayer player, CustomPacketPayload payload) {
             throw new IllegalStateException("RingWorld server payload transport is not configured");
         }
     };
 
-    private RingTerrainAtlasServer() { }
+    private RingTerrainAtlasServer() {
+    }
 
     public static void configureTransport(PayloadTransport adapter) {
         if (adapter == null) throw new IllegalArgumentException("payload transport is required");
@@ -78,101 +60,56 @@ public final class RingTerrainAtlasServer {
     }
 
     public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
-        var generationRate = Commands.literal("chunk_gen_rate")
-                .executes(context -> chunkGenerationRate(context.getSource(), null))
-                .then(Commands.literal("auto").executes(context -> chunkGenerationRate(context.getSource(), 0)));
-        for (int rate : new int[] {1, 2, 4, 8}) {
-            generationRate.then(Commands.literal(Integer.toString(rate))
-                    .executes(context -> chunkGenerationRate(context.getSource(), rate)));
+        var generationRate = Commands.literal("chunk_gen_rate").executes(context -> chunkGenerationRate(context.getSource(), null)).then(Commands.literal("auto").executes(context -> chunkGenerationRate(context.getSource(), 0)));
+        for (int rate : new int[]{1, 2, 4, 8}) {
+            generationRate.then(Commands.literal(Integer.toString(rate)).executes(context -> chunkGenerationRate(context.getSource(), rate)));
         }
-        dispatcher.register(Commands.literal("ringworld")
-                        .requires(source -> source.permissions().hasPermission(
-                                new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)))
-                        .then(generationRate)
-                        .then(Commands.literal("building").then(Commands.literal("outside")
-                                .then(Commands.literal("on").executes(c -> outsideBuilding(c.getSource(), true)))
-                                .then(Commands.literal("off").executes(c -> outsideBuilding(c.getSource(), false)))
-                                .then(Commands.literal("show").executes(c -> outsideBuilding(c.getSource(), null)))))
-                        .then(Commands.literal("atlas")
-                                .then(Commands.literal("status").executes(context -> {
-                                    ServerLevel world = context.getSource().getServer().getLevel(Level.OVERWORLD);
-                                    context.getSource().sendSuccess(() -> Component.literal(world == null
-                                            ? "RingWorld Overworld is unavailable"
-                                            : "RingWorld atlas: " + RingAtlasPregenerationService.status(world)), false);
-                                    return world == null ? 0 : 1;
-                                }))
-                                .then(Commands.literal("start").executes(context -> control(
-                                        context.getSource().getServer().getLevel(Level.OVERWORLD),
-                                        AtlasPregenerationAction.START, context.getSource())))
-                                .then(Commands.literal("pause").executes(context -> control(
-                                        context.getSource().getServer().getLevel(Level.OVERWORLD),
-                                        AtlasPregenerationAction.PAUSE, context.getSource())))
-                                .then(Commands.literal("resume").executes(context -> control(
-                                        context.getSource().getServer().getLevel(Level.OVERWORLD),
-                                        AtlasPregenerationAction.RESUME, context.getSource()))))
-                        .then(Commands.literal("sky")
-                                .then(Commands.argument("backdrop", StringArgumentType.word())
-                                        .executes(context -> setSkyBackdrop(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "backdrop")))))
-                        .then(Commands.literal("sun")
-                                .then(Commands.argument("style", StringArgumentType.word())
-                                        .executes(context -> setSunStyle(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "style"))))));
+        dispatcher.register(Commands.literal("ringworld").requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS))).then(generationRate).then(Commands.literal("building").then(Commands.literal("outside").then(Commands.literal("on").executes(c -> outsideBuilding(c.getSource(), true))).then(Commands.literal("off").executes(c -> outsideBuilding(c.getSource(), false))).then(Commands.literal("show").executes(c -> outsideBuilding(c.getSource(), null))))).then(Commands.literal("atlas").then(Commands.literal("status").executes(context -> {
+            ServerLevel world = context.getSource().getLevel();
+            context.getSource().sendSuccess(() -> Component.literal("RingWorld atlas: " + RingAtlasPregenerationService.status(world)), false);
+            return 1;
+        })).then(Commands.literal("start").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.START, context.getSource()))).then(Commands.literal("pause").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.PAUSE, context.getSource()))).then(Commands.literal("resume").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.RESUME, context.getSource())))).then(Commands.literal("sky").then(Commands.argument("backdrop", StringArgumentType.word()).executes(context -> setSkyBackdrop(context.getSource(), StringArgumentType.getString(context, "backdrop"))))).then(Commands.literal("sun").then(Commands.argument("style", StringArgumentType.word()).executes(context -> setSunStyle(context.getSource(), StringArgumentType.getString(context, "style"))))));
     }
 
     private static int chunkGenerationRate(CommandSourceStack source, Integer rate) {
-        ServerLevel world = source.getServer().getLevel(Level.OVERWORLD);
-        if (world == null || !RingAtlasPregenerationService.setChunkGenerationRate(world, rate)) {
+        ServerLevel world = source.getLevel();
+        if (!RingAtlasPregenerationService.setChunkGenerationRate(world, rate)) {
             source.sendFailure(Component.literal("RingWorld terrain atlas is unavailable"));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("RingWorld chunk generation: "
-                + RingAtlasPregenerationService.chunkGenerationRate(world)
-                + ". Existing requests finish normally. Setting lasts until the world closes."), rate != null);
+        source.sendSuccess(() -> Component.literal("RingWorld chunk generation: " + RingAtlasPregenerationService.chunkGenerationRate(world) + ". Existing requests finish normally. Setting lasts until the world closes."), rate != null);
         return 1;
     }
 
     private static int outsideBuilding(CommandSourceStack source, Boolean enabled) {
-        ServerLevel world = source.getServer().getLevel(Level.OVERWORLD);
-        if (world == null) return 0;
+        ServerLevel world = source.getLevel();
         if (enabled != null) {
-            dev.ringworld.world.RingBuildingSettings.get(world).setOutsideBuilding(enabled);
+            RingBuildingSettings.get(world).setOutsideBuilding(enabled);
             for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) sendBuildingSettings(player);
         }
-        source.sendSuccess(() -> Component.literal("RingWorld outside building: "
-                + (dev.ringworld.world.RingBuildingSettings.get(world).outsideBuilding() ? "on" : "off")
-                + (Boolean.FALSE.equals(enabled) ? ". Existing builds are kept." : ".")), enabled != null);
+        source.sendSuccess(() -> Component.literal("RingWorld outside building: " + (RingBuildingSettings.get(world).outsideBuilding() ? "on" : "off") + (Boolean.FALSE.equals(enabled) ? ". Existing builds are kept." : ".")), enabled != null);
         return 1;
     }
 
     public static void sendBuildingSettings(ServerPlayer player) {
-        ServerLevel world = player.level().getServer().getLevel(Level.OVERWORLD);
-        if (world == null) return;
-        var payload = new dev.ringworld.net.RingBuildingSettingsPayload(
-                RingWorldSettings.get(world).layoutFingerprint(),
-                dev.ringworld.world.RingBuildingSettings.get(world).outsideBuilding(), canControl(player));
-        if (transport.canSend(player, dev.ringworld.net.RingBuildingSettingsPayload.ID)) transport.send(player, payload);
+        ServerLevel world = player.level().getLevel();
+        var payload = new RingBuildingSettingsPayload(RingWorldSettings.get(world).layoutFingerprint(), dev.ringworld.world.RingBuildingSettings.get(world).outsideBuilding(), canControl(player));
+        if (transport.canSend(player, RingBuildingSettingsPayload.ID)) transport.send(player, payload);
     }
 
     public static void controlBuilding(ServerPlayer player, long fingerprint, boolean enabled) {
-        ServerLevel world = player.level().getServer().getLevel(Level.OVERWORLD);
-        if (world == null || player.level().dimension() != Level.OVERWORLD) return;
+        ServerLevel world = player.level().getLevel();
+        if (!RingWorldApi.isRingWorld(player.level())) return;
         if (RingWorldSettings.get(world).layoutFingerprint() != fingerprint || !canControl(player)) {
             sendBuildingSettings(player);
             return;
         }
-        dev.ringworld.world.RingBuildingSettings.get(world).setOutsideBuilding(enabled);
+        RingBuildingSettings.get(world).setOutsideBuilding(enabled);
         for (ServerPlayer viewer : world.getServer().getPlayerList().getPlayers()) sendBuildingSettings(viewer);
     }
 
     private static int setSkyBackdrop(CommandSourceStack source, String name) {
-        ServerLevel world = source.getServer().getLevel(Level.OVERWORLD);
-        if (world == null) {
-            source.sendFailure(Component.literal("RingWorld Overworld is unavailable"));
-            return 0;
-        }
+        ServerLevel world = source.getLevel();
         RingSkyProfile.Backdrop backdrop;
         try {
             backdrop = switch (name.toLowerCase(java.util.Locale.ROOT)) {
@@ -182,40 +119,31 @@ public final class RingTerrainAtlasServer {
                 default -> RingSkyProfile.Backdrop.valueOf(name.toUpperCase(java.util.Locale.ROOT));
             };
         } catch (IllegalArgumentException exception) {
-            source.sendFailure(Component.literal(
-                    "Unknown sky. Use atmosphere, night, or void."));
+            source.sendFailure(Component.literal("Unknown sky. Use atmosphere, night, or void."));
             return 0;
         }
         RingSkyProfile profile = RingSkySettings.get(world).profile().withBackdrop(backdrop);
         publishSkyProfile(source, world, profile);
-        source.sendSuccess(() -> Component.literal(
-                "RingWorld sky changed to " + backdrop.label() + "."), true);
+        source.sendSuccess(() -> Component.literal("RingWorld sky changed to " + backdrop.label() + "."), true);
         return 1;
     }
 
     private static int setSunStyle(CommandSourceStack source, String name) {
-        ServerLevel world = source.getServer().getLevel(Level.OVERWORLD);
-        if (world == null) {
-            source.sendFailure(Component.literal("RingWorld Overworld is unavailable"));
-            return 0;
-        }
+        ServerLevel world = source.getLevel();
         RingSkyProfile.LightSource sunStyle;
         try {
-            sunStyle = RingSkyProfile.LightSource.valueOf(
-                    name.toUpperCase(java.util.Locale.ROOT));
+            sunStyle = RingSkyProfile.LightSource.valueOf(name.toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             source.sendFailure(Component.literal("Unknown sun style. Use small, large, or none."));
             return 0;
         }
         RingSkyProfile profile = RingSkySettings.get(world).profile().withLightSource(sunStyle);
         publishSkyProfile(source, world, profile);
-        source.sendSuccess(() -> Component.literal(
-                "RingWorld sun changed to " + sunStyle.label() + "."), true);
+        source.sendSuccess(() -> Component.literal("RingWorld sun changed to " + sunStyle.label() + "."), true);
         return 1;
     }
 
-    private static void publishSkyProfile(
-            CommandSourceStack source, ServerLevel world, RingSkyProfile profile) {
+    private static void publishSkyProfile(CommandSourceStack source, ServerLevel world, RingSkyProfile profile) {
         RingSkySettings.setProfile(world, profile);
         RingSkyProfilePayload payload = RingSkyProfilePayload.from(profile);
         for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
@@ -223,10 +151,14 @@ public final class RingTerrainAtlasServer {
         }
     }
 
-    public static void load(ServerLevel world) { RingAtlasPregenerationService.load(world); }
+    public static void load(ServerLevel world) {
+        RingAtlasPregenerationService.load(world);
+    }
+
     public static void load(ServerLevel world, boolean allowBackgroundAutostart) {
         RingAtlasPregenerationService.load(world, allowBackgroundAutostart);
     }
+
     public static void unload(ServerLevel world) {
         RingAtlasPregenerationService.unload(world);
         STREAMS.entrySet().removeIf(entry -> entry.getValue().world == world);
@@ -234,6 +166,7 @@ public final class RingTerrainAtlasServer {
         PreviewJob previewJob = PREVIEW_JOBS.remove(world);
         if (previewJob != null) previewJob.cancel();
     }
+
     public static void captureLoadedChunk(ServerLevel world, LevelChunk chunk) {
         RingAtlasPregenerationService.captureLoadedChunk(world, chunk);
     }
@@ -247,29 +180,27 @@ public final class RingTerrainAtlasServer {
         publishObservedStatus(world);
     }
 
-    /** Sent after geometry acknowledgement, before the client asks for missing tiles. */
+    /**
+     * Sent after geometry acknowledgement, before the client asks for missing tiles.
+     */
     public static void sendMetadata(ServerPlayer player) {
-        ServerLevel overworld = player.level().getServer().getLevel(Level.OVERWORLD);
-        if (overworld == null) return;
-        if (!transport.canSend(player, RingTerrainAtlasMetadataPayload.ID)
-                || !transport.canSend(player, RingTerrainAtlasTilePayload.ID)
-                || !transport.canSend(player, RingTerrainAtlasRevisionPayload.ID)
-                || !transport.canSend(player, RingTerrainPreviewPayload.ID)) {
-            player.connection.disconnect(Component.literal(
-                    "RingWorld client terrain-atlas protocol is missing or out of date."));
+        ServerLevel world = player.level().getLevel();
+        if (!transport.canSend(player, RingTerrainAtlasMetadataPayload.ID) || !transport.canSend(player, RingTerrainAtlasTilePayload.ID) || !transport.canSend(player, RingTerrainAtlasRevisionPayload.ID) || !transport.canSend(player, RingTerrainPreviewPayload.ID)) {
+            player.connection.disconnect(Component.literal("RingWorld client terrain-atlas protocol is missing or out of date."));
             return;
         }
         RingTerrainAtlas atlas;
-        try { atlas = RingAtlasPregenerationService.atlas(overworld); }
-        catch (IllegalStateException ignored) { return; }
-        transport.send(player, new RingTerrainAtlasMetadataPayload(atlas.worldHash(), atlas.sampleStep(),
-                atlas.columns(), atlas.rows(), RingTerrainAtlas.TILE_SIZE, atlas.presentCount(), atlas.isComplete(),
-                atlas.revision()));
-        if (!atlas.isComplete()) sendPreview(player, overworld, atlas);
+        try {
+            atlas = RingAtlasPregenerationService.atlas(world);
+        } catch (IllegalStateException ignored) {
+            return;
+        }
+        transport.send(player, new RingTerrainAtlasMetadataPayload(atlas.worldHash(), atlas.sampleStep(), atlas.columns(), atlas.rows(), RingTerrainAtlas.TILE_SIZE, atlas.presentCount(), atlas.isComplete(), atlas.revision()));
+        if (!atlas.isComplete()) sendPreview(player, world, atlas);
         // Geometry acknowledgement is the first point at which a client can
         // safely bind this status to a RingWorld layout.
-        PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(overworld));
-        sendPregenerationStatus(player, overworld, Optional.empty());
+        PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
+        sendPregenerationStatus(player, world, Optional.empty());
     }
 
     private static void sendPreview(ServerPlayer player, ServerLevel world, RingTerrainAtlas atlas) {
@@ -295,10 +226,8 @@ public final class RingTerrainAtlasServer {
             try {
                 for (RingTerrainPreviewStage stage : RingTerrainPreviewStage.values()) {
                     if (job.cancelled) return;
-                    RingWorldMod.LOGGER.debug("Starting RingWorld {} seed preview for {}",
-                            stage.logLabel(), atlas.worldHash());
-                    RingTerrainPreview preview = RingTerrainPreviewGenerator.generate(
-                            world, atlas.worldHash(), atlas.geometry(), stage);
+                    RingWorldMod.LOGGER.debug("Starting RingWorld {} seed preview for {}", stage.logLabel(), atlas.worldHash());
+                    RingTerrainPreview preview = generatePreview(world, atlas.worldHash(), atlas.geometry(), stage);
                     if (preview == null || job.cancelled) return;
                     byte[] encoded = preview.encode();
                     if (job.cancelled) return;
@@ -307,20 +236,28 @@ public final class RingTerrainAtlasServer {
             } catch (CancellationException ignored) {
                 RingWorldMod.LOGGER.info("Cancelled staged RingWorld seed preview for {}", atlas.worldHash());
             } catch (IOException | RuntimeException exception) {
-                RingWorldMod.LOGGER.warn(
-                        "Could not build staged RingWorld terrain preview; retaining the last available stage",
-                        exception);
+                RingWorldMod.LOGGER.warn("Could not build staged RingWorld terrain preview; retaining the last available stage", exception);
             }
         });
     }
 
-    private static void publishPreview(ServerLevel world, RingTerrainAtlas sourceAtlas,
-                                       PreviewJob job, RingTerrainPreviewStage stage,
-                                       byte[] encoded) {
+    private static RingTerrainPreview generatePreview(ServerLevel world, long worldHash, RingGeometry geometry, RingTerrainPreviewStage stage) {
+        long started = System.nanoTime();
+        RingTerrainPreview preview = RingTerrainPreviewSampler.generate(worldHash, geometry, stage, world.getChunkSource().getGenerator(), world.getChunkSource().randomState(), world);
+        if (preview == null) return null;
+        RingWorldMod.LOGGER.info("Generated {} RingWorld terrain preview: {}x{} colour / {}x{} terrain in {} ms", stage.logLabel(), preview.columns(), preview.rows(), Math.min(preview.columns(), stage.terrainColumns()), Math.min(preview.rows(), stage.terrainRows()), Math.round((System.nanoTime() - started) / 1000000.0));
+        return preview;
+    }
+
+    private static void publishPreview(ServerLevel world, RingTerrainAtlas sourceAtlas, PreviewJob job, RingTerrainPreviewStage stage, byte[] encoded) {
         if (job.cancelled || PREVIEW_JOBS.get(world) != job) return;
         RingTerrainAtlas current;
-        try { current = RingAtlasPregenerationService.atlas(world); }
-        catch (IllegalStateException ignored) { job.cancel(); return; }
+        try {
+            current = RingAtlasPregenerationService.atlas(world);
+        } catch (IllegalStateException ignored) {
+            job.cancel();
+            return;
+        }
         if (current.worldHash() != sourceAtlas.worldHash() || current.isComplete()) {
             job.cancel();
             return;
@@ -334,65 +271,71 @@ public final class RingTerrainAtlasServer {
         }
     }
 
-    private static void sendPreviewPayload(ServerPlayer player, long worldHash, byte[] encoded,
-                                           RingTerrainPreviewStage stage) {
+    private static void sendPreviewPayload(ServerPlayer player, long worldHash, byte[] encoded, RingTerrainPreviewStage stage) {
         if (stage == null) return;
         transport.send(player, new RingTerrainPreviewPayload(worldHash, stage.wireValue(), encoded));
-        RingWorldMod.LOGGER.info("Sent RingWorld {} seed preview to {} ({} KiB compressed)",
-                stage.logLabel(), player.getName().getString(),
-                Math.max(1, encoded.length / 1_024));
+        RingWorldMod.LOGGER.info("Sent RingWorld {} seed preview to {} ({} KiB compressed)", stage.logLabel(), player.getName().getString(), Math.max(1, encoded.length / 1024));
     }
 
-    public static void requestTiles(ServerPlayer player, long worldHash, long clientRevision,
-                                    boolean cacheComplete) {
-        ServerLevel overworld = player.level().getServer().getLevel(Level.OVERWORLD);
-        if (overworld == null) return;
+    public static void requestTiles(ServerPlayer player, long worldHash, long clientRevision, boolean cacheComplete) {
+        ServerLevel overworld = player.level();
         RingTerrainAtlas atlas;
-        try { atlas = RingAtlasPregenerationService.atlas(overworld); }
-        catch (IllegalStateException ignored) { return; }
+        try {
+            atlas = RingAtlasPregenerationService.atlas(overworld);
+        } catch (IllegalStateException ignored) {
+            return;
+        }
         if (atlas.worldHash() != worldHash || clientRevision < 0L) return;
         Queue<RingAtlasPregenerationService.TileCoordinate> tiles = new ArrayDeque<>();
         boolean exactCompleteCache = cacheComplete && clientRevision == atlas.revision();
         if (!exactCompleteCache) {
-            for (int z = 0; z < atlas.tileRows(); z++) for (int x = 0; x < atlas.tileColumns(); x++) {
-                tiles.add(new RingAtlasPregenerationService.TileCoordinate(x, z));
-            }
+            for (int z = 0; z < atlas.tileRows(); z++)
+                for (int x = 0; x < atlas.tileColumns(); x++) {
+                    tiles.add(new RingAtlasPregenerationService.TileCoordinate(x, z));
+                }
         }
-        STREAMS.put(player.getUUID(), new ClientStream(overworld, tiles,
-                exactCompleteCache ? clientRevision : -1L));
+        STREAMS.put(player.getUUID(), new ClientStream(overworld, tiles, exactCompleteCache ? clientRevision : -1L));
         if (!tiles.isEmpty()) {
-            RingWorldMod.LOGGER.info("Streaming {} RingWorld terrain atlas tiles (~{} KiB) to {}", tiles.size(),
-                    Math.max(1L, atlas.estimatedWireBytes() / 1_024L), player.getName().getString());
+            RingWorldMod.LOGGER.info("Streaming {} RingWorld terrain atlas tiles (~{} KiB) to {}", tiles.size(), Math.max(1L, atlas.estimatedWireBytes() / 1024L), player.getName().getString());
         }
     }
 
-    /** Starts observing status; the request is ignored outside the loaded RingWorld Overworld. */
+    /**
+     * Starts observing status; the request is ignored outside the loaded RingWorld Overworld.
+     */
     public static void requestPregenerationStatus(ServerPlayer player, long worldHash) {
         ServerLevel world = player.level();
-        if (world.dimension() != Level.OVERWORLD) return;
+        if (!RingWorldApi.isRingWorld(world)) return;
         RingTerrainAtlas atlas;
-        try { atlas = RingAtlasPregenerationService.atlas(world); }
-        catch (IllegalStateException ignored) { return; }
+        try {
+            atlas = RingAtlasPregenerationService.atlas(world);
+        } catch (IllegalStateException ignored) {
+            return;
+        }
         if (atlas.worldHash() != worldHash) return;
         PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
         sendPregenerationStatus(player, world, Optional.empty());
     }
 
-    /** Server-thread action gateway. Every request rechecks world and player authority. */
+    /**
+     * Server-thread action gateway. Every request rechecks world and player authority.
+     */
     public static void controlPregeneration(ServerPlayer player, long worldHash, AtlasPregenerationAction action) {
         ServerLevel world = player.level();
-        if (world.dimension() != Level.OVERWORLD) return;
+        if (!RingWorldApi.isRingWorld(world)) return;
         RingTerrainAtlas atlas;
-        try { atlas = RingAtlasPregenerationService.atlas(world); }
-        catch (IllegalStateException ignored) { return; }
+        try {
+            atlas = RingAtlasPregenerationService.atlas(world);
+        } catch (IllegalStateException ignored) {
+            return;
+        }
         PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
         if (atlas.worldHash() != worldHash) {
             sendPregenerationStatus(player, world, Optional.of("This map belongs to another RingWorld layout."));
             return;
         }
         if (!canControl(player)) {
-            sendPregenerationStatus(player, world, Optional.of(
-                    "You can view progress, but only the world owner or a gamemaster can control generation."));
+            sendPregenerationStatus(player, world, Optional.of("You can view progress, but only the world owner or a gamemaster can control generation."));
             return;
         }
         try {
@@ -404,15 +347,14 @@ public final class RingTerrainAtlasServer {
                         sendPregenerationStatus(player, world, Optional.of("The complete atlas is already saved."));
                         return;
                     }
-                    if (state == AtlasPregenerationState.RUNNING || state == AtlasPregenerationState.PAUSED
-                            || state == AtlasPregenerationState.SAVING) {
+                    if (state == AtlasPregenerationState.RUNNING || state == AtlasPregenerationState.PAUSED || state == AtlasPregenerationState.SAVING) {
                         sendPregenerationStatus(player, world, Optional.of("Generation is already active."));
                         return;
                     }
                     // Mode is an adapter intent, not permission to make a second
                     // writer: matching conservative policies reuse the loaded job.
-                    RingAtlasPregenerationService.pregenerate(world,
-                            AtlasPregenerationOptions.interactiveDefaults(), progress -> { });
+                    RingAtlasPregenerationService.pregenerate(world, AtlasPregenerationOptions.interactiveDefaults(), progress -> {
+                    });
                 }
                 case PAUSE -> {
                     if (state != AtlasPregenerationState.RUNNING) {
@@ -438,27 +380,27 @@ public final class RingTerrainAtlasServer {
             }
             sendPregenerationStatus(player, world, Optional.empty());
         } catch (RuntimeException exception) {
-            RingWorldMod.LOGGER.warn("Rejected atlas generation action {} from {}", action,
-                    player.getName().getString(), exception);
-            sendPregenerationStatus(player, world, Optional.of(
-                    Optional.ofNullable(exception.getMessage()).orElse("Generation request could not be completed.")));
+            RingWorldMod.LOGGER.warn("Rejected atlas generation action {} from {}", action, player.getName().getString(), exception);
+            sendPregenerationStatus(player, world, Optional.of(Optional.ofNullable(exception.getMessage()).orElse("Generation request could not be completed.")));
         }
     }
 
-    /** Fabric lifecycle adapter calls this on disconnect so old observer state cannot leak into a new session. */
+    /**
+     * Fabric lifecycle adapter calls this on disconnect so old observer state cannot leak into a new session.
+     */
     public static void clearPlayer(ServerPlayer player) {
         STREAMS.remove(player.getUUID());
         PROGRESS_OBSERVERS.remove(player.getUUID());
     }
 
-    public static String status(ServerLevel world) { return RingAtlasPregenerationService.status(world); }
+    public static String status(ServerLevel world) {
+        return RingAtlasPregenerationService.status(world);
+    }
 
     private static boolean canControl(ServerPlayer player) {
-        boolean integratedOwner = player.level().getServer().isSingleplayer()
-                && player.level().getServer().isSingleplayerOwner(new NameAndId(player.getGameProfile()));
-        boolean gamemaster = player.permissions().hasPermission(
-                new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS));
-        return AtlasPregenerationAccess.canControl(integratedOwner, gamemaster);
+        boolean integratedOwner = player.level().getServer().isSingleplayer() && player.level().getServer().isSingleplayerOwner(new NameAndId(player.getGameProfile()));
+        boolean gamemaster = player.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS));
+        return integratedOwner || gamemaster;
     }
 
     private static void publishObservedStatus(ServerLevel world) {
@@ -474,25 +416,20 @@ public final class RingTerrainAtlasServer {
     }
 
     private static AtlasPregenerationState currentState(ServerLevel world) {
-        return RingAtlasPregenerationService.active(world).map(handle -> handle.progress().state())
-                .orElse(AtlasPregenerationState.IDLE);
+        return RingAtlasPregenerationService.active(world).map(handle -> handle.progress().state()).orElse(AtlasPregenerationState.IDLE);
     }
 
     private static void sendPregenerationStatus(ServerPlayer player, ServerLevel world, Optional<String> message) {
         if (!transport.canSend(player, RingAtlasPregenerationStatusPayload.ID)) return;
         RingTerrainAtlas atlas;
-        try { atlas = RingAtlasPregenerationService.atlas(world); }
-        catch (IllegalStateException ignored) { return; }
-        long chunks = RingAtlasPregenerationCursor.checkedTotalChunks(atlas.geometry().circumferenceChunks(),
-                atlas.geometry().widthChunks());
-        AtlasPregenerationProgress progress = RingAtlasPregenerationService.active(world)
-                .map(AtlasPregenerationHandle::progress)
-                .orElseGet(() -> AtlasPregenerationProgress.snapshot(AtlasPregenerationState.IDLE, 0, chunks,
-                        atlas.presentCount(), atlas.presentCount(), atlas.cellCount(),
-                        java.time.Duration.ZERO, Optional.empty()));
-        AtlasPregenerationStatus status = new AtlasPregenerationStatus(atlas.worldHash(),
-                atlas.geometry().circumferenceBlocks(), atlas.geometry().widthBlocks(), RingTerrainAtlas.FORMAT_VERSION,
-                atlas.sampleStep(), chunks, atlas.presentChunkCount(), progress, canControl(player), message);
+        try {
+            atlas = RingAtlasPregenerationService.atlas(world);
+        } catch (IllegalStateException ignored) {
+            return;
+        }
+        long chunks = RingAtlasPregenerationCursor.checkedTotalChunks(atlas.geometry().circumferenceChunks(), atlas.geometry().widthChunks());
+        AtlasPregenerationProgress progress = RingAtlasPregenerationService.active(world).map(AtlasPregenerationHandle::progress).orElseGet(() -> AtlasPregenerationProgress.snapshot(AtlasPregenerationState.IDLE, 0, chunks, atlas.presentCount(), atlas.presentCount(), atlas.cellCount(), java.time.Duration.ZERO, Optional.empty()));
+        AtlasPregenerationStatus status = new AtlasPregenerationStatus(atlas.worldHash(), atlas.geometry().circumferenceBlocks(), atlas.geometry().widthBlocks(), RingTerrainAtlas.FORMAT_VERSION, atlas.sampleStep(), chunks, atlas.presentChunkCount(), progress, canControl(player), message);
         transport.send(player, new RingAtlasPregenerationStatusPayload(status));
         ProgressObserver observer = PROGRESS_OBSERVERS.get(player.getUUID());
         if (observer != null && observer.world == world) {
@@ -503,13 +440,17 @@ public final class RingTerrainAtlasServer {
 
     // Kept as package-visible adapter compatibility seams for storage tests;
     // the authoritative path policy and all load/save work live in the service.
-    static Path cachePath(Path dimensionPath) { return RingAtlasPregenerationService.cachePath(dimensionPath); }
-    static Path legacyCachePath(Path worldRoot) { return RingAtlasPregenerationService.legacyCachePath(worldRoot); }
+    static Path cachePath(Path dimensionPath) {
+        return RingAtlasPregenerationService.cachePath(dimensionPath);
+    }
 
-    private static int control(ServerLevel world, AtlasPregenerationAction action,
-                               CommandSourceStack source) {
+    static Path legacyCachePath(Path worldRoot) {
+        return RingAtlasPregenerationService.legacyCachePath(worldRoot);
+    }
+
+    private static int control(ServerLevel world, AtlasPregenerationAction action, CommandSourceStack source) {
         if (world == null) {
-            source.sendFailure(Component.literal("RingWorld Overworld is unavailable"));
+            source.sendFailure(Component.literal("RingWorld level is unavailable"));
             return 0;
         }
         AtlasPregenerationHandle handle = RingAtlasPregenerationService.active(world).orElse(null);
@@ -522,17 +463,13 @@ public final class RingTerrainAtlasServer {
         switch (RingAtlasCommandPolicy.decide(action, state)) {
             case START -> {
                 try {
-                    RingAtlasPregenerationService.pregenerate(world,
-                            AtlasPregenerationOptions.interactiveDefaults(), progress -> { });
+                    RingAtlasPregenerationService.pregenerate(world, AtlasPregenerationOptions.interactiveDefaults(), progress -> {
+                    });
                 } catch (IllegalStateException exception) {
-                    source.sendFailure(Component.literal(
-                            "RingWorld atlas generation could not start: "
-                                    + Optional.ofNullable(exception.getMessage())
-                                    .orElse("the previous job has not released its resources")));
+                    source.sendFailure(Component.literal("RingWorld atlas generation could not start: " + Optional.ofNullable(exception.getMessage()).orElse("the previous job has not released its resources")));
                     return 0;
                 }
-                result = state == AtlasPregenerationState.IDLE
-                        ? "started from saved progress" : "started";
+                result = state == AtlasPregenerationState.IDLE ? "started from saved progress" : "started";
             }
             case PAUSE -> {
                 handle.pause();
@@ -545,24 +482,20 @@ public final class RingTerrainAtlasServer {
             case ALREADY_COMPLETE -> result = "is already complete";
             case ALREADY_ACTIVE -> result = "is already active";
             case NOT_RUNNING -> {
-                source.sendFailure(Component.literal("RingWorld atlas generation is not running: "
-                        + RingAtlasPregenerationService.status(world)));
+                source.sendFailure(Component.literal("RingWorld atlas generation is not running: " + RingAtlasPregenerationService.status(world)));
                 return 0;
             }
             case NOT_PAUSED -> {
-                source.sendFailure(Component.literal("RingWorld atlas generation is not paused: "
-                        + RingAtlasPregenerationService.status(world)));
+                source.sendFailure(Component.literal("RingWorld atlas generation is not paused: " + RingAtlasPregenerationService.status(world)));
                 return 0;
             }
             case UNSUPPORTED -> {
-                source.sendFailure(Component.literal(
-                        "Atlas cancellation is available from the RingWorld Map screen."));
+                source.sendFailure(Component.literal("Atlas cancellation is available from the RingWorld Map screen."));
                 return 0;
             }
             default -> throw new IllegalStateException("unsupported atlas command outcome");
         }
-        source.sendSuccess(() -> Component.literal("RingWorld atlas pregeneration " + result
-                + ": " + RingAtlasPregenerationService.status(world)), true);
+        source.sendSuccess(() -> Component.literal("RingWorld atlas pregeneration " + result + ": " + RingAtlasPregenerationService.status(world)), true);
         return 1;
     }
 
@@ -570,28 +503,30 @@ public final class RingTerrainAtlasServer {
         if (dirty.isEmpty()) return;
         for (ClientStream stream : STREAMS.values()) {
             if (stream.world != world) continue;
-            for (RingAtlasPregenerationService.TileCoordinate tile : dirty) if (stream.known.add(tile)) stream.tiles.add(tile);
+            for (RingAtlasPregenerationService.TileCoordinate tile : dirty)
+                if (stream.known.add(tile)) stream.tiles.add(tile);
         }
     }
 
     private static void streamTiles(ServerLevel world) {
         RingTerrainAtlas atlas;
-        try { atlas = RingAtlasPregenerationService.atlas(world); }
-        catch (IllegalStateException ignored) { return; }
+        try {
+            atlas = RingAtlasPregenerationService.atlas(world);
+        } catch (IllegalStateException ignored) {
+            return;
+        }
         for (ServerPlayer player : world.players()) {
             ClientStream stream = STREAMS.get(player.getUUID());
-            if (stream == null || stream.world != world || !transport.canSend(player, RingTerrainAtlasTilePayload.ID)) continue;
+            if (stream == null || stream.world != world || !transport.canSend(player, RingTerrainAtlasTilePayload.ID))
+                continue;
             for (int count = 0; count < STREAM_TILES_PER_TICK && !stream.tiles.isEmpty(); count++) {
                 RingAtlasPregenerationService.TileCoordinate tile = stream.tiles.remove();
                 stream.known.remove(tile);
                 transport.send(player, new RingTerrainAtlasTilePayload(atlas.worldHash(), tile.x(), tile.z(), atlas.encodeTile(tile.x(), tile.z())));
             }
-            if (stream.tiles.isEmpty() && atlas.isComplete()
-                    && !RingAtlasPregenerationService.hasPendingDirtyTiles(world)) {
-                if (stream.committedRevision != atlas.revision()
-                        && transport.canSend(player, RingTerrainAtlasRevisionPayload.ID)) {
-                    transport.send(player, new RingTerrainAtlasRevisionPayload(
-                            atlas.worldHash(), atlas.revision()));
+            if (stream.tiles.isEmpty() && atlas.isComplete() && !RingAtlasPregenerationService.hasPendingDirtyTiles(world)) {
+                if (stream.committedRevision != atlas.revision() && transport.canSend(player, RingTerrainAtlasRevisionPayload.ID)) {
+                    transport.send(player, new RingTerrainAtlasRevisionPayload(atlas.worldHash(), atlas.revision()));
                     stream.committedRevision = atlas.revision();
                 }
             }
@@ -603,8 +538,8 @@ public final class RingTerrainAtlasServer {
         private final Queue<RingAtlasPregenerationService.TileCoordinate> tiles;
         private final Set<RingAtlasPregenerationService.TileCoordinate> known = new HashSet<>();
         private long committedRevision;
-        private ClientStream(ServerLevel world, Queue<RingAtlasPregenerationService.TileCoordinate> tiles,
-                             long committedRevision) {
+
+        private ClientStream(ServerLevel world, Queue<RingAtlasPregenerationService.TileCoordinate> tiles, long committedRevision) {
             this.world = world;
             this.tiles = tiles;
             this.committedRevision = committedRevision;
@@ -616,7 +551,10 @@ public final class RingTerrainAtlasServer {
         private final ServerLevel world;
         private long lastSentTick = Long.MIN_VALUE / 2;
         private AtlasPregenerationState state;
-        private ProgressObserver(ServerLevel world) { this.world = world; }
+
+        private ProgressObserver(ServerLevel world) {
+            this.world = world;
+        }
     }
 
     static final class PreviewJob {
@@ -626,7 +564,9 @@ public final class RingTerrainAtlasServer {
         private byte[] latestData;
         private RingTerrainPreviewStage latestStage;
 
-        PreviewJob(long worldHash) { this.worldHash = worldHash; }
+        PreviewJob(long worldHash) {
+            this.worldHash = worldHash;
+        }
 
         // start/cancel are server-thread-owned. ExecutorService.submit supplies
         // a FutureTask whose cancellation interrupts only its own running task.
@@ -640,9 +580,12 @@ public final class RingTerrainAtlasServer {
         }
     }
 
-    /** Narrow loader-owned payload capability and delivery adapter. */
+    /**
+     * Narrow loader-owned payload capability and delivery adapter.
+     */
     public interface PayloadTransport {
         boolean canSend(ServerPlayer player, CustomPacketPayload.Type<?> type);
+
         void send(ServerPlayer player, CustomPacketPayload payload);
     }
 }

@@ -19,17 +19,13 @@ final class RingAtlasChunkRequest<T> implements AutoCloseable {
     private final Runnable release;
     private boolean closed;
 
-    private RingAtlasChunkRequest(CompletableFuture<?> loadFuture,
-                                  Supplier<T> loadedResult,
-                                  Runnable release) {
+    private RingAtlasChunkRequest(CompletableFuture<?> loadFuture, Supplier<T> loadedResult, Runnable release) {
         this.loadFuture = Objects.requireNonNull(loadFuture, "chunk load returned no future");
         this.loadedResult = Objects.requireNonNull(loadedResult, "loadedResult");
         this.release = Objects.requireNonNull(release, "release");
     }
 
-    static <T> RingAtlasChunkRequest<T> start(Supplier<CompletableFuture<?>> load,
-                                               Supplier<T> loadedResult,
-                                               Runnable release) {
+    static <T> RingAtlasChunkRequest<T> start(Supplier<CompletableFuture<?>> load, Supplier<T> loadedResult, Runnable release) {
         Objects.requireNonNull(load, "load");
         Objects.requireNonNull(release, "release");
         Objects.requireNonNull(loadedResult, "loadedResult");
@@ -42,8 +38,11 @@ final class RingAtlasChunkRequest<T> implements AutoCloseable {
             // this failed future until close/cancel succeeds, blocking replacement.
             future = CompletableFuture.failedFuture(failure);
         } catch (Error failure) {
-            try { release.run(); }
-            catch (RuntimeException | Error releaseFailure) { failure.addSuppressed(releaseFailure); }
+            try {
+                release.run();
+            } catch (RuntimeException | Error releaseFailure) {
+                failure.addSuppressed(releaseFailure);
+            }
             throw failure;
         }
         return new RingAtlasChunkRequest<>(future, loadedResult, release);

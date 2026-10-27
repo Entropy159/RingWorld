@@ -1,9 +1,9 @@
 package dev.ringworld.world;
 
-/** Canonical chunk-index operations for the periodic circumference axis. */
+/**
+ * Canonical chunk-index operations for the periodic circumference axis.
+ */
 public final class RingChunkCoordinates {
-    private RingChunkCoordinates() { }
-
     public static int circumferenceChunks(RingGeometry geometry) {
         return geometry.circumferenceChunks();
     }
@@ -18,10 +18,7 @@ public final class RingChunkCoordinates {
      * this helper is also used as a loaded-entity fallback while its queued
      * player-ticket update settles at a natural seam crossing.
      */
-    public static boolean isWithinSimulationDistance(int entityChunkX, int entityChunkZ,
-                                                     int playerChunkX, int playerChunkZ,
-                                                     int simulationDistance,
-                                                     RingGeometry geometry) {
+    public static boolean isWithinSimulationDistance(int entityChunkX, int entityChunkZ, int playerChunkX, int playerChunkZ, int simulationDistance, RingGeometry geometry) {
         int circumference = circumferenceChunks(geometry);
         int canonicalEntityX = Math.floorMod(entityChunkX, circumference);
         int canonicalPlayerX = Math.floorMod(playerChunkX, circumference);

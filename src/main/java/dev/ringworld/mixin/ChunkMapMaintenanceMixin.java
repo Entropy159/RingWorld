@@ -1,14 +1,12 @@
 package dev.ringworld.mixin;
 
-import dev.ringworld.server.RingChunkWorkContext;
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingChunkMaintenanceBudget;
+import dev.ringworld.server.RingChunkWorkContext;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BooleanSupplier;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
@@ -25,28 +23,58 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Bound ordinary RingWorld chunk snapshot work; explicit save/flush paths stay vanilla. */
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
+
+/**
+ * Bound ordinary RingWorld chunk snapshot work; explicit save/flush paths stay vanilla.
+ */
 @Mixin(ChunkMap.class)
-abstract class ChunkMapMaintenanceMixin {
-    @Shadow @Final private ServerLevel level;
-    @Shadow private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> visibleChunkMap;
-    @Shadow @Final private Long2LongMap nextChunkSaveTime;
-    @Shadow @Final private AtomicInteger activeChunkWrites;
-    @Shadow @Final private LongSet toDrop;
-    @Shadow @Final private Queue<Runnable> unloadQueue;
-    @Shadow private boolean saveChunkIfNeeded(ChunkHolder holder, long now) { throw new AssertionError(); }
-    @Unique private long[] ringworld$saveKeys;
-    @Unique private int ringworld$saveCursor;
-    @Unique private boolean ringworld$saveAgain;
-    @Unique private boolean ringworld$ordinaryTick;
-    @Unique private long ringworld$start;
-    @Unique private int ringworld$tasks;
-    @Unique private int ringworld$saves;
-    @Unique private RingChunkMaintenanceBudget ringworld$budget;
+public abstract class ChunkMapMaintenanceMixin {
+    @Shadow
+    @Final
+    private ServerLevel level;
+    @Shadow
+    private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> visibleChunkMap;
+    @Shadow
+    @Final
+    private Long2LongMap nextChunkSaveTime;
+    @Shadow
+    @Final
+    private AtomicInteger activeChunkWrites;
+    @Shadow
+    @Final
+    private LongSet toDrop;
+    @Shadow
+    @Final
+    private Queue<Runnable> unloadQueue;
+
+    @Shadow
+    private boolean saveChunkIfNeeded(ChunkHolder holder, long now) {
+        throw new AssertionError();
+    }
+
+    @Unique
+    private long[] ringworld$saveKeys;
+    @Unique
+    private int ringworld$saveCursor;
+    @Unique
+    private boolean ringworld$saveAgain;
+    @Unique
+    private boolean ringworld$ordinaryTick;
+    @Unique
+    private long ringworld$start;
+    @Unique
+    private int ringworld$tasks;
+    @Unique
+    private int ringworld$saves;
+    @Unique
+    private RingChunkMaintenanceBudget ringworld$budget;
 
     @Inject(method = "saveAllChunks", at = @At("HEAD"), cancellable = true)
     private void ringworld$queueAutosave(boolean flushStorage, CallbackInfo ci) {
-        if (flushStorage || !RingChunkWorkContext.periodicSave() || level.dimension() != Level.OVERWORLD) return;
+        if (flushStorage || !RingChunkWorkContext.periodicSave() || !RingWorldApi.isRingWorld(level)) return;
         if (ringworld$saveKeys == null) {
             // Coordinates only: no retained holder/chunk graph and no worker reads of live chunks.
             ringworld$saveKeys = visibleChunkMap.keySet().toLongArray();
@@ -55,34 +83,39 @@ abstract class ChunkMapMaintenanceMixin {
         ci.cancel();
     }
 
-    @Shadow private void processUnloads(BooleanSupplier haveTime) { throw new AssertionError(); }
+    @Shadow
+    private void processUnloads(BooleanSupplier haveTime) {
+        throw new AssertionError();
+    }
 
     @Redirect(method = "saveAllChunks", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;processUnloads(Ljava/util/function/BooleanSupplier;)V"))
     private void ringworld$flushUnloads(ChunkMap map, BooleanSupplier haveTime) {
         boolean ordinary = ringworld$ordinaryTick;
         ringworld$ordinaryTick = false;
-        try { processUnloads(haveTime); }
-        finally { ringworld$ordinaryTick = ordinary; }
+        try {
+            processUnloads(haveTime);
+        } finally {
+            ringworld$ordinaryTick = ordinary;
+        }
     }
 
     @Inject(method = "tick(Ljava/util/function/BooleanSupplier;)V", at = @At("HEAD"))
     private void ringworld$begin(BooleanSupplier haveTime, CallbackInfo ci) {
         // Also clear an interrupted ordinary tick before the shutdown drain starts.
         ringworld$ordinaryTick = false;
-        if (level.dimension() != Level.OVERWORLD || level.getServer().isCurrentlySaving()) return;
+        if (!RingWorldApi.isRingWorld(level) || level.getServer().isCurrentlySaving()) return;
         ringworld$ordinaryTick = true;
         ringworld$start = System.nanoTime();
         ringworld$tasks = 0;
         ringworld$saves = 0;
         Runtime runtime = Runtime.getRuntime();
-        ringworld$budget = RingChunkMaintenanceBudget.select((long) toDrop.size() + unloadQueue.size(),
-                Math.max(0, runtime.totalMemory() - runtime.freeMemory()), runtime.maxMemory());
+        ringworld$budget = RingChunkMaintenanceBudget.select((long) toDrop.size() + unloadQueue.size(), Math.max(0, runtime.totalMemory() - runtime.freeMemory()), runtime.maxMemory());
         // Reserve a little progress for the sweep, then share the remainder with unload/eager work.
         int examined = 0;
-        while (ringworld$saveKeys != null && ringworld$saveCursor < ringworld$saveKeys.length
-                && examined < 128 && ringworld$saves < 4 && ringworld$allowsWork()) {
+        while (ringworld$saveKeys != null && ringworld$saveCursor < ringworld$saveKeys.length && examined < 128 && ringworld$saves < 4 && ringworld$allowsWork()) {
             long key = ringworld$saveKeys[ringworld$saveCursor++];
-            examined++; ringworld$tasks++;
+            examined++;
+            ringworld$tasks++;
             ChunkHolder holder = visibleChunkMap.get(key);
             if (holder == null) continue; // Removed chunks use vanilla's pending-unload save path.
             nextChunkSaveTime.remove(key);
@@ -100,21 +133,15 @@ abstract class ChunkMapMaintenanceMixin {
 
     @Inject(method = "tick(Ljava/util/function/BooleanSupplier;)V", at = @At("RETURN"))
     private void ringworld$end(BooleanSupplier haveTime, CallbackInfo ci) {
-        if (ringworld$ordinaryTick && Boolean.getBoolean("ringworld.chunkWorkTimings")
-                && (ringworld$tasks > 0 || ringworld$saveKeys != null)) {
-            org.slf4j.LoggerFactory.getLogger("ringworld").info(
-                    "RingWorld chunk maintenance tick={} tasks={} saveAttempts={} sweepRemaining={} spanMs={} budgetMs={}",
-                    level.getServer().getTickCount(), ringworld$tasks, ringworld$saves,
-                    ringworld$saveKeys == null ? 0 : ringworld$saveKeys.length - ringworld$saveCursor,
-                    (System.nanoTime() - ringworld$start) / 1_000_000.0, ringworld$budget.nanos() / 1_000_000.0);
+        if (ringworld$ordinaryTick && Boolean.getBoolean("ringworld.chunkWorkTimings") && (ringworld$tasks > 0 || ringworld$saveKeys != null)) {
+            org.slf4j.LoggerFactory.getLogger("ringworld").info("RingWorld chunk maintenance tick={} tasks={} saveAttempts={} sweepRemaining={} spanMs={} budgetMs={}", level.getServer().getTickCount(), ringworld$tasks, ringworld$saves, ringworld$saveKeys == null ? 0 : ringworld$saveKeys.length - ringworld$saveCursor, (System.nanoTime() - ringworld$start) / 1000000.0, ringworld$budget.nanos() / 1000000.0);
         }
         ringworld$ordinaryTick = false;
     }
 
-    @Unique private boolean ringworld$allowsWork() {
-        return ringworld$saves < ringworld$budget.saves() && ringworld$tasks < ringworld$budget.tasks()
-                && activeChunkWrites.get() < 128
-                && (ringworld$tasks == 0 || System.nanoTime() - ringworld$start < ringworld$budget.nanos());
+    @Unique
+    private boolean ringworld$allowsWork() {
+        return ringworld$saves < ringworld$budget.saves() && ringworld$tasks < ringworld$budget.tasks() && activeChunkWrites.get() < 128 && (ringworld$tasks == 0 || System.nanoTime() - ringworld$start < ringworld$budget.nanos());
     }
 
     @Redirect(method = "processUnloads", at = @At(value = "INVOKE", target = "Ljava/util/Queue;size()I"))

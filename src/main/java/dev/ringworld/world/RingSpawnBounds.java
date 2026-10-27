@@ -12,14 +12,12 @@ import net.minecraft.core.BlockPos;
  * with {@link RingWorldSettings}; this helper never reads configuration.</p>
  */
 public final class RingSpawnBounds {
-    private RingSpawnBounds() { }
-
     /**
      * Keeps a vanilla biome-selected Z inside the finite band and away from
      * either rim.
      */
     public static int constrainInitialSpawnZ(int vanillaZ, RingGeometry geometry) {
-        int safeMargin = Math.min(32, Math.max(1, geometry.widthBlocks() / 4));
+        int safeMargin = Math.clamp(geometry.widthBlocks() / 4, 1, 32);
         int minSafeZ = geometry.minWidthZ() + safeMargin;
         int maxSafeZ = geometry.maxWidthZ() - safeMargin;
         return vanillaZ >= minSafeZ && vanillaZ <= maxSafeZ ? vanillaZ : 0;
@@ -33,7 +31,6 @@ public final class RingSpawnBounds {
      */
     public static BlockPos canonicalInitialSpawn(BlockPos candidate, RingGeometry geometry) {
         int canonicalX = geometry.wrapBlockX(candidate.getX());
-        return canonicalX == candidate.getX() ? candidate.immutable()
-                : new BlockPos(canonicalX, candidate.getY(), candidate.getZ());
+        return canonicalX == candidate.getX() ? candidate.immutable() : new BlockPos(canonicalX, candidate.getY(), candidate.getZ());
     }
 }

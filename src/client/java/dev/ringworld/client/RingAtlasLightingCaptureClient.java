@@ -3,9 +3,9 @@ package dev.ringworld.client;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.mixin.CreateWorldScreenInvoker;
 import dev.ringworld.world.RingTerrainAtlas;
+import net.minecraft.client.CloudStatus;
 import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.CloudStatus;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
@@ -18,8 +18,8 @@ import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 public final class RingAtlasLightingCaptureClient {
     public static final String ENABLE_PROPERTY = "ringworld.captureAtlasLighting";
     private static final String SEED = "-2162056627494116761";
-    private static final int TIMEOUT_TICKS = 7_200;
-    private static final int LAMP_CENTER_X = 1_024;
+    private static final int TIMEOUT_TICKS = 7200;
+    private static final int LAMP_CENTER_X = 1024;
     private static final int VIEW_X = 0;
 
     private int stage;
@@ -58,7 +58,8 @@ public final class RingAtlasLightingCaptureClient {
             case 3 -> captureDay(client);
             case 4 -> captureNight(client);
             case 5 -> finish(client);
-            default -> { }
+            default -> {
+            }
         }
         return true;
     }
@@ -76,8 +77,7 @@ public final class RingAtlasLightingCaptureClient {
     }
 
     private void createWorld(Minecraft client) {
-        if (worldStarted || client.getSingleplayerServer() != null
-                || !client.isGameLoadFinished()) return;
+        if (worldStarted || client.getSingleplayerServer() != null || !client.isGameLoadFinished()) return;
         if (!worldScreenOpened) {
             if (!(RingMinecraftClientAccess.screen(client) instanceof TitleScreen)) return;
             CreateWorldScreen.openFresh(client, () -> worldScreenOpened = false);
@@ -91,7 +91,7 @@ public final class RingAtlasLightingCaptureClient {
             creator.setAllowCommands(true);
             creator.setSeed(SEED);
             worldStarted = true;
-            ((CreateWorldScreenInvoker)screen).ringworld$createLevel();
+            ((CreateWorldScreenInvoker) screen).ringworld$createLevel();
         }
     }
 
@@ -101,8 +101,7 @@ public final class RingAtlasLightingCaptureClient {
         client.getConnection().sendCommand("gamemode spectator @s");
         client.getConnection().sendCommand("weather clear");
         client.getConnection().sendCommand("time set noon");
-        client.getConnection().sendCommand("tp @s " + (LAMP_CENTER_X + 0.5)
-                + " 140 0.5 90 -35");
+        client.getConnection().sendCommand("tp @s " + (LAMP_CENTER_X + 0.5) + " 140 0.5 90 -35");
         nextStage();
     }
 
@@ -126,8 +125,7 @@ public final class RingAtlasLightingCaptureClient {
                 int blockX = column * step + step / 2;
                 int blockZ = atlas.geometry().minWidthZ() + row * step + step / 2;
                 int blockY = Math.round(atlas.cellHeight(column, row));
-                client.getConnection().sendCommand("setblock " + blockX + " " + blockY
-                        + " " + blockZ + " minecraft:sea_lantern");
+                client.getConnection().sendCommand("setblock " + blockX + " " + blockY + " " + blockZ + " minecraft:sea_lantern");
                 expectedLitCells++;
             }
         }
@@ -145,9 +143,7 @@ public final class RingAtlasLightingCaptureClient {
             }
         }
         if (lit < expectedLitCells / 2) return;
-        RingWorldMod.LOGGER.info(
-                "[atlas-lighting] authoritative client Atlas received {} lit cells at revision {}",
-                lit, atlas.revision());
+        RingWorldMod.LOGGER.info("[atlas-lighting] authoritative client Atlas received {} lit cells at revision {}", lit, atlas.revision());
         client.getConnection().sendCommand("tp @s " + (VIEW_X + 0.5) + " 115 0.5 90 -90");
         client.getConnection().sendCommand("time set noon");
         nextStage();
@@ -170,8 +166,7 @@ public final class RingAtlasLightingCaptureClient {
 
     private void finish(Minecraft client) {
         if (capturesSaved < 2 || stageTicks < 20) return;
-        RingWorldMod.LOGGER.info(
-                "[atlas-lighting] PASS: complete Atlas retained daytime terrain and exposed authoritative surface lights at night");
+        RingWorldMod.LOGGER.info("[atlas-lighting] PASS: complete Atlas retained daytime terrain and exposed authoritative surface lights at night");
         client.stop();
     }
 
@@ -182,14 +177,11 @@ public final class RingAtlasLightingCaptureClient {
 
     private void capture(Minecraft client, String name) {
         capturePending = true;
-        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name + ".png",
-                RingMinecraftClientAccess.mainRenderTarget(client), 1, message ->
-                        client.execute(() -> {
-                            capturesSaved++;
-                            capturePending = false;
-                            RingWorldMod.LOGGER.info(
-                                    "[atlas-lighting] screenshot {}", message.getString());
-                        }));
+        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name + ".png", RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> client.execute(() -> {
+            capturesSaved++;
+            capturePending = false;
+            RingWorldMod.LOGGER.info("[atlas-lighting] screenshot {}", message.getString());
+        }));
     }
 
     private void nextStage() {

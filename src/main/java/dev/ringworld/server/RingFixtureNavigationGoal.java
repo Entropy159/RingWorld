@@ -11,9 +11,22 @@ import java.util.EnumSet;
  * unrelated random-stroll/attack goal from replacing the test's input.
  */
 final class RingFixtureNavigationGoal extends Goal {
-    RingFixtureNavigationGoal() { setFlags(EnumSet.of(Flag.MOVE)); }
+    RingFixtureNavigationGoal() {
+        setFlags(EnumSet.of(Flag.MOVE));
+    }
 
-    @Override public boolean canUse() { return true; }
-    @Override public boolean canContinueToUse() { return true; }
-    @Override public boolean isInterruptable() { return false; }
+    @Override
+    public boolean canUse() {
+        return true;
+    }
+
+    @Override
+    public boolean canContinueToUse() {
+        return true;
+    }
+
+    @Override
+    public boolean isInterruptable() {
+        return false;
+    }
 }

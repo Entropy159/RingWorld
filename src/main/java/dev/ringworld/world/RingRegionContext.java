@@ -2,11 +2,11 @@ package dev.ringworld.world;
 
 import java.util.function.Supplier;
 
-/** Marks generation-region arrays created for the ring Overworld. */
+/**
+ * Marks generation-region arrays created for the ring Overworld.
+ */
 public final class RingRegionContext {
     private static final ThreadLocal<Integer> CIRCUMFERENCE_CHUNKS = new ThreadLocal<>();
-
-    private RingRegionContext() { }
 
     public static <T> T run(int circumferenceChunks, Supplier<T> operation) {
         Integer previous = CIRCUMFERENCE_CHUNKS.get();

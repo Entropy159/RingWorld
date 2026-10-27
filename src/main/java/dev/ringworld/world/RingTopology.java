@@ -1,8 +1,9 @@
 package dev.ringworld.world;
 
+import net.minecraft.world.phys.AABB;
+
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.world.phys.AABB;
 
 /**
  * Authoritative topology operations for the periodic circumference axis.
@@ -44,8 +45,7 @@ public final class RingTopology {
     }
 
     public int imageBlockNear(int canonicalBlockX, double observerChartX) {
-        return RingBlockCoordinates.nearestImageBlockX(
-                canonicalBlockX, observerChartX, geometry);
+        return RingBlockCoordinates.nearestImageBlockX(canonicalBlockX, observerChartX, geometry);
     }
 
     public int imageChunkNear(int canonicalChunkX, int observerChartChunkX) {
@@ -71,10 +71,7 @@ public final class RingTopology {
     public List<QueryWindow> canonicalWindows(AABB chartBox) {
         double circumference = geometry.circumferenceBlocks();
         if (chartBox.getXsize() >= circumference) {
-            return List.of(new QueryWindow(
-                    new AABB(0.0, chartBox.minY, chartBox.minZ,
-                            circumference, chartBox.maxY, chartBox.maxZ),
-                    Math.floor(chartBox.minX / circumference) * circumference));
+            return List.of(new QueryWindow(new AABB(0.0, chartBox.minY, chartBox.minZ, circumference, chartBox.maxY, chartBox.maxZ), Math.floor(chartBox.minX / circumference) * circumference));
         }
 
         long firstImage = floorImageIndex(chartBox.minX, circumference);
@@ -84,15 +81,14 @@ public final class RingTopology {
             double offset = image * circumference;
             double minX = Math.max(chartBox.minX, offset) - offset;
             double maxX = Math.min(chartBox.maxX, offset + circumference) - offset;
-            result.add(new QueryWindow(
-                    new AABB(minX, chartBox.minY, chartBox.minZ,
-                            maxX, chartBox.maxY, chartBox.maxZ),
-                    offset));
+            result.add(new QueryWindow(new AABB(minX, chartBox.minY, chartBox.minZ, maxX, chartBox.maxY, chartBox.maxZ), offset));
         }
         return List.copyOf(result);
     }
 
-    /** Projects a canonical entity box into the image nearest an observer. */
+    /**
+     * Projects a canonical entity box into the image nearest an observer.
+     */
     public AABB projectBoxNear(AABB canonicalBox, double observerChartX) {
         canonicalBox = canonicalBox(canonicalBox);
         double centerX = (canonicalBox.minX + canonicalBox.maxX) * 0.5;
@@ -100,7 +96,9 @@ public final class RingTopology {
         return canonicalBox.move(projectedCenter - centerX, 0.0, 0.0);
     }
 
-    /** Moves a small chart-space box onto the single canonical storage plane. */
+    /**
+     * Moves a small chart-space box onto the single canonical storage plane.
+     */
     public AABB canonicalBox(AABB chartBox) {
         if (chartBox.getXsize() >= geometry.circumferenceBlocks()) return chartBox;
         double centerX = (chartBox.minX + chartBox.maxX) * 0.5;

@@ -2,12 +2,14 @@ package dev.ringworld.world;
 
 import java.util.Optional;
 
-/** Loader-neutral mapping from block mutations to canonical atlas cells. */
+/**
+ * Loader-neutral mapping from block mutations to canonical atlas cells.
+ */
 public final class RingAtlasSurfaceInvalidation {
-    private RingAtlasSurfaceInvalidation() { }
+    private RingAtlasSurfaceInvalidation() {
+    }
 
-    public static Optional<Cell> cellFor(RingGeometry geometry, int sampleStep,
-                                         int blockX, int blockZ) {
+    public static Optional<Cell> cellFor(RingGeometry geometry, int sampleStep, int blockX, int blockZ) {
         if (sampleStep <= 0 || 16 % sampleStep != 0) {
             throw new IllegalArgumentException("atlas sample step must divide one chunk");
         }
@@ -17,15 +19,18 @@ public final class RingAtlasSurfaceInvalidation {
         return Optional.of(new Cell(geometry.wrapBlockX(blockX) / sampleStep, row));
     }
 
-    /** The changed block can alter the sampled top when it reaches the stored top face. */
+    /**
+     * The changed block can alter the sampled top when it reaches the stored top face.
+     */
     public static boolean mayAffectSurface(int changedBlockY, int storedTopFaceY) {
         return mayAffectSurface(changedBlockY, storedTopFaceY, false);
     }
 
-    /** A manufactured top can detach when a support below the stored face is removed. */
-    public static boolean mayAffectSurface(int changedBlockY, int storedTopFaceY,
-                                            boolean manufacturedTop) {
-        return manufacturedTop || (long)changedBlockY + 1L >= storedTopFaceY;
+    /**
+     * A manufactured top can detach when a support below the stored face is removed.
+     */
+    public static boolean mayAffectSurface(int changedBlockY, int storedTopFaceY, boolean manufacturedTop) {
+        return manufacturedTop || (long) changedBlockY + 1L >= storedTopFaceY;
     }
 
     private static int divideCeil(int value, int divisor) {

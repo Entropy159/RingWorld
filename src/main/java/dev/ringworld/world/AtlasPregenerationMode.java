@@ -6,7 +6,5 @@ package dev.ringworld.world;
  * lifecycle or server-thread dependency.
  */
 public enum AtlasPregenerationMode {
-    BACKGROUND,
-    INTERACTIVE,
-    HEADLESS_PREWARM
+    BACKGROUND, INTERACTIVE, HEADLESS_PREWARM
 }

@@ -1,13 +1,14 @@
 package dev.ringworld.client.compat;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import net.minecraft.resources.Identifier;
 
-/** Format adapter only: all projection, water and handoff math stays in shared GLSL. */
-public final class SodiumTerrainShaders {
-    private SodiumTerrainShaders() { }
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
+/**
+ * Format adapter only: all projection, water and handoff math stays in shared GLSL.
+ */
+public final class SodiumTerrainShaders {
     public static String adapt(Identifier name, String source) {
         if (!name.getNamespace().equals("sodium")) return source;
         String path = name.getPath();
@@ -19,13 +20,9 @@ public final class SodiumTerrainShaders {
         boolean engine = source.contains("#moj_import") || source.contains("#include");
         boolean explicit = source.contains("layout(location = 0)");
         String direction = vertex ? "out" : "in";
-        String header = "\n// RingWorld terrain adapter\n" + include("render_uniforms")
-                + (vertex ? include("projection") : include("handoff") + include("material"))
-                + (explicit ? "layout(location = 4) " : "") + direction + " vec2 ringworldDistances;\n";
+        String header = "\n// RingWorld terrain adapter\n" + include("render_uniforms") + (vertex ? include("projection") : include("handoff") + include("material")) + (explicit ? "layout(location = 4) " : "") + direction + " vec2 ringworldDistances;\n";
         if (vertex) {
-            header += engine
-                    ? (explicit ? "#include" : "#moj_import") + " <minecraft:globals.glsl>\n"
-                    : "uniform float RingWorldCameraY;\n";
+            header += engine ? (explicit ? "#include" : "#moj_import") + " <minecraft:globals.glsl>\n" : "uniform float RingWorldCameraY;\n";
             String cameraY = engine ? "float(CameraBlockPos.y) - CameraOffset.y" : "RingWorldCameraY";
             source = replaceOnce(source, "vec3 position = _vert_position + translation;", """
                     vec3 position = _vert_position + translation;

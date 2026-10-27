@@ -11,19 +11,26 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Lets a generation region address canonical holders through a local seam alias. */
+/**
+ * Lets a generation region address canonical holders through a local seam alias.
+ */
 @Mixin(StaticCache2D.class)
-abstract class BoundedRegionArrayMixin {
-    @Shadow @Final private int minX;
-    @Shadow @Final private int sizeX;
-    @Unique private int ringworld$circumferenceChunks;
+public abstract class BoundedRegionArrayMixin {
+    @Shadow
+    @Final
+    private int minX;
+    @Shadow
+    @Final
+    private int sizeX;
+    @Unique
+    private int ringworld$circumferenceChunks;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void ringworld$markPeriodicRegion(CallbackInfo ci) {
         ringworld$circumferenceChunks = RingRegionContext.activeCircumferenceChunks();
     }
 
-    @ModifyVariable(method = {"get", "contains"}, at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(method = {"get", "contains"}, at = @At("HEAD"), argsOnly = true, name = "x")
     private int ringworld$projectPeriodicXIntoRegion(int x) {
         int circumference = ringworld$circumferenceChunks;
         if (circumference <= 0 || (x >= minX && x < minX + sizeX)) return x;

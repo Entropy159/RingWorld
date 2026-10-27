@@ -1,36 +1,30 @@
 package dev.ringworld.net;
 
 import dev.ringworld.world.RingLayoutFingerprint;
-import dev.ringworld.world.RingWorldSettings;
 import dev.ringworld.world.RingSkyProfile;
+import dev.ringworld.world.RingWorldSettings;
 
-/** Loader-neutral immutable-layout handshake derivation and comparison. */
+/**
+ * Loader-neutral immutable-layout handshake derivation and comparison.
+ */
 public final class RingSettingsHandshake {
-    private RingSettingsHandshake() { }
+    private RingSettingsHandshake() {
+    }
 
     public static RingSettingsPayload payloadFor(RingWorldSettings settings) {
         return payloadFor(settings, RingSkyProfile.DEFAULT);
     }
 
-    public static RingSettingsPayload payloadFor(
-            RingWorldSettings settings, RingSkyProfile skyProfile) {
-        return new RingSettingsPayload(
-                settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(),
-                settings.wallHeightBlocks(), settings.surfaceReferenceY(),
-                settings.terrainNoiseMapping(), settings.wallStyle(), skyProfile,
-                settings.generationSettings(),
-                settings.formatVersion(),
-                settings.layoutFingerprint());
+    public static RingSettingsPayload payloadFor(RingWorldSettings settings, RingSkyProfile skyProfile) {
+        return new RingSettingsPayload(settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(), settings.wallHeightBlocks(), settings.surfaceReferenceY(), settings.terrainNoiseMapping(), settings.wallStyle(), skyProfile, settings.generationSettings(), settings.formatVersion(), settings.layoutFingerprint());
     }
 
-    /** Recomputes the identity from every settings field carried on the wire. */
+    /**
+     * Recomputes the identity from every settings field carried on the wire.
+     */
     public static long fingerprintFor(RingSettingsPayload payload) {
-        dev.ringworld.world.RingTerrainNoiseMapping.requireSupported(
-                payload.terrainNoiseMapping());
-        return RingLayoutFingerprint.compute(
-                payload.width(), payload.circumference(), payload.seed(), payload.wallHeight(),
-                payload.surfaceReferenceY(), payload.terrainNoiseMapping(),
-                payload.wallStyle(), payload.generationSettings(), payload.formatVersion());
+        dev.ringworld.world.RingTerrainNoiseMapping.requireSupported(payload.terrainNoiseMapping());
+        return RingLayoutFingerprint.compute(payload.width(), payload.circumference(), payload.seed(), payload.wallHeight(), payload.surfaceReferenceY(), payload.terrainNoiseMapping(), payload.wallStyle(), payload.generationSettings(), payload.formatVersion());
     }
 
     public static boolean hasMatchingPayloadFingerprint(RingSettingsPayload payload) {
@@ -46,7 +40,6 @@ public final class RingSettingsHandshake {
     }
 
     public static boolean accepts(RingWorldSettings settings, RingSettingsAckPayload acknowledgement) {
-        return acknowledgement.formatVersion() == settings.formatVersion()
-                && acknowledgement.fingerprint() == settings.layoutFingerprint();
+        return acknowledgement.formatVersion() == settings.formatVersion() && acknowledgement.fingerprint() == settings.layoutFingerprint();
     }
 }

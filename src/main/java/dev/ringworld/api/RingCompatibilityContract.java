@@ -6,7 +6,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Versioned, loader-neutral inventory of high-confidence unsupported combinations. */
 public final class RingCompatibilityContract {
     public static final int VERSION = 1;
 
@@ -32,7 +31,8 @@ public final class RingCompatibilityContract {
             new Conflict("nvidium", "Nvidium", Area.RENDERER,
                     "replaces Sodium's chunk renderer with another unsupported terrain pipeline"));
 
-    private RingCompatibilityContract() { }
+    private RingCompatibilityContract() {
+    }
 
     public static List<Conflict> knownConflicts() {
         return KNOWN_CONFLICTS;
@@ -57,5 +57,6 @@ public final class RingCompatibilityContract {
         CHUNK_PIPELINE
     }
 
-    public record Conflict(String modId, String displayName, Area area, String reason) { }
+    public record Conflict(String modId, String displayName, Area area, String reason) {
+    }
 }

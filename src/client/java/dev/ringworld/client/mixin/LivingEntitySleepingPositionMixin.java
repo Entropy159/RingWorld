@@ -2,7 +2,6 @@ package dev.ringworld.client.mixin;
 
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.world.RingGeometry;
-import java.util.Optional;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
@@ -10,6 +9,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.Optional;
 
 /**
  * Keeps the local player's replicated bed position in the current client chart.
@@ -23,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * the nearby presentation copy.</p>
  */
 @Mixin(LivingEntity.class)
-abstract class LivingEntitySleepingPositionMixin {
+public abstract class LivingEntitySleepingPositionMixin {
     @Inject(method = "getSleepingPos", at = @At("RETURN"), cancellable = true)
     private void ringworld$projectLocalSleepingPosition(CallbackInfoReturnable<Optional<BlockPos>> cir) {
         Minecraft client = Minecraft.getInstance();
@@ -37,7 +38,6 @@ abstract class LivingEntitySleepingPositionMixin {
         double presentationX = geometry.nearestImageX(bed.getX(), client.player.getX());
         if (presentationX == bed.getX()) return;
 
-        cir.setReturnValue(Optional.of(new BlockPos(
-                (int) Math.round(presentationX), bed.getY(), bed.getZ())));
+        cir.setReturnValue(Optional.of(new BlockPos((int) Math.round(presentationX), bed.getY(), bed.getZ())));
     }
 }

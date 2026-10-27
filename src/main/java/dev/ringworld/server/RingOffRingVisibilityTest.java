@@ -2,9 +2,6 @@ package dev.ringworld.server;
 
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.world.RingGeometry;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,7 +11,13 @@ import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 
-/** Opt-in disposable two-client #254 regression, independent of the full seam suite. */
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Opt-in disposable two-client #254 regression, independent of the full seam suite.
+ */
 final class RingOffRingVisibilityTest {
     private static final Map<String, Boolean> results = new HashMap<>();
     private static int stage;
@@ -35,16 +38,13 @@ final class RingOffRingVisibilityTest {
             world.getServer().halt(false);
             return;
         }
-        if (a == null || b == null || !passed("A", "client_ready")
-                || !passed("B", "client_ready")) return;
+        if (a == null || b == null || !passed("A", "client_ready") || !passed("B", "client_ready")) return;
         if (!armed) {
             double x = stage == 5 ? geometry.circumferenceBlocks() - 0.5 : 64.5 + stage * 16;
-            double z = stage == 2 || stage == 6 ? geometry.minWidthZ() - 8.5
-                    : stage == 1 ? 0.5 : geometry.maxWidthZ() + 9.5;
-            double bz = stage == 2 || stage == 6 ? geometry.minWidthZ() + 8.5
-                    : stage == 1 ? 0.5 : geometry.maxWidthZ() - 8.5;
+            double z = stage == 2 || stage == 6 ? geometry.minWidthZ() - 8.5 : stage == 1 ? 0.5 : geometry.maxWidthZ() + 9.5;
+            double bz = stage == 2 || stage == 6 ? geometry.minWidthZ() + 8.5 : stage == 1 ? 0.5 : geometry.maxWidthZ() - 8.5;
             // Explicit fixture setup only; production still never sends exterior terrain.
-            world.getChunk((int)x >> 4, (int)z >> 4);
+            world.getChunk((int) x >> 4, (int) z >> 4);
             a.setGameMode(GameType.CREATIVE);
             b.setGameMode(GameType.CREATIVE);
             a.setNoGravity(stage != 6);
@@ -88,8 +88,7 @@ final class RingOffRingVisibilityTest {
     }
 
     private static Entity spawn(ServerLevel world, String type, double x, double z) {
-        Entity entity = RingWorldVanillaFixtureRegistries.createEntity(type, Entity.class,
-                world, EntitySpawnReason.COMMAND);
+        Entity entity = RingWorldVanillaFixtureRegistries.createEntity(type, Entity.class, world, EntitySpawnReason.COMMAND);
         if (entity == null) throw new IllegalStateException("Missing fixture " + type);
         entity.setPos(x, 180, z);
         entity.setNoGravity(true);

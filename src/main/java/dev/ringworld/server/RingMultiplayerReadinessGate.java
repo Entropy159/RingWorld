@@ -10,14 +10,12 @@ package dev.ringworld.server;
  */
 final class RingMultiplayerReadinessGate {
     static final int REQUIRED_CONSECUTIVE_ON_TIME_TICKS = 100;
-    static final int MAXIMUM_OBSERVED_TICKS = 1_200;
-    static final long MAXIMUM_TICK_INTERVAL_NANOS = 100_000_000L;
-    static final long MAXIMUM_WAIT_NANOS = 60_000_000_000L;
+    static final int MAXIMUM_OBSERVED_TICKS = 1200;
+    static final long MAXIMUM_TICK_INTERVAL_NANOS = 100000000;
+    static final long MAXIMUM_WAIT_NANOS = 60000000000L;
 
     enum Result {
-        WARMING,
-        READY,
-        TIMED_OUT
+        WARMING, READY, TIMED_OUT
     }
 
     private long startedNanos = Long.MIN_VALUE;
@@ -48,8 +46,7 @@ final class RingMultiplayerReadinessGate {
             consecutiveOnTimeTicks = 0;
         }
 
-        if (observedTicks >= MAXIMUM_OBSERVED_TICKS
-                || nowNanos - startedNanos >= MAXIMUM_WAIT_NANOS) {
+        if (observedTicks >= MAXIMUM_OBSERVED_TICKS || nowNanos - startedNanos >= MAXIMUM_WAIT_NANOS) {
             return Result.TIMED_OUT;
         }
         return Result.WARMING;

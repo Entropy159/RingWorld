@@ -3,10 +3,13 @@ package dev.ringworld.server;
 import com.google.gson.JsonObject;
 import com.sun.management.OperatingSystemMXBean;
 import net.minecraft.server.level.ServerLevel;
+
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 
-/** Optional measurements for disposable headless comparisons; no production sampling. */
+/**
+ * Optional measurements for disposable headless comparisons; no production sampling.
+ */
 final class RingAtlasConcurrencyMetrics {
     private final boolean enabled = Boolean.getBoolean("ringworld.measureAtlasConcurrency");
     private final long started = System.nanoTime();
@@ -39,8 +42,7 @@ final class RingAtlasConcurrencyMetrics {
         var sorted = new ArrayList<>(tickDurations);
         sorted.sort(Long::compare);
         report.addProperty("elapsedSeconds", (System.nanoTime() - started) / 1e9);
-        report.addProperty("averageCpuCores", os == null || initialCpu < 0 ? -1 :
-                (os.getProcessCpuTime() - initialCpu) / (double)(System.nanoTime() - started));
+        report.addProperty("averageCpuCores", os == null || initialCpu < 0 ? -1 : (os.getProcessCpuTime() - initialCpu) / (double) (System.nanoTime() - started));
         report.addProperty("peakUsedHeapMiB", peakHeap / 1048576.0);
         report.addProperty("peakInFlightChunks", peakRequests);
         report.addProperty("peakPendingTasks", peakPending);
@@ -49,10 +51,11 @@ final class RingAtlasConcurrencyMetrics {
         report.addProperty("p95TickMs", percentile(sorted, .95));
         report.addProperty("p99TickMs", percentile(sorted, .99));
         report.addProperty("maxTickMs", percentile(sorted, 1));
-        report.addProperty("ticksOver50Ms", sorted.stream().filter(value -> value > 50_000_000L).count());
+        report.addProperty("ticksOver50Ms", sorted.stream().filter(value -> value > 50000000).count());
         parent.add("atlasConcurrencyMetrics", report);
     }
+
     private static double percentile(ArrayList<Long> sorted, double fraction) {
-        return sorted.isEmpty() ? 0 : sorted.get(Math.max(0, (int)Math.ceil(sorted.size() * fraction) - 1)) / 1e6;
+        return sorted.isEmpty() ? 0 : sorted.get(Math.max(0, (int) Math.ceil(sorted.size() * fraction) - 1)) / 1e6;
     }
 }

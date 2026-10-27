@@ -8,13 +8,15 @@ import java.util.function.Predicate;
  */
 public final class RingMonumentPlacement {
     public static final int MAX_CANDIDATES = 512;
-    /** Vanilla validates surrounding biomes in this block radius. */
+    /**
+     * Vanilla validates surrounding biomes in this block radius.
+     */
     public static final int SURROUNDING_BIOME_RADIUS_BLOCKS = 29;
-    /** Conservative complete-monument and terrain envelope, including the 29-block start offset. */
+    /**
+     * Conservative complete-monument and terrain envelope, including the 29-block start offset.
+     */
     public static final int FOOTPRINT_MARGIN_BLOCKS = 64;
     private static final long SEED_SALT = 0x4D4F4E554D454E54L;
-
-    private RingMonumentPlacement() { }
 
     /**
      * True when the finite band has at least one canonical chunk that can keep
@@ -25,7 +27,9 @@ public final class RingMonumentPlacement {
         return bounds.hasCandidates();
     }
 
-    /** Searches a bounded seed-derived walk of canonical, conservatively in-band chunks. */
+    /**
+     * Searches a bounded seed-derived walk of canonical, conservatively in-band chunks.
+     */
     public static SearchResult findCandidate(long worldSeed, RingGeometry geometry, Predicate<Candidate> validator) {
         Bounds bounds = Bounds.forGeometry(geometry);
         int width = Math.max(0, bounds.maxChunkX - bounds.minChunkX + 1);
@@ -37,8 +41,7 @@ public final class RingMonumentPlacement {
         long step = coprimeStep(mix64(worldSeed + SEED_SALT), total);
         for (int index = 0; index < checked; index++) {
             long ordinal = Math.floorMod(start + step * index, total);
-            Candidate candidate = new Candidate(bounds.minChunkX + (int)(ordinal % width),
-                    bounds.minChunkZ + (int)(ordinal / width));
+            Candidate candidate = new Candidate(bounds.minChunkX + (int) (ordinal % width), bounds.minChunkZ + (int) (ordinal / width));
             if (validator.test(candidate)) return new SearchResult(candidate, index + 1, checked < total);
         }
         return new SearchResult(null, checked, checked < total);
@@ -46,8 +49,7 @@ public final class RingMonumentPlacement {
 
     public static boolean isConservativelyInBounds(Candidate candidate, RingGeometry geometry) {
         Bounds bounds = Bounds.forGeometry(geometry);
-        return candidate.chunkX() >= bounds.minChunkX() && candidate.chunkX() <= bounds.maxChunkX()
-                && candidate.chunkZ() >= bounds.minChunkZ() && candidate.chunkZ() <= bounds.maxChunkZ();
+        return candidate.chunkX() >= bounds.minChunkX() && candidate.chunkX() <= bounds.maxChunkX() && candidate.chunkZ() >= bounds.minChunkZ() && candidate.chunkZ() <= bounds.maxChunkZ();
     }
 
     private static long coprimeStep(long mixed, long modulo) {
@@ -79,8 +81,7 @@ public final class RingMonumentPlacement {
 
         static Bounds forGeometry(RingGeometry geometry) {
             int minChunkX = divideCeil(FOOTPRINT_MARGIN_BLOCKS, 16);
-            int maxChunkX = Math.floorDiv(geometry.circumferenceBlocks() - 1
-                    - FOOTPRINT_MARGIN_BLOCKS - 15, 16);
+            int maxChunkX = Math.floorDiv(geometry.circumferenceBlocks() - 1 - FOOTPRINT_MARGIN_BLOCKS - 15, 16);
             int minChunkZ = divideCeil(geometry.minWidthZ() + FOOTPRINT_MARGIN_BLOCKS, 16);
             int maxChunkZ = Math.floorDiv(geometry.maxWidthZ() - FOOTPRINT_MARGIN_BLOCKS - 15, 16);
             return new Bounds(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
@@ -91,6 +92,9 @@ public final class RingMonumentPlacement {
         }
     }
 
-    public record Candidate(int chunkX, int chunkZ) { }
-    public record SearchResult(Candidate candidate, int checkedCandidates, boolean searchBoundReached) { }
+    public record Candidate(int chunkX, int chunkZ) {
+    }
+
+    public record SearchResult(Candidate candidate, int checkedCandidates, boolean searchBoundReached) {
+    }
 }

@@ -36,12 +36,16 @@ public final class RingAtlasPregenerationCursor {
         return totalChunks;
     }
 
-    /** The next canonical traversal index, including chunks that may now be skipped. */
+    /**
+     * The next canonical traversal index, including chunks that may now be skipped.
+     */
     public long nextIndex() {
         return nextIndex;
     }
 
-    /** Returns the next incomplete canonical chunk, or empty after the complete atlas. */
+    /**
+     * Returns the next incomplete canonical chunk, or empty after the complete atlas.
+     */
     public Optional<Chunk> nextChunk() {
         while (nextIndex < totalChunks) {
             Chunk chunk = coordinateAt(nextIndex++);
@@ -52,7 +56,9 @@ public final class RingAtlasPregenerationCursor {
         return Optional.empty();
     }
 
-    /** Derives a deterministic canonical X and finite Z coordinate from an index. */
+    /**
+     * Derives a deterministic canonical X and finite Z coordinate from an index.
+     */
     public Chunk coordinateAt(long index) {
         if (index < 0 || index >= totalChunks) {
             throw new IndexOutOfBoundsException("chunk index outside canonical traversal: " + index);
@@ -63,7 +69,9 @@ public final class RingAtlasPregenerationCursor {
         return new Chunk(index, chunkX, chunkRow, chunkZ);
     }
 
-    /** Checked multiplication is intentionally exposed for dimension-limit validation tests. */
+    /**
+     * Checked multiplication is intentionally exposed for dimension-limit validation tests.
+     */
     public static long checkedTotalChunks(long circumferenceChunks, long widthChunks) {
         if (circumferenceChunks <= 0 || widthChunks <= 0) {
             throw new IllegalArgumentException("chunk dimensions must be positive");
@@ -71,6 +79,9 @@ public final class RingAtlasPregenerationCursor {
         return Math.multiplyExact(circumferenceChunks, widthChunks);
     }
 
-    /** One canonical chunk in X-major finite-Z-row traversal order. */
-    public record Chunk(long index, int chunkX, int chunkRow, int chunkZ) { }
+    /**
+     * One canonical chunk in X-major finite-Z-row traversal order.
+     */
+    public record Chunk(long index, int chunkX, int chunkRow, int chunkZ) {
+    }
 }

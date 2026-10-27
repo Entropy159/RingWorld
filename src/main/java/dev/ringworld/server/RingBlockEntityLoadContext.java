@@ -13,8 +13,6 @@ import net.minecraft.world.level.ChunkPos;
 public final class RingBlockEntityLoadContext {
     private static final ThreadLocal<RingGeometry> ACTIVE_GEOMETRY = new ThreadLocal<>();
 
-    private RingBlockEntityLoadContext() { }
-
     public static void withGeometry(RingGeometry geometry, Runnable action) {
         RingGeometry previous = ACTIVE_GEOMETRY.get();
         ACTIVE_GEOMETRY.set(geometry);
@@ -28,9 +26,7 @@ public final class RingBlockEntityLoadContext {
 
     public static BlockPos restoreSavedAlias(ChunkPos owner, CompoundTag tag, BlockPos vanillaPosition) {
         RingGeometry geometry = ACTIVE_GEOMETRY.get();
-        return geometry == null
-                ? vanillaPosition
-                : restoreSavedAlias(geometry, owner, tag, vanillaPosition);
+        return geometry == null ? vanillaPosition : restoreSavedAlias(geometry, owner, tag, vanillaPosition);
     }
 
     public static boolean isActive() {
@@ -50,13 +46,11 @@ public final class RingBlockEntityLoadContext {
         return ACTIVE_GEOMETRY.get();
     }
 
-    static BlockPos restoreSavedAlias(RingGeometry geometry, ChunkPos owner,
-                                      CompoundTag tag, BlockPos vanillaPosition) {
+    static BlockPos restoreSavedAlias(RingGeometry geometry, ChunkPos owner, CompoundTag tag, BlockPos vanillaPosition) {
         return restoreSavedAlias(geometry, owner.z(), tag, vanillaPosition);
     }
 
-    static BlockPos restoreSavedAlias(RingGeometry geometry, int ownerChunkZ,
-                                      CompoundTag tag, BlockPos vanillaPosition) {
+    static BlockPos restoreSavedAlias(RingGeometry geometry, int ownerChunkZ, CompoundTag tag, BlockPos vanillaPosition) {
         int rawX = tag.getIntOr("x", 0);
         int rawY = tag.getIntOr("y", 0);
         int rawZ = tag.getIntOr("z", 0);

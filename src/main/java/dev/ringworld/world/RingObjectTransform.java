@@ -11,15 +11,9 @@ import net.minecraft.world.phys.Vec3;
  * overlays also use the tangent scale so their width follows the curved terrain
  * at the anchor height, without changing gameplay coordinates.</p>
  */
-public record RingObjectTransform(Vec3 cameraLocalPosition, double tangentAngleRadians,
-                                  double tangentScale) {
-    public static RingObjectTransform fromCameraRelative(
-            RingGeometry geometry, Vec3 cameraIntrinsicPosition,
-            double relativeX, double relativeY, double relativeZ) {
+public record RingObjectTransform(Vec3 cameraLocalPosition, double tangentAngleRadians, double tangentScale) {
+    public static RingObjectTransform fromCameraRelative(RingGeometry geometry, Vec3 cameraIntrinsicPosition, double relativeX, double relativeY, double relativeZ) {
         Vec3 anchor = cameraIntrinsicPosition.add(relativeX, relativeY, relativeZ);
-        return new RingObjectTransform(
-                geometry.toCameraLocal(anchor, cameraIntrinsicPosition),
-                geometry.tangentFrameAngle(cameraIntrinsicPosition.x, anchor.x),
-                geometry.physicalRadiusAt(anchor.y) / geometry.radius());
+        return new RingObjectTransform(geometry.toCameraLocal(anchor, cameraIntrinsicPosition), geometry.tangentFrameAngle(cameraIntrinsicPosition.x, anchor.x), geometry.physicalRadiusAt(anchor.y) / geometry.radius());
     }
 }

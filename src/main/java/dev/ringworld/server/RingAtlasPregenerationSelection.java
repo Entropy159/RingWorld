@@ -27,12 +27,21 @@ final class RingAtlasPregenerationSelection {
         this.cursor = java.util.Objects.requireNonNull(cursor);
     }
 
-    long totalChunks() { return cursor.totalChunks(); }
-    RingAtlasPregenerationCursor.Chunk selected() { return selected; }
+    long totalChunks() {
+        return cursor.totalChunks();
+    }
+
+    RingAtlasPregenerationCursor.Chunk selected() {
+        return selected;
+    }
+
     boolean accepts(int chunkX, int chunkZ) {
         return selected != null && selected.chunkX() == chunkX && selected.chunkZ() == chunkZ;
     }
-    boolean mayRetryAt(long tick) { return tick >= retryAfterTick; }
+
+    boolean mayRetryAt(long tick) {
+        return tick >= retryAfterTick;
+    }
 
     Optional<RingAtlasPregenerationCursor.Chunk> select() {
         if (selected == null) selected = cursor.nextChunk().orElse(null);
@@ -46,7 +55,9 @@ final class RingAtlasPregenerationSelection {
         retryAfterTick = 0L;
     }
 
-    /** @return false after the bounded retry policy is exhausted. */
+    /**
+     * @return false after the bounded retry policy is exhausted.
+     */
     boolean failed(long tick, int maxRetries) {
         if (selected == null) throw new IllegalStateException("no selected chunk failed");
         retryAttempt++;
@@ -55,5 +66,7 @@ final class RingAtlasPregenerationSelection {
         return true;
     }
 
-    int retryAttempt() { return retryAttempt; }
+    int retryAttempt() {
+        return retryAttempt;
+    }
 }

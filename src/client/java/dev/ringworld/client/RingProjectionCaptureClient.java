@@ -7,6 +7,7 @@ import dev.ringworld.world.RingTerrainAtlas;
 import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -16,32 +17,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class RingProjectionCaptureClient {
     private static final String ENABLE_PROPERTY = "ringworld.captureRingProjection";
     private static final String WORLD_PROPERTY = "ringworld.projectionWorld";
-    private static final String VIEW_DISTANCE_PROPERTY =
-            "ringworld.projectionViewDistanceChunks";
-    private static final String ENVIRONMENT_PROPERTY =
-            "ringworld.projectionEnvironment";
+    private static final String VIEW_DISTANCE_PROPERTY = "ringworld.projectionViewDistanceChunks";
+    private static final String ENVIRONMENT_PROPERTY = "ringworld.projectionEnvironment";
     private static final int DEFAULT_VIEW_DISTANCE_CHUNKS = 16;
     private static final int MIN_VIEW_DISTANCE_CHUNKS = 2;
     private static final int MAX_VIEW_DISTANCE_CHUNKS = 32;
-    private static final int WORLD_OPEN_TIMEOUT_TICKS = 2_400;
+    private static final int WORLD_OPEN_TIMEOUT_TICKS = 2400;
     private static final int POSITION_TIMEOUT_TICKS = 600;
-    private static final int RENDER_TIMEOUT_TICKS = 1_200;
+    private static final int RENDER_TIMEOUT_TICKS = 1200;
     private static final double CAPTURE_CAMERA_Y = 120.0;
     private int stage;
     private int environmentIndex;
-    private final RingIntegratedCaptureControl.PlayerSafety playerSafety =
-            new RingIntegratedCaptureControl.PlayerSafety();
+    private final RingIntegratedCaptureControl.PlayerSafety playerSafety = new RingIntegratedCaptureControl.PlayerSafety();
     private final AtomicInteger pendingScreenshots = new AtomicInteger();
-    private final boolean allEnvironments = "all".equalsIgnoreCase(
-            System.getProperty(ENVIRONMENT_PROPERTY, "noon").trim());
+    private final boolean allEnvironments = "all".equalsIgnoreCase(System.getProperty(ENVIRONMENT_PROPERTY, "noon").trim());
     private int settleTicks;
     private int atlasWaitTicks;
     private boolean waitingLogged;
     private int worldOpenTicks;
     private boolean worldOpenRequested;
     private boolean worldReadyLogged;
-    private final CopiedWorldFileFixUpgrade copiedWorldFileFixUpgrade =
-            new CopiedWorldFileFixUpgrade();
+    private final CopiedWorldFileFixUpgrade copiedWorldFileFixUpgrade = new CopiedWorldFileFixUpgrade();
     private int completionTicks;
     private boolean focusPolicyApplied;
     private boolean captureSetupRequested;
@@ -82,23 +78,19 @@ public final class RingProjectionCaptureClient {
             } else finish(client, true, "captures complete");
             return true;
         }
-        if (RingMinecraftClientAccess.screen(client) instanceof PauseScreen) RingMinecraftClientAccess.setScreen(client, null);
+        if (RingMinecraftClientAccess.screen(client) instanceof PauseScreen)
+            RingMinecraftClientAccess.setScreen(client, null);
         if (RingMinecraftClientAccess.screen(client) != null) return true;
 
         RingGeometry geometry = ClientRingState.geometry();
         var atlas = ClientRingState.terrainAtlas();
-        if (geometry == null || atlas == null || !atlas.isComplete()
-                || !dev.ringworld.client.render.RingSurfaceTextureRenderer.captureReady()) {
+        if (geometry == null || atlas == null || !atlas.isComplete() || !dev.ringworld.client.render.RingSurfaceTextureRenderer.captureReady()) {
             if (!waitingLogged) {
                 waitingLogged = true;
-                RingWorldMod.LOGGER.info(
-                        "[projection-capture] waiting for complete terrain atlas");
+                RingWorldMod.LOGGER.info("[projection-capture] waiting for complete terrain atlas");
             }
             if (++atlasWaitTicks % 600 == 0) {
-                RingWorldMod.LOGGER.info(
-                        "[projection-capture] atlas progress {}/{} cells",
-                        atlas == null ? 0 : atlas.presentCount(),
-                        atlas == null ? 0 : atlas.cellCount());
+                RingWorldMod.LOGGER.info("[projection-capture] atlas progress {}/{} cells", atlas == null ? 0 : atlas.presentCount(), atlas == null ? 0 : atlas.cellCount());
             }
             return true;
         }
@@ -121,26 +113,20 @@ public final class RingProjectionCaptureClient {
 
         if (stage == 0) {
             captureScreenshot(client, "tangent");
-            RingWorldMod.LOGGER.info(
-                    "[projection-capture] tangent/along-ring view captured at C={}, R={}",
-                    geometry.circumferenceBlocks(), geometry.radius());
+            RingWorldMod.LOGGER.info("[projection-capture] tangent/along-ring view captured at C={}, R={}", geometry.circumferenceBlocks(), geometry.radius());
             completeCaptureStage("tangent");
             return true;
         }
 
         if (stage == 1) {
             captureScreenshot(client, "handoff");
-            RingWorldMod.LOGGER.info(
-                    "[projection-capture] live/proxy handoff captured at pitch={}",
-                    capturePitch);
+            RingWorldMod.LOGGER.info("[projection-capture] live/proxy handoff captured at pitch={}", capturePitch);
             completeCaptureStage("handoff");
             return true;
         }
 
         captureScreenshot(client, "up");
-        RingWorldMod.LOGGER.info(
-                "[projection-capture] radial/up view captured at C={}, diameter={}; complete",
-                geometry.circumferenceBlocks(), geometry.radius() * 2.0);
+        RingWorldMod.LOGGER.info("[projection-capture] radial/up view captured at C={}, diameter={}; complete", geometry.circumferenceBlocks(), geometry.radius() * 2.0);
         completeCaptureStage("radial-up");
         return true;
     }
@@ -153,7 +139,7 @@ public final class RingProjectionCaptureClient {
             totalFrameNanos += elapsed;
             maxFrameNanos = Math.max(maxFrameNanos, elapsed);
             frameSamples++;
-            if (elapsed > 50_000_000L) slowFrames++;
+            if (elapsed > 50000000L) slowFrames++;
         }
         lastFrameNanos = now;
     }
@@ -167,20 +153,15 @@ public final class RingProjectionCaptureClient {
             return true;
         }
         if (++worldOpenTicks > WORLD_OPEN_TIMEOUT_TICKS) {
-            finish(client, false, "timed out opening save '" + projectionWorld()
-                    + "' screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
+            finish(client, false, "timed out opening save '" + projectionWorld() + "' screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
             return false;
         }
-        if (worldOpenRequested && copiedWorldFileFixUpgrade.handleIfRequired(
-                client, "projection-capture", projectionWorld())) return false;
-        if (!worldOpenRequested && client.isGameLoadFinished()
-                && client.getSingleplayerServer() == null) {
+        if (worldOpenRequested && copiedWorldFileFixUpgrade.handleIfRequired(client, "projection-capture", projectionWorld()))
+            return false;
+        if (!worldOpenRequested && client.isGameLoadFinished() && client.getSingleplayerServer() == null) {
             worldOpenRequested = true;
-            RingWorldMod.LOGGER.info("[projection-capture] opening copied save '{}' in-process",
-                    projectionWorld());
-            client.createWorldOpenFlows().openWorld(projectionWorld(),
-                    () -> finish(client, false,
-                            "save load cancelled for '" + projectionWorld() + "'"));
+            RingWorldMod.LOGGER.info("[projection-capture] opening copied save '{}' in-process", projectionWorld());
+            client.createWorldOpenFlows().openWorld(projectionWorld(), () -> finish(client, false, "save load cancelled for '" + projectionWorld() + "'"));
         }
         return false;
     }
@@ -208,11 +189,8 @@ public final class RingProjectionCaptureClient {
         int viewDistance = projectionViewDistanceChunks();
         CaptureEnvironment environment = selectedEnvironment();
         // Copied review worlds can contain old sample structures at the default pose.
-        double targetX = Double.parseDouble(System.getProperty(
-                "ringworld.projectionCameraX",
-                Double.toString(geometry.circumferenceBlocks() / 4.0)));
-        if (!Double.isFinite(targetX) || targetX < 0.0
-                || targetX >= geometry.circumferenceBlocks()) {
+        double targetX = Double.parseDouble(System.getProperty("ringworld.projectionCameraX", Double.toString(geometry.circumferenceBlocks() / 4.0)));
+        if (!Double.isFinite(targetX) || targetX < 0.0 || targetX >= geometry.circumferenceBlocks()) {
             finish(client, false, "projectionCameraX must be inside the canonical circumference");
             return false;
         }
@@ -220,49 +198,31 @@ public final class RingProjectionCaptureClient {
         if (!captureSetupRequested) {
             client.options.renderDistance().set(viewDistance);
             captureSetupRequested = true;
-            RingIntegratedCaptureControl.execute(client, "projection setup",
-                    context -> {
-                        RingIntegratedCaptureControl.normalizeEnvironment(
-                                context, environment.timeTicks, environment.raining);
-                        RingIntegratedCaptureControl.teleport(
-                                context, targetX, CAPTURE_CAMERA_Y, targetZ);
-                    },
-                    () -> captureSetupComplete = true,
-                    detail -> captureSetupFailure = detail);
-            RingWorldMod.LOGGER.info(
-                    "[projection-capture] requested integrated-server environment={} and "
-                            + "centered pose x={}, y={}, z={} at {} chunks",
-                    environment.id, targetX, CAPTURE_CAMERA_Y, targetZ, viewDistance);
+            RingIntegratedCaptureControl.execute(client, "projection setup", context -> {
+                RingIntegratedCaptureControl.normalizeEnvironment(context, environment.timeTicks, environment.raining);
+                RingIntegratedCaptureControl.teleport(context, targetX, CAPTURE_CAMERA_Y, targetZ);
+            }, () -> captureSetupComplete = true, detail -> captureSetupFailure = detail);
+            RingWorldMod.LOGGER.info("[projection-capture] requested integrated-server environment={} and " + "centered pose x={}, y={}, z={} at {} chunks", environment.id, targetX, CAPTURE_CAMERA_Y, targetZ, viewDistance);
             return false;
         }
         if (!captureSetupComplete) return false;
-        boolean atPosition = Math.abs(geometry.shortestCircumferenceDelta(
-                targetX, client.player.getX())) < 1.5
-                && Math.abs(client.player.getY() - CAPTURE_CAMERA_Y) < 1.5
-                && Math.abs(client.player.getZ() - targetZ) < 1.5;
+        boolean atPosition = Math.abs(geometry.shortestCircumferenceDelta(targetX, client.player.getX())) < 1.5 && Math.abs(client.player.getY() - CAPTURE_CAMERA_Y) < 1.5 && Math.abs(client.player.getZ() - targetZ) < 1.5;
         if (!atPosition && ++capturePoseWaitTicks > POSITION_TIMEOUT_TICKS) {
             finish(client, false, "timed out reaching centered capture pose");
         }
         return atPosition;
     }
 
-    private void armCaptureStage(Minecraft client, RingGeometry geometry,
-                                 RingTerrainAtlas atlas) {
+    private void armCaptureStage(Minecraft client, RingGeometry geometry, RingTerrainAtlas atlas) {
         if (stage == 0) {
             capturePitch = 0.0F;
             RingWorldMod.LOGGER.info("[projection-capture] tangent capture armed");
         } else if (stage == 1) {
             RingRenderProfile profile = RingClientLodTuning.profile(geometry, projectionViewDistanceChunks() * 16.0);
             double targetDistance = profile.effectiveViewDistanceBlocks();
-            double targetHeight = atlas.sample(
-                    client.player.getX() + targetDistance,
-                    client.player.getZ()).height();
-            capturePitch = (float)geometry.pitchDegreesToIntrinsic(
-                    client.player.getY(), targetHeight, targetDistance, 0.0);
-            RingWorldMod.LOGGER.info(
-                    "[projection-capture] {}-chunk handoff capture armed at pitch={}, distance={}, surfaceY={}",
-                    projectionViewDistanceChunks(), capturePitch,
-                    targetDistance, targetHeight);
+            double targetHeight = atlas.sample(client.player.getX() + targetDistance, client.player.getZ()).height();
+            capturePitch = (float) geometry.pitchDegreesToIntrinsic(client.player.getY(), targetHeight, targetDistance, 0.0);
+            RingWorldMod.LOGGER.info("[projection-capture] {}-chunk handoff capture armed at pitch={}, distance={}, surfaceY={}", projectionViewDistanceChunks(), capturePitch, targetDistance, targetHeight);
         } else {
             capturePitch = -90.0F;
             RingWorldMod.LOGGER.info("[projection-capture] radial-up capture armed");
@@ -272,25 +232,18 @@ public final class RingProjectionCaptureClient {
     }
 
     private void completeCaptureStage(String label) {
-        double averageMillis = frameSamples == 0
-                ? 0.0 : totalFrameNanos / 1_000_000.0 / frameSamples;
-        RingWorldMod.LOGGER.info(
-                "[projection-capture] environment={} {} frame metrics: samples={}, average={} ms, max={} ms, over50ms={}",
-                selectedEnvironment().id, label, frameSamples, averageMillis,
-                maxFrameNanos / 1_000_000.0, slowFrames);
+        double averageMillis = frameSamples == 0 ? 0.0 : totalFrameNanos / 1000000.0 / frameSamples;
+        RingWorldMod.LOGGER.info("[projection-capture] environment={} {} frame metrics: samples={}, average={} ms, max={} ms, over50ms={}", selectedEnvironment().id, label, frameSamples, averageMillis, maxFrameNanos / 1000000.0, slowFrames);
         stage++;
         captureStageArmed = false;
     }
 
     private void captureScreenshot(Minecraft client, String view) {
         pendingScreenshots.incrementAndGet();
-        RingMinecraftClientAccess.grabScreenshot(
-                client.gameDirectory, screenshotName(view),
-                RingMinecraftClientAccess.mainRenderTarget(client), 1,
-                message -> {
-                    RingWorldMod.LOGGER.info("[projection-capture] screenshot: {}", message.getString());
-                    pendingScreenshots.decrementAndGet();
-                });
+        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, screenshotName(view), RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> {
+            RingWorldMod.LOGGER.info("[projection-capture] screenshot: {}", message.getString());
+            pendingScreenshots.decrementAndGet();
+        });
     }
 
     private void resetFrameMetrics() {
@@ -302,15 +255,11 @@ public final class RingProjectionCaptureClient {
     }
 
     private int projectionViewDistanceChunks() {
-        String configured = System.getProperty(VIEW_DISTANCE_PROPERTY,
-                Integer.toString(DEFAULT_VIEW_DISTANCE_CHUNKS)).trim();
+        String configured = System.getProperty(VIEW_DISTANCE_PROPERTY, Integer.toString(DEFAULT_VIEW_DISTANCE_CHUNKS)).trim();
         try {
-            return Math.clamp(Integer.parseInt(configured),
-                    MIN_VIEW_DISTANCE_CHUNKS, MAX_VIEW_DISTANCE_CHUNKS);
+            return Math.clamp(Integer.parseInt(configured), MIN_VIEW_DISTANCE_CHUNKS, MAX_VIEW_DISTANCE_CHUNKS);
         } catch (NumberFormatException exception) {
-            RingWorldMod.LOGGER.warn(
-                    "[projection-capture] invalid {}='{}'; using {} chunks",
-                    VIEW_DISTANCE_PROPERTY, configured, DEFAULT_VIEW_DISTANCE_CHUNKS);
+            RingWorldMod.LOGGER.warn("[projection-capture] invalid {}='{}'; using {} chunks", VIEW_DISTANCE_PROPERTY, configured, DEFAULT_VIEW_DISTANCE_CHUNKS);
             return DEFAULT_VIEW_DISTANCE_CHUNKS;
         }
     }
@@ -318,25 +267,21 @@ public final class RingProjectionCaptureClient {
     private CaptureEnvironment selectedEnvironment() {
         if (selectedEnvironment != null) return selectedEnvironment;
         if (allEnvironments) return selectedEnvironment = CaptureEnvironment.values()[environmentIndex];
-        String configured = System.getProperty(
-                ENVIRONMENT_PROPERTY, CaptureEnvironment.NOON.id).trim();
+        String configured = System.getProperty(ENVIRONMENT_PROPERTY, CaptureEnvironment.NOON.id).trim();
         for (CaptureEnvironment candidate : CaptureEnvironment.values()) {
             if (candidate.id.equalsIgnoreCase(configured)) {
                 selectedEnvironment = candidate;
                 return candidate;
             }
         }
-        RingWorldMod.LOGGER.warn(
-                "[projection-capture] invalid {}='{}'; using {}",
-                ENVIRONMENT_PROPERTY, configured, CaptureEnvironment.NOON.id);
+        RingWorldMod.LOGGER.warn("[projection-capture] invalid {}='{}'; using {}", ENVIRONMENT_PROPERTY, configured, CaptureEnvironment.NOON.id);
         selectedEnvironment = CaptureEnvironment.NOON;
         return selectedEnvironment;
     }
 
     private String screenshotName(String view) {
         CaptureEnvironment environment = selectedEnvironment();
-        String environmentPart = environment == CaptureEnvironment.NOON
-                ? "" : environment.id + "-";
+        String environmentPart = environment == CaptureEnvironment.NOON ? "" : environment.id + "-";
         return "ringworld-projection-" + environmentPart + view + ".png";
     }
 
@@ -352,10 +297,7 @@ public final class RingProjectionCaptureClient {
     }
 
     private enum CaptureEnvironment {
-        NOON("noon", 6_000, false),
-        DUSK("dusk", 12_000, false),
-        NIGHT("night", 18_000, false),
-        RAIN("rain", 6_000, true);
+        NOON("noon", 6000, false), DUSK("dusk", 12000, false), NIGHT("night", 18000, false), RAIN("rain", 6000, true);
 
         private final String id;
         private final int timeTicks;

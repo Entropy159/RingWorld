@@ -10,13 +10,19 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Refresh only visibility when a stationary player's projection settings change. */
+/**
+ * Refresh only visibility when a stationary player's projection settings change.
+ */
 @Pseudo
 @Mixin(targets = "net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager", remap = false)
-abstract class SodiumProjectionChangesMixin {
-    @Shadow public abstract void markGraphDirty();
-    @Unique private boolean ringworld$initialized, ringworld$enabled;
-    @Unique private int ringworld$chunks;
+public abstract class SodiumProjectionChangesMixin {
+    @Shadow
+    public abstract void markGraphDirty();
+
+    @Unique
+    private boolean ringworld$initialized, ringworld$enabled;
+    @Unique
+    private int ringworld$chunks;
 
     @Inject(method = "needsUpdate", at = @At("HEAD"))
     private void ringworld$projectionChanged(CallbackInfoReturnable<Boolean> cir) {

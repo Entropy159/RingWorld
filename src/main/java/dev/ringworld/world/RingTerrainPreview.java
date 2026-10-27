@@ -1,19 +1,17 @@
 package dev.ringworld.world;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
-/** Coarse, seed-derived surface colours shown until authoritative Atlas cells arrive. */
+/**
+ * Coarse, seed-derived surface colours shown until authoritative Atlas cells arrive.
+ */
 public final class RingTerrainPreview {
     public static final int FORMAT_VERSION = 1;
-    public static final int MAX_COLUMNS = 4_096;
+    public static final int MAX_COLUMNS = 4096;
     public static final int MAX_ROWS = 64;
-    public static final int MAX_COMPRESSED_BYTES = 2 * 1_024 * 1_024;
+    public static final int MAX_COMPRESSED_BYTES = 2 * 1024 * 1024;
     private static final int MAX_CELLS = MAX_COLUMNS * MAX_ROWS;
 
     private final long worldHash;
@@ -22,8 +20,7 @@ public final class RingTerrainPreview {
     private final int[] colors;
     private final short[] heights;
 
-    public RingTerrainPreview(long worldHash, int columns, int rows,
-                              int[] colors, short[] heights) {
+    public RingTerrainPreview(long worldHash, int columns, int rows, int[] colors, short[] heights) {
         if (columns <= 0 || rows <= 0 || columns > MAX_COLUMNS || rows > MAX_ROWS) {
             throw new IllegalArgumentException("invalid terrain-preview dimensions");
         }
@@ -38,10 +35,21 @@ public final class RingTerrainPreview {
         this.heights = heights.clone();
     }
 
-    public long worldHash() { return worldHash; }
-    public int columns() { return columns; }
-    public int rows() { return rows; }
-    public int cellCount() { return colors.length; }
+    public long worldHash() {
+        return worldHash;
+    }
+
+    public int columns() {
+        return columns;
+    }
+
+    public int rows() {
+        return rows;
+    }
+
+    public int cellCount() {
+        return colors.length;
+    }
 
     public int color(int column, int row) {
         return colors[index(column, row)] & 0xFFFFFF;
@@ -52,13 +60,11 @@ public final class RingTerrainPreview {
     }
 
     public int sampleColor(int targetColumn, int targetRow, int targetColumns, int targetRows) {
-        return color(sampleIndex(targetColumn, targetColumns, columns),
-                sampleIndex(targetRow, targetRows, rows));
+        return color(sampleIndex(targetColumn, targetColumns, columns), sampleIndex(targetRow, targetRows, rows));
     }
 
     public float sampleHeight(int targetColumn, int targetRow, int targetColumns, int targetRows) {
-        return height(sampleIndex(targetColumn, targetColumns, columns),
-                sampleIndex(targetRow, targetRows, rows));
+        return height(sampleIndex(targetColumn, targetColumns, columns), sampleIndex(targetRow, targetRows, rows));
     }
 
     /**
@@ -97,8 +103,7 @@ public final class RingTerrainPreview {
         if (encoded.length == 0 || encoded.length > MAX_COMPRESSED_BYTES) {
             throw new IOException("invalid terrain-preview payload size");
         }
-        try (DataInputStream input = new DataInputStream(
-                new InflaterInputStream(new ByteArrayInputStream(encoded)))) {
+        try (DataInputStream input = new DataInputStream(new InflaterInputStream(new ByteArrayInputStream(encoded)))) {
             int version = input.readUnsignedByte();
             if (version != FORMAT_VERSION) {
                 throw new IOException("unsupported terrain-preview format " + version);
@@ -114,9 +119,7 @@ public final class RingTerrainPreview {
             short[] heights = new short[cells];
             for (int index = 0; index < cells; index++) {
                 heights[index] = input.readShort();
-                colors[index] = input.readUnsignedByte() << 16
-                        | input.readUnsignedByte() << 8
-                        | input.readUnsignedByte();
+                colors[index] = input.readUnsignedByte() << 16 | input.readUnsignedByte() << 8 | input.readUnsignedByte();
             }
             if (input.read() != -1) throw new IOException("trailing terrain-preview data");
             return new RingTerrainPreview(worldHash, columns, rows, colors, heights);
@@ -136,7 +139,6 @@ public final class RingTerrainPreview {
         if (targetIndex < 0 || targetIndex >= targetSize || targetSize <= 0) {
             throw new IndexOutOfBoundsException("terrain-preview sample outside bounds");
         }
-        return Math.min(sourceSize - 1,
-                (int)(((long)targetIndex * 2L + 1L) * sourceSize / (targetSize * 2L)));
+        return Math.min(sourceSize - 1, (int) (((long) targetIndex * 2L + 1L) * sourceSize / (targetSize * 2L)));
     }
 }

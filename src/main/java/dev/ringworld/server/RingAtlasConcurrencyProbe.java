@@ -5,10 +5,13 @@ import dev.ringworld.world.AtlasPregenerationHandle;
 import dev.ringworld.world.AtlasPregenerationOptions;
 import dev.ringworld.world.AtlasPregenerationState;
 import net.minecraft.server.level.ServerLevel;
+
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-/** Opt-in disposable headless fixture only; never enabled in normal play. */
+/**
+ * Opt-in disposable headless fixture only; never enabled in normal play.
+ */
 final class RingAtlasConcurrencyProbe {
     private static final Map<ServerLevel, RingAtlasConcurrencyProbe> RUNS = new IdentityHashMap<>();
     private int stage;
@@ -22,11 +25,15 @@ final class RingAtlasConcurrencyProbe {
         var probe = RUNS.computeIfAbsent(world, ignored -> new RingAtlasConcurrencyProbe());
         return probe.advance(world, handle);
     }
+
     static boolean running(ServerLevel world) {
         var probe = RUNS.get(world);
         return probe != null && probe.stage != 4;
     }
-    static void clear(ServerLevel world) { RUNS.remove(world); }
+
+    static void clear(ServerLevel world) {
+        RUNS.remove(world);
+    }
 
     private AtlasPregenerationHandle advance(ServerLevel world, AtlasPregenerationHandle handle) {
         if (stage == 4) return handle;
@@ -61,13 +68,11 @@ final class RingAtlasConcurrencyProbe {
             require(handle.progress().state() == AtlasPregenerationState.CANCELLED, "cancel did not apply");
             require(inFlight == 0, "cancel leaked loading tickets");
             require(handle.completion().toCompletableFuture().isCompletedExceptionally(), "cancel future did not terminate");
-            handle = RingAtlasPregenerationService.pregenerate(world,
-                    AtlasPregenerationOptions.headlessPrewarmDefaults(), progress -> {});
+            handle = RingAtlasPregenerationService.pregenerate(world, AtlasPregenerationOptions.headlessPrewarmDefaults(), progress -> {
+            });
             if (Boolean.getBoolean("ringworld.testAtlasRateCommand")) {
-                require(RingAtlasPregenerationService.maxInFlightChunks(world) == 2,
-                        "replacement job lost session rate override");
-                require(RingAtlasPregenerationService.chunkGenerationRate(world).startsWith("fixed"),
-                        "replacement job lost fixed mode");
+                require(RingAtlasPregenerationService.maxInFlightChunks(world) == 2, "replacement job lost session rate override");
+                require(RingAtlasPregenerationService.chunkGenerationRate(world).startsWith("fixed"), "replacement job lost fixed mode");
                 require(RingAtlasPregenerationService.setChunkGenerationRate(world, 0), "auto restore failed");
                 require(RingAtlasPregenerationService.maxInFlightChunks(world) == 4, "auto restore did not reset target");
                 RingWorldMod.LOGGER.info("[atlas-rate-test] PASS session override across cancel/restart");
@@ -77,6 +82,7 @@ final class RingAtlasConcurrencyProbe {
         }
         return handle;
     }
+
     private static void require(boolean condition, String message) {
         if (!condition) throw new IllegalStateException(message);
     }

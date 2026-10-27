@@ -1,15 +1,20 @@
 package dev.ringworld.client;
 
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingGenerationBoundary;
+import dev.ringworld.world.RingIndustrialElements;
+import dev.ringworld.world.RingWallStyle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 
-/** Opt-in disposable real-block specimens for the world-creation style selector. */
+/**
+ * Opt-in disposable real-block specimens for the world-creation style selector.
+ */
 final class RingWallSelectorSamples {
     private static final long SEED = 8128L;
     private static final int CIRCUMFERENCE = 16384;
@@ -22,14 +27,18 @@ final class RingWallSelectorSamples {
 
     RingWallSelectorSamples() {
         try {
-            sample = RingGenerationBoundary.class.getDeclaredMethod("texturedRimBlock",
-                    RingWallStyle.class, int.class, int.class, int.class, int.class, long.class);
+            sample = RingGenerationBoundary.class.getDeclaredMethod("texturedRimBlock", RingWallStyle.class, int.class, int.class, int.class, int.class, long.class);
             sample.setAccessible(true);
-        } catch (ReflectiveOperationException e) { throw new IllegalStateException(e); }
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
         int center = -1;
         for (int x = 0; x < CIRCUMFERENCE; x++) {
             var f = RingIndustrialElements.feature(x, CIRCUMFERENCE, SEED, 1);
-            if (f.kind() == 6 && f.offsetX() == 0) { center = x; break; }
+            if (f.kind() == 6 && f.offsetX() == 0) {
+                center = x;
+                break;
+            }
         }
         if (center < 0) throw new IllegalStateException("No machinery specimen found");
         sourceCenter = center;
@@ -60,8 +69,7 @@ final class RingWallSelectorSamples {
             pending.join();
             pending = null;
         }
-        RingWallStyle style = RingWallStyle.custom(7,
-                RingWallStyle.Palette.values()[index / patterns.length], patterns[index % patterns.length], 0);
+        RingWallStyle style = RingWallStyle.custom(7, RingWallStyle.Palette.values()[index / patterns.length], patterns[index % patterns.length], 0);
         if (column < 96) {
             int start = column;
             column += 4;
@@ -74,21 +82,21 @@ final class RingWallSelectorSamples {
                     for (int u = start; u < start + 4; u++) {
                         int sourceX = sourceCenter + u - 48;
                         var feature = RingIndustrialElements.feature(sourceX, CIRCUMFERENCE, SEED, 1);
-                        for (int y = 0; y < 33; y++) for (int z = -3; z <= 6; z++) {
-                            BlockState block = z < 0 ? Blocks.AIR.defaultBlockState()
-                                    : (BlockState) sample.invoke(null, style, sourceX, y + 64, 6 - z,
-                                            CIRCUMFERENCE, SEED);
-                            if (RingIndustrialElements.enabled(style)) {
-                                int roll = RingIndustrialElements.roll(feature, y, 33, -z, 7);
-                                if (roll != RingIndustrialElements.UNCHANGED) block = roll < 0
-                                        ? Blocks.AIR.defaultBlockState()
-                                        : RingGenerationBoundary.styledRimBlockForRoll(style, roll);
+                        for (int y = 0; y < 33; y++)
+                            for (int z = -3; z <= 6; z++) {
+                                BlockState block = z < 0 ? Blocks.AIR.defaultBlockState() : (BlockState) sample.invoke(null, style, sourceX, y + 64, 6 - z, CIRCUMFERENCE, SEED);
+                                if (RingIndustrialElements.enabled(style)) {
+                                    int roll = RingIndustrialElements.roll(feature, y, 33, -z, 7);
+                                    if (roll != RingIndustrialElements.UNCHANGED)
+                                        block = roll < 0 ? Blocks.AIR.defaultBlockState() : RingGenerationBoundary.styledRimBlockForRoll(style, roll);
+                                }
+                                level.setBlock(new BlockPos(464 + u, 192 + y, z), block, 2);
                             }
-                            level.setBlock(new BlockPos(464 + u, 192 + y, z), block, 2);
-                        }
                     }
                     completion.complete(null);
-                } catch (Throwable e) { completion.completeExceptionally(e); }
+                } catch (Throwable e) {
+                    completion.completeExceptionally(e);
+                }
             });
             return;
         }
@@ -97,14 +105,14 @@ final class RingWallSelectorSamples {
         if (++settle < 100) return;
         if (!captured) {
             captured = true;
-            String name = "wall-" + style.palette().name().toLowerCase(java.util.Locale.ROOT)
-                    + "-" + style.pattern().name().toLowerCase(java.util.Locale.ROOT);
-            RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name + ".png",
-                    RingMinecraftClientAccess.mainRenderTarget(client), 1,
-                    message -> RingWorldMod.LOGGER.info("[wall-selector] {}: {}", name, message.getString()));
+            String name = "wall-" + style.palette().name().toLowerCase(java.util.Locale.ROOT) + "-" + style.pattern().name().toLowerCase(java.util.Locale.ROOT);
+            RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name + ".png", RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> RingWorldMod.LOGGER.info("[wall-selector] {}: {}", name, message.getString()));
         }
         if (settle >= 120) {
-            index++; column = 0; settle = 0; captured = false;
+            index++;
+            column = 0;
+            settle = 0;
+            captured = false;
             client.getConnection().sendCommand("time set noon");
         }
     }

@@ -10,14 +10,16 @@ import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 
-/** Client-owned assertions for the isolated production dimension/reopen regression. */
+/**
+ * Client-owned assertions for the isolated production dimension/reopen regression.
+ */
 public final class ProductionLifecycleTestClient {
     private static final int DIMENSION_SETTLE_TICKS = 20;
-    private static final int STAGE_TIMEOUT_TICKS = 1_800;
+    private static final int STAGE_TIMEOUT_TICKS = 1800;
     // A full-resolution 16384x256 Atlas needs 2048 server ticks at eight
     // 256-cell tiles per tick, before startup and rendering overhead. Keep
     // the ordinary transition deadline, but allow bounded cold Atlas loads.
-    private static final int ATLAS_LOAD_TIMEOUT_TICKS = 6_000;
+    private static final int ATLAS_LOAD_TIMEOUT_TICKS = 6000;
 
     private final String worldName = System.getProperty("ringworld.productionLifecycleWorld", "").trim();
     private int stage;
@@ -25,8 +27,7 @@ public final class ProductionLifecycleTestClient {
     private int dimensionTicks;
     private boolean initialOpenRequested;
     private boolean safetyRegistrationRequested;
-    private final CopiedWorldFileFixUpgrade copiedWorldFileFixUpgrade =
-            new CopiedWorldFileFixUpgrade();
+    private final CopiedWorldFileFixUpgrade copiedWorldFileFixUpgrade = new CopiedWorldFileFixUpgrade();
     private RingGeometry baselineGeometry;
     private long baselineFingerprint;
     private long baselineAtlasWorldHash;
@@ -38,10 +39,8 @@ public final class ProductionLifecycleTestClient {
             finish(client, false, "missing productionLifecycleWorld");
             return true;
         }
-        if (RingMinecraftClientAccess.screen(client) instanceof DeathScreen
-                || (client.player != null && !client.player.isAlive())) {
-            finish(client, false, "player died stage=" + stage
-                    + " screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
+        if (RingMinecraftClientAccess.screen(client) instanceof DeathScreen || (client.player != null && !client.player.isAlive())) {
+            finish(client, false, "player died stage=" + stage + " screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
             return true;
         }
         var server = client.getSingleplayerServer();
@@ -54,17 +53,14 @@ public final class ProductionLifecycleTestClient {
             stageTicks = 0;
             return true;
         }
-        int timeoutTicks = stage == 0 || stage == 6
-                ? ATLAS_LOAD_TIMEOUT_TICKS : STAGE_TIMEOUT_TICKS;
+        int timeoutTicks = stage == 0 || stage == 6 ? ATLAS_LOAD_TIMEOUT_TICKS : STAGE_TIMEOUT_TICKS;
         if (++stageTicks > timeoutTicks) {
-            finish(client, false, "timeout stage=" + stage + " dimension=" + dimensionName(client)
-                    + " screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
+            finish(client, false, "timeout stage=" + stage + " dimension=" + dimensionName(client) + " screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
             return true;
         }
 
-        if ((initialOpenRequested || stage == 6)
-                && copiedWorldFileFixUpgrade.handleIfRequired(
-                client, "production-lifecycle", worldName)) return true;
+        if ((initialOpenRequested || stage == 6) && copiedWorldFileFixUpgrade.handleIfRequired(client, "production-lifecycle", worldName))
+            return true;
 
         switch (stage) {
             case 0 -> captureProductionBaseline(client);
@@ -74,7 +70,8 @@ public final class ProductionLifecycleTestClient {
             case 4 -> verifyReturnAndSave(client);
             case 5 -> reopenCopiedWorld(client);
             case 6 -> verifyReopenedWorld(client);
-            default -> { }
+            default -> {
+            }
         }
         return true;
     }
@@ -83,11 +80,8 @@ public final class ProductionLifecycleTestClient {
         if (client.level == null && client.getSingleplayerServer() == null) {
             if (initialOpenRequested) return;
             initialOpenRequested = true;
-            RingWorldMod.LOGGER.info(
-                    "[production-lifecycle] opening copied production world '{}' in-process",
-                    worldName);
-            client.createWorldOpenFlows().openWorld(worldName,
-                    () -> finish(client, false, "initial save load cancelled"));
+            RingWorldMod.LOGGER.info("[production-lifecycle] opening copied production world '{}' in-process", worldName);
+            client.createWorldOpenFlows().openWorld(worldName, () -> finish(client, false, "initial save load cancelled"));
             return;
         }
         if (!isIn(client, Level.OVERWORLD)) return;
@@ -95,8 +89,7 @@ public final class ProductionLifecycleTestClient {
         RingTerrainAtlas atlas = ClientRingState.terrainAtlas();
         if (geometry == null || atlas == null || !atlas.isComplete()) return;
         if (!isProductionGeometry(geometry)) {
-            finish(client, false, "unexpected geometry=" + geometry.circumferenceBlocks()
-                    + "x" + geometry.widthBlocks());
+            finish(client, false, "unexpected geometry=" + geometry.circumferenceBlocks() + "x" + geometry.widthBlocks());
             return;
         }
         baselineGeometry = geometry;
@@ -106,11 +99,7 @@ public final class ProductionLifecycleTestClient {
             finish(client, false, "missing production layout fingerprint");
             return;
         }
-        RingWorldMod.LOGGER.info(
-                "[production-lifecycle] baseline geometry={}x{} fingerprint={} atlasComplete=true worldHash={}",
-                geometry.circumferenceBlocks(), geometry.widthBlocks(),
-                Long.toUnsignedString(baselineFingerprint, 16),
-                Long.toUnsignedString(baselineAtlasWorldHash, 16));
+        RingWorldMod.LOGGER.info("[production-lifecycle] baseline geometry={}x{} fingerprint={} atlasComplete=true worldHash={}", geometry.circumferenceBlocks(), geometry.widthBlocks(), Long.toUnsignedString(baselineFingerprint, 16), Long.toUnsignedString(baselineAtlasWorldHash, 16));
         var server = client.getSingleplayerServer();
         if (server == null || client.player == null) {
             finish(client, false, "missing integrated server at production baseline");
@@ -121,9 +110,7 @@ public final class ProductionLifecycleTestClient {
         advance(1);
     }
 
-    private void verifyInactiveDimension(Minecraft client,
-                                         net.minecraft.resources.ResourceKey<Level> expected,
-                                         String label) {
+    private void verifyInactiveDimension(Minecraft client, net.minecraft.resources.ResourceKey<Level> expected, String label) {
         if (!isIn(client, expected)) {
             dimensionTicks = 0;
             return;
@@ -160,8 +147,7 @@ public final class ProductionLifecycleTestClient {
         // disconnectFromWorld stops and saves the integrated server on its own
         // thread. Calling MinecraftServer.saveEverything from this render
         // thread races chunk/entity managers and can corrupt the test run.
-        RingWorldMod.LOGGER.info(
-                "[production-lifecycle] overworld return restored baseline; requesting normal save-and-disconnect");
+        RingWorldMod.LOGGER.info("[production-lifecycle] overworld return restored baseline; requesting normal save-and-disconnect");
         client.disconnectFromWorld(Component.literal("RingWorld production lifecycle regression"));
         advance(5);
     }
@@ -182,9 +168,7 @@ public final class ProductionLifecycleTestClient {
 
     private void reopenCopiedWorld(Minecraft client) {
         if (client.level != null || client.getSingleplayerServer() != null) return;
-        disconnectClearedState = ClientRingState.geometry() == null
-                && ClientRingState.layoutFingerprint() == 0L
-                && ClientRingState.terrainAtlas() == null;
+        disconnectClearedState = ClientRingState.geometry() == null && ClientRingState.layoutFingerprint() == 0L && ClientRingState.terrainAtlas() == null;
         if (!disconnectClearedState) {
             // World teardown and the integrated server stop complete on
             // different ticks. Give the clearClientLevel hook a bounded
@@ -193,11 +177,9 @@ public final class ProductionLifecycleTestClient {
             finish(client, false, "disconnect did not clear client RingWorld state");
             return;
         }
-        RingWorldMod.LOGGER.info("[production-lifecycle] reopening copied production world '{}'; client state cleared=true",
-                worldName);
+        RingWorldMod.LOGGER.info("[production-lifecycle] reopening copied production world '{}'; client state cleared=true", worldName);
         advance(6);
-        client.createWorldOpenFlows().openWorld(worldName,
-                () -> finish(client, false, "reopen cancelled"));
+        client.createWorldOpenFlows().openWorld(worldName, () -> finish(client, false, "reopen cancelled"));
     }
 
     private void verifyReopenedWorld(Minecraft client) {
@@ -207,12 +189,8 @@ public final class ProductionLifecycleTestClient {
         }
         if (++dimensionTicks < DIMENSION_SETTLE_TICKS) return;
         RingGeometry geometry = ClientRingState.geometry();
-        if (baselineGeometry == null || !baselineGeometry.equals(geometry)
-                || baselineFingerprint == 0L
-                || ClientRingState.layoutFingerprint() != baselineFingerprint) {
-            finish(client, false, "reopened geometry=" + geometryName(geometry)
-                    + " fingerprint=" + Long.toUnsignedString(ClientRingState.layoutFingerprint(), 16)
-                    + " atlasComplete=false disconnectedCleared=" + disconnectClearedState);
+        if (baselineGeometry == null || !baselineGeometry.equals(geometry) || baselineFingerprint == 0L || ClientRingState.layoutFingerprint() != baselineFingerprint) {
+            finish(client, false, "reopened geometry=" + geometryName(geometry) + " fingerprint=" + Long.toUnsignedString(ClientRingState.layoutFingerprint(), 16) + " atlasComplete=false disconnectedCleared=" + disconnectClearedState);
             return;
         }
         RingTerrainAtlas atlas = ClientRingState.terrainAtlas();
@@ -221,28 +199,18 @@ public final class ProductionLifecycleTestClient {
         // identity-bearing Atlas instead of sampling an ordinary partial
         // download after a fixed number of render ticks.
         if (atlas == null || !atlas.isComplete()) return;
-        boolean restored = atlas.geometry().equals(baselineGeometry)
-                && atlas.worldHash() == baselineAtlasWorldHash;
-        finish(client, restored, "reopened geometry=" + geometryName(geometry)
-                + " fingerprint=" + Long.toUnsignedString(ClientRingState.layoutFingerprint(), 16)
-                + " atlasComplete=true"
-                + " disconnectedCleared=" + disconnectClearedState);
+        boolean restored = atlas.geometry().equals(baselineGeometry) && atlas.worldHash() == baselineAtlasWorldHash;
+        finish(client, restored, "reopened geometry=" + geometryName(geometry) + " fingerprint=" + Long.toUnsignedString(ClientRingState.layoutFingerprint(), 16) + " atlasComplete=true" + " disconnectedCleared=" + disconnectClearedState);
     }
 
     private boolean matchesBaseline() {
         RingGeometry geometry = ClientRingState.geometry();
         RingTerrainAtlas atlas = ClientRingState.terrainAtlas();
-        return baselineGeometry != null && baselineGeometry.equals(geometry)
-                && baselineFingerprint != 0L
-                && ClientRingState.layoutFingerprint() == baselineFingerprint
-                && atlas != null && atlas.isComplete()
-                && atlas.geometry().equals(baselineGeometry)
-                && atlas.worldHash() == baselineAtlasWorldHash;
+        return baselineGeometry != null && baselineGeometry.equals(geometry) && baselineFingerprint != 0L && ClientRingState.layoutFingerprint() == baselineFingerprint && atlas != null && atlas.isComplete() && atlas.geometry().equals(baselineGeometry) && atlas.worldHash() == baselineAtlasWorldHash;
     }
 
     private static boolean isProductionGeometry(RingGeometry geometry) {
-        return geometry.widthBlocks() == RingWorldSettings.DEFAULT_WIDTH
-                && geometry.circumferenceBlocks() == RingWorldSettings.DEFAULT_CIRCUMFERENCE;
+        return geometry.widthBlocks() == RingWorldSettings.DEFAULT_WIDTH && geometry.circumferenceBlocks() == RingWorldSettings.DEFAULT_CIRCUMFERENCE;
     }
 
     private static boolean isIn(Minecraft client, net.minecraft.resources.ResourceKey<Level> dimension) {

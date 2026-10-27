@@ -15,16 +15,14 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * from RenderSection into SectionUpdateTracker.
  */
 @Mixin(SectionUpdateTracker.class)
-abstract class ChunkBuilderBuiltChunkMixin {
+public abstract class ChunkBuilderBuiltChunkMixin {
     @Shadow
     private boolean doesChunkExistAt(ClientLevel level, long sectionPos) {
         throw new AssertionError();
     }
 
-    @Redirect(method = "hasAllNeighbors", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/SectionUpdateTracker;doesChunkExistAt(Lnet/minecraft/client/multiplayer/ClientLevel;J)Z"))
-    private boolean ringworld$treatExteriorVoidAsReady(SectionUpdateTracker instance,
-                                                       ClientLevel level, long sectionPos) {
+    @Redirect(method = "hasAllNeighbors", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/SectionUpdateTracker;doesChunkExistAt(Lnet/minecraft/client/multiplayer/ClientLevel;J)Z"))
+    private boolean ringworld$treatExteriorVoidAsReady(SectionUpdateTracker instance, ClientLevel level, long sectionPos) {
         RingGeometry geometry = ClientRingState.geometry();
         if (geometry != null && geometry.isExteriorChunkZ(SectionPos.z(sectionPos))) return true;
         return doesChunkExistAt(level, sectionPos);

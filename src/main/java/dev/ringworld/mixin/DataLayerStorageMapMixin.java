@@ -5,20 +5,31 @@ import dev.ringworld.server.RingLightSectionTable;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.DataLayerStorageMap;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/** Preserve vanilla's caches and DataLayer ownership while partitioning the lookup copies. */
+/**
+ * Preserve vanilla's caches and DataLayer ownership while partitioning the lookup copies.
+ */
 @Mixin(DataLayerStorageMap.class)
-abstract class DataLayerStorageMapMixin implements RingLightSectionStorage {
-    @Shadow @Final protected Long2ObjectOpenHashMap<DataLayer> map;
-    @Unique private RingLightSectionTable<DataLayer> ringworld$table;
-    @Override public RingLightSectionTable<DataLayer> ringworld$table() { return ringworld$table; }
-    @Override public void ringworld$table(RingLightSectionTable<DataLayer> table) {
+public abstract class DataLayerStorageMapMixin implements RingLightSectionStorage {
+    @Shadow
+    @Final
+    protected Long2ObjectOpenHashMap<DataLayer> map;
+    @Unique
+    private RingLightSectionTable<DataLayer> ringworld$table;
+
+    @Override
+    public RingLightSectionTable<DataLayer> ringworld$table() {
+        return ringworld$table;
+    }
+
+    @Override
+    public void ringworld$table(RingLightSectionTable<DataLayer> table) {
         if (ringworld$table == null && table != null && !map.isEmpty()) {
             // Normally empty at construction; preserve any layers supplied by another initializer.
             map.long2ObjectEntrySet().forEach(entry -> table.put(entry.getLongKey(), entry.getValue()));

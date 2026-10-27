@@ -1,7 +1,14 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingTopology;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.*;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -11,29 +18,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Predicate;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 
-/** Raycasts against the periodic image of seam-adjacent entity hitboxes. */
+/**
+ * Raycasts against the periodic image of seam-adjacent entity hitboxes.
+ */
 @Mixin(ProjectileUtil.class)
-abstract class ProjectileUtilMixin {
-    @Inject(
-            method = "getEntityHitResult(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;F)Lnet/minecraft/world/phys/EntityHitResult;",
-            at = @At("HEAD"), cancellable = true)
-    private static void ringworld$periodicEntityCollision(
-            Level world, Entity source, Vec3 start, Vec3 end, AABB query,
-            Predicate<Entity> predicate, float margin,
-            CallbackInfoReturnable<EntityHitResult> cir) {
-        if (!(world instanceof ServerLevel serverWorld)
-                || serverWorld.dimension() != Level.OVERWORLD) return;
+public abstract class ProjectileUtilMixin {
+    @Inject(method = "getEntityHitResult(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;F)Lnet/minecraft/world/phys/EntityHitResult;", at = @At("HEAD"), cancellable = true)
+    private static void ringworld$periodicEntityCollision(Level world, Entity source, Vec3 start, Vec3 end, AABB query, Predicate<Entity> predicate, float margin, CallbackInfoReturnable<EntityHitResult> cir) {
+        if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) return;
 
         RingTopology topology = new RingTopology(RingWorldServer.geometryFor(serverWorld));
         double nearestDistance = Double.MAX_VALUE;
@@ -58,15 +51,9 @@ abstract class ProjectileUtilMixin {
      * collector even at pierce level zero, so it needs the same periodic
      * candidate projection as the single-hit helper above.
      */
-    @Inject(
-            method = "getManyEntityHitResult(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;FLnet/minecraft/world/level/ClipContext$Block;Z)Ljava/util/Collection;",
-            at = @At("HEAD"), cancellable = true)
-    private static void ringworld$periodicPiercingCollisions(
-            Level world, Entity source, Vec3 start, Vec3 end, AABB query,
-            Predicate<Entity> predicate, float margin, ClipContext.Block shapeType,
-            boolean includeInside, CallbackInfoReturnable<Collection<EntityHitResult>> cir) {
-        if (!(world instanceof ServerLevel serverWorld)
-                || serverWorld.dimension() != Level.OVERWORLD) return;
+    @Inject(method = "getManyEntityHitResult(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;FLnet/minecraft/world/level/ClipContext$Block;Z)Ljava/util/Collection;", at = @At("HEAD"), cancellable = true)
+    private static void ringworld$periodicPiercingCollisions(Level world, Entity source, Vec3 start, Vec3 end, AABB query, Predicate<Entity> predicate, float margin, ClipContext.Block shapeType, boolean includeInside, CallbackInfoReturnable<Collection<EntityHitResult>> cir) {
+        if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) return;
 
         RingTopology topology = new RingTopology(RingWorldServer.geometryFor(serverWorld));
         Collection<EntityHitResult> hits = new ArrayList<>();
@@ -88,11 +75,9 @@ abstract class ProjectileUtilMixin {
             if (marginHit.isEmpty()) continue;
             Vec3 marginPoint = marginHit.get();
             Vec3 center = hitbox.getCenter();
-            BlockHitResult obstruction = world.clipIncludingBorder(new ClipContext(
-                    marginPoint, center, shapeType, ClipContext.Fluid.NONE, source));
+            BlockHitResult obstruction = world.clipIncludingBorder(new ClipContext(marginPoint, center, shapeType, ClipContext.Fluid.NONE, source));
             if (obstruction.getType() != HitResult.Type.MISS) center = obstruction.getLocation();
-            hitbox.clip(marginPoint, center)
-                    .ifPresent(hit -> hits.add(new EntityHitResult(candidate, hit)));
+            hitbox.clip(marginPoint, center).ifPresent(hit -> hits.add(new EntityHitResult(candidate, hit)));
         }
         cir.setReturnValue(hits);
     }

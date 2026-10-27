@@ -2,10 +2,10 @@ package dev.ringworld.world;
 
 import net.minecraft.core.BlockPos;
 
-/** Canonical and transient presentation operations for block positions. */
+/**
+ * Canonical and transient presentation operations for block positions.
+ */
 public final class RingBlockCoordinates {
-    private RingBlockCoordinates() { }
-
     public static int canonicalBlockX(int blockX, RingGeometry geometry) {
         return geometry.wrapBlockX(blockX);
     }
@@ -15,9 +15,7 @@ public final class RingBlockCoordinates {
      * reference. At an exact half-circumference tie, the even lap is selected
      * to preserve {@link RingGeometry#nearestImageX(double, double)} behavior.
      */
-    public static int nearestImageBlockX(int canonicalOrChartBlockX,
-                                         double referenceChartX,
-                                         RingGeometry geometry) {
+    public static int nearestImageBlockX(int canonicalOrChartBlockX, double referenceChartX, RingGeometry geometry) {
         if (!Double.isFinite(referenceChartX)) {
             throw new IllegalArgumentException("reference chart X must be finite");
         }
@@ -31,24 +29,20 @@ public final class RingBlockCoordinates {
         return (int) result;
     }
 
-    /** Returns the canonical storage position while preserving Y and Z. */
+    /**
+     * Returns the canonical storage position while preserving Y and Z.
+     */
     public static BlockPos canonicalBlockPos(BlockPos position, RingGeometry geometry) {
         int canonicalX = canonicalBlockX(position.getX(), geometry);
-        return canonicalX == position.getX()
-                ? position
-                : new BlockPos(canonicalX, position.getY(), position.getZ());
+        return canonicalX == position.getX() ? position : new BlockPos(canonicalX, position.getY(), position.getZ());
     }
 
     /**
      * Returns a transient presentation position nearest {@code referenceChartX}.
      * The result must not be used as a server storage, cache, or persistence key.
      */
-    public static BlockPos nearestImageBlockPos(BlockPos position,
-                                                double referenceChartX,
-                                                RingGeometry geometry) {
+    public static BlockPos nearestImageBlockPos(BlockPos position, double referenceChartX, RingGeometry geometry) {
         int imageX = nearestImageBlockX(position.getX(), referenceChartX, geometry);
-        return imageX == position.getX()
-                ? position
-                : new BlockPos(imageX, position.getY(), position.getZ());
+        return imageX == position.getX() ? position : new BlockPos(imageX, position.getY(), position.getZ());
     }
 }

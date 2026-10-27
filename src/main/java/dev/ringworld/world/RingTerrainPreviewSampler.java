@@ -29,12 +29,10 @@ public final class RingTerrainPreviewSampler {
     private static final int STONE = 0x72736D;
     private static final int MYCELIUM = RingSurfaceLod.VANILLA_MYCELIUM_TOP_RGB;
 
-    private RingTerrainPreviewSampler() { }
+    private RingTerrainPreviewSampler() {
+    }
 
-    public static RingTerrainPreview generate(
-            long worldHash, RingGeometry geometry, RingTerrainPreviewStage stage,
-            ChunkGenerator generator, RandomState randomState,
-            LevelHeightAccessor heightAccessor) {
+    public static RingTerrainPreview generate(long worldHash, RingGeometry geometry, RingTerrainPreviewStage stage, ChunkGenerator generator, RandomState randomState, LevelHeightAccessor heightAccessor) {
         if (!(generator instanceof RingWorldGeneratorAccess access)) return null;
         BiomeSource biomeSource = generator.getBiomeSource();
         var sampler = access.ringworld$getPeriodicClimateSampler(randomState);
@@ -43,56 +41,41 @@ public final class RingTerrainPreviewSampler {
         int rows = Math.min(geometry.widthBlocks(), stage.colorRows());
         int terrainColumns = Math.min(columns, stage.terrainColumns());
         int terrainRows = Math.min(rows, stage.terrainRows());
-        int[] terrainHeights = sampleTerrainHeights(
-                generator, randomState, heightAccessor, geometry, terrainColumns, terrainRows);
+        int[] terrainHeights = sampleTerrainHeights(generator, randomState, heightAccessor, geometry, terrainColumns, terrainRows);
         int cells = Math.multiplyExact(columns, rows);
         int[] colors = new int[cells];
         short[] heights = new short[cells];
         for (int row = 0; row < rows; row++) {
             checkCancelled();
-            int z = geometry.minWidthZ() + (int)(((long)row * 2L + 1L)
-                    * geometry.widthBlocks() / (rows * 2L));
+            int z = geometry.minWidthZ() + (int) (((long) row * 2L + 1L) * geometry.widthBlocks() / (rows * 2L));
             for (int column = 0; column < columns; column++) {
-                int x = (int)(((long)column * 2L + 1L)
-                        * geometry.circumferenceBlocks() / (columns * 2L));
-                int terrainHeight = terrainHeights[
-                        sampleIndex(row, rows, terrainRows) * terrainColumns
-                                + sampleIndex(column, columns, terrainColumns)];
-                Holder<Biome> holder = biomeSource.getNoiseBiome(
-                        Math.floorDiv(x, 4), Math.floorDiv(Math.max(terrainHeight, seaLevel), 4),
-                        Math.floorDiv(z, 4), sampler);
+                int x = (int) (((long) column * 2L + 1L) * geometry.circumferenceBlocks() / (columns * 2L));
+                int terrainHeight = terrainHeights[sampleIndex(row, rows, terrainRows) * terrainColumns + sampleIndex(column, columns, terrainColumns)];
+                Holder<Biome> holder = biomeSource.getNoiseBiome(Math.floorDiv(x, 4), Math.floorDiv(Math.max(terrainHeight, seaLevel), 4), Math.floorDiv(z, 4), sampler);
                 PreviewSample sample = sample(holder, x, z, terrainHeight, seaLevel);
                 int index = row * columns + column;
                 colors[index] = sample.color();
-                heights[index] = (short)sample.height();
+                heights[index] = (short) sample.height();
             }
         }
         return new RingTerrainPreview(worldHash, columns, rows, colors, heights);
     }
 
-    private static int[] sampleTerrainHeights(
-            ChunkGenerator generator, RandomState randomState,
-            LevelHeightAccessor heightAccessor, RingGeometry geometry,
-            int columns, int rows) {
+    private static int[] sampleTerrainHeights(ChunkGenerator generator, RandomState randomState, LevelHeightAccessor heightAccessor, RingGeometry geometry, int columns, int rows) {
         int[] heights = new int[Math.multiplyExact(columns, rows)];
         for (int row = 0; row < rows; row++) {
             checkCancelled();
-            int z = geometry.minWidthZ() + (int)(((long)row * 2L + 1L)
-                    * geometry.widthBlocks() / (rows * 2L));
+            int z = geometry.minWidthZ() + (int) (((long) row * 2L + 1L) * geometry.widthBlocks() / (rows * 2L));
             for (int column = 0; column < columns; column++) {
-                int x = (int)(((long)column * 2L + 1L)
-                        * geometry.circumferenceBlocks() / (columns * 2L));
-                heights[row * columns + column] = generator.getFirstOccupiedHeight(
-                        x, z, Heightmap.Types.OCEAN_FLOOR_WG, heightAccessor, randomState);
+                int x = (int) (((long) column * 2L + 1L) * geometry.circumferenceBlocks() / (columns * 2L));
+                heights[row * columns + column] = generator.getFirstOccupiedHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, heightAccessor, randomState);
             }
         }
         return heights;
     }
 
-    private static PreviewSample sample(Holder<Biome> holder, int x, int z,
-                                        int terrainHeight, int seaLevel) {
-        String path = holder.unwrapKey().map(key -> key.identifier().getPath())
-                .orElse("").toLowerCase(Locale.ROOT);
+    private static PreviewSample sample(Holder<Biome> holder, int x, int z, int terrainHeight, int seaLevel) {
+        String path = holder.unwrapKey().map(key -> key.identifier().getPath()).orElse("").toLowerCase(Locale.ROOT);
         int color;
         if (terrainHeight < seaLevel || holder.is(BiomeTags.IS_RIVER)) {
             color = validColor(holder.value().getWaterColor(), WATER);
@@ -102,8 +85,7 @@ public final class RingTerrainPreviewSampler {
             color = BADLANDS;
         } else if (path.contains("mushroom")) {
             color = MYCELIUM;
-        } else if (path.contains("snow") || path.contains("frozen")
-                || path.contains("ice") || path.contains("grove")) {
+        } else if (path.contains("snow") || path.contains("frozen") || path.contains("ice") || path.contains("grove")) {
             color = SNOW;
         } else if (holder.is(BiomeTags.IS_MOUNTAIN) || path.contains("peak")) {
             color = path.contains("stony") || path.contains("jagged") ? STONE : GRASS;
@@ -130,8 +112,7 @@ public final class RingTerrainPreviewSampler {
     }
 
     private static int sampleIndex(int targetIndex, int targetSize, int sourceSize) {
-        return Math.min(sourceSize - 1,
-                (int)(((long)targetIndex * 2L + 1L) * sourceSize / (targetSize * 2L)));
+        return Math.min(sourceSize - 1, (int) (((long) targetIndex * 2L + 1L) * sourceSize / (targetSize * 2L)));
     }
 
     private static void checkCancelled() {
@@ -140,5 +121,6 @@ public final class RingTerrainPreviewSampler {
         }
     }
 
-    private record PreviewSample(int color, int height) { }
+    private record PreviewSample(int color, int height) {
+    }
 }

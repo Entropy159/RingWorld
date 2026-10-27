@@ -2,10 +2,13 @@ package dev.ringworld.server;
 
 import dev.ringworld.world.RingAtlasPregenerationCursor;
 import dev.ringworld.world.RingTerrainAtlas;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/** Bounded server-thread leases sharing one canonical cursor. No worker world access. */
+/**
+ * Bounded server-thread leases sharing one canonical cursor. No worker world access.
+ */
 final class RingAtlasPregenerationBatch<T> {
     static final int MAX_REQUESTS = 8;
     final List<Slot<T>> slots;
@@ -14,7 +17,8 @@ final class RingAtlasPregenerationBatch<T> {
     private int nextCompletedSlot;
 
     RingAtlasPregenerationBatch(RingTerrainAtlas atlas, int capacity) {
-        if (capacity < 1 || capacity > MAX_REQUESTS) throw new IllegalArgumentException("Atlas concurrency must be 1..8");
+        if (capacity < 1 || capacity > MAX_REQUESTS)
+            throw new IllegalArgumentException("Atlas concurrency must be 1..8");
         cursor = new RingAtlasPregenerationCursor(atlas.geometry(), atlas);
         totalChunks = cursor.totalChunks();
         var entries = new ArrayList<Slot<T>>(capacity);
@@ -22,15 +26,19 @@ final class RingAtlasPregenerationBatch<T> {
         slots = List.copyOf(entries);
     }
 
-    int inFlight() { return (int) slots.stream().filter(slot -> slot.request != null).count(); }
+    int inFlight() {
+        return (int) slots.stream().filter(slot -> slot.request != null).count();
+    }
+
     boolean hasWork() {
         // An empty batch may simply be waiting for player-queue backpressure
         // to clear. Only a consumed cursor with no retained selection is empty.
-        return cursor.nextIndex() < totalChunks
-                || slots.stream().anyMatch(slot -> slot.request != null || slot.selection.selected() != null);
+        return cursor.nextIndex() < totalChunks || slots.stream().anyMatch(slot -> slot.request != null || slot.selection.selected() != null);
     }
 
-    /** Next ready slot, fairly rotating; unfinished older loads never block ready ones. */
+    /**
+     * Next ready slot, fairly rotating; unfinished older loads never block ready ones.
+     */
     Slot<T> nextCompleted() {
         for (int offset = 0; offset < slots.size(); offset++) {
             int index = (nextCompletedSlot + offset) % slots.size();
@@ -51,12 +59,15 @@ final class RingAtlasPregenerationBatch<T> {
         slot.processed = false;
     }
 
-    /** Try every lease even when one release fails; retain failed leases for retry. */
+    /**
+     * Try every lease even when one release fails; retain failed leases for retry.
+     */
     void cancelAll(int attempts) {
         RuntimeException first = null;
         for (var slot : slots) {
-            try { release(slot, true, attempts); }
-            catch (RuntimeException failure) {
+            try {
+                release(slot, true, attempts);
+            } catch (RuntimeException failure) {
                 if (first == null) first = failure;
                 else if (first != failure) first.addSuppressed(failure);
             }
@@ -68,6 +79,9 @@ final class RingAtlasPregenerationBatch<T> {
         final RingAtlasPregenerationSelection selection;
         RingAtlasChunkRequest<T> request;
         boolean processed;
-        Slot(RingAtlasPregenerationCursor cursor) { selection = new RingAtlasPregenerationSelection(cursor); }
+
+        Slot(RingAtlasPregenerationCursor cursor) {
+            selection = new RingAtlasPregenerationSelection(cursor);
+        }
     }
 }

@@ -9,18 +9,8 @@ package dev.ringworld.world;
  * global clock without a physical shadow-panel array.</p>
  */
 public final class RingSkyCycle {
-    public static final long DAY_LENGTH_TICKS = 24_000L;
+    public static final long DAY_LENGTH_TICKS = 24000L;
     public static final float FIXED_SUN_ANGLE_RADIANS = 0.0F;
-    /** One tenth of vanilla's padded 30-unit sun quad. */
-    public static final float SUN_HALF_WIDTH = 3.0F;
-    /** Fraction of vanilla's padded sun quad occupied by the bright disc. */
-    public static final float SUN_VISIBLE_TEXTURE_SCALE = 0.2625F;
-    /** Angular radius of the visible disc inside vanilla's padded sun sprite. */
-    public static final float SUN_ANGULAR_HALF_WIDTH_DEGREES =
-            (float)Math.toDegrees(Math.atan((SUN_HALF_WIDTH * SUN_VISIBLE_TEXTURE_SCALE) / 100.0F));
-    public static final float SUN_RENDER_DISTANCE = 100.0F;
-
-    private RingSkyCycle() { }
 
     /**
      * Rotation that expresses one inertially fixed star field in the player's
@@ -29,7 +19,7 @@ public final class RingSkyCycle {
      */
     public static float starFieldAngleRadians(RingGeometry geometry, double cameraX) {
         if (geometry == null) throw new IllegalArgumentException("ring geometry is required");
-        return (float)-geometry.angleAt(cameraX);
+        return (float) -geometry.angleAt(cameraX);
     }
 
     /**
@@ -38,25 +28,21 @@ public final class RingSkyCycle {
      */
     public static SunVisual sunVisual(double timeOfDay) {
         double phase = wrapDayTime(timeOfDay);
-        if (phase < 6_000.0) {
-            return interpolate(DAWN, NOON, (float)(phase / 6_000.0));
+        if (phase < 6000.0) {
+            return interpolate(DAWN, NOON, (float) (phase / 6000.0));
         }
-        if (phase < 12_000.0) {
-            return interpolate(NOON, DUSK, (float)((phase - 6_000.0) / 6_000.0));
+        if (phase < 12000.0) {
+            return interpolate(NOON, DUSK, (float) ((phase - 6000.0) / 6000.0));
         }
-        if (phase < 18_000.0) {
-            return interpolate(DUSK, MIDNIGHT, (float)((phase - 12_000.0) / 6_000.0));
+        if (phase < 18000.0) {
+            return interpolate(DUSK, MIDNIGHT, (float) ((phase - 12000.0) / 6000.0));
         }
-        return interpolate(MIDNIGHT, DAWN, (float)((phase - 18_000.0) / 6_000.0));
+        return interpolate(MIDNIGHT, DAWN, (float) ((phase - 18000.0) / 6000.0));
     }
 
     private static SunVisual interpolate(SunVisual start, SunVisual end, float progress) {
         float t = progress * progress * (3.0F - 2.0F * progress);
-        return new SunVisual(
-                lerp(start.brightness, end.brightness, t),
-                lerp(start.red, end.red, t),
-                lerp(start.green, end.green, t),
-                lerp(start.blue, end.blue, t));
+        return new SunVisual(lerp(start.brightness, end.brightness, t), lerp(start.red, end.red, t), lerp(start.green, end.green, t), lerp(start.blue, end.blue, t));
     }
 
     private static float lerp(float start, float end, float progress) {

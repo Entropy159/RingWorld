@@ -1,5 +1,8 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.server.RingWorldMultiplayerTest;
+import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingPlayerMovementAccess;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -10,8 +13,6 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import dev.ringworld.server.RingWorldServer;
-import dev.ringworld.server.RingWorldMultiplayerTest;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,12 +27,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * send a corrective teleport back to the client.
  */
 @Mixin(ServerGamePacketListenerImpl.class)
-abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovementAccess {
-    @Shadow public ServerPlayer player;
-    @Shadow private double firstGoodX;
-    @Shadow private double lastGoodX;
-    @Shadow private double vehicleFirstGoodX;
-    @Shadow private double vehicleLastGoodX;
+public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovementAccess {
+    @Shadow
+    public ServerPlayer player;
+    @Shadow
+    private double firstGoodX;
+    @Shadow
+    private double lastGoodX;
+    @Shadow
+    private double vehicleFirstGoodX;
+    @Shadow
+    private double vehicleLastGoodX;
 
     @Override
     public void ringworld$resetPlayerMovementBaselines() {
@@ -39,14 +45,10 @@ abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovementAccess
         lastGoodX = player.getX();
     }
 
-    @ModifyVariable(
-            method = "handleMovePlayer",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;hasClientLoaded()Z"),
-            argsOnly = true)
+    @ModifyVariable(method = "handleMovePlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;hasClientLoaded()Z"), argsOnly = true, name = "packet")
     private ServerboundMovePlayerPacket ringworld$projectPlayerMovement(ServerboundMovePlayerPacket packet) {
         ServerLevel world = player.level();
-        if (!packet.hasPosition() || world.dimension() != Level.OVERWORLD) return packet;
+        if (!packet.hasPosition() || !RingWorldApi.isRingWorld(world)) return packet;
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         double presentationX = packet.getX(player.getX());
         double nearestX = geometry.nearestImageX(presentationX, player.getX());
@@ -82,16 +84,13 @@ abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovementAccess
         }
 
         if (canonicalTargetX == presentationX) return packet;
-        return new ServerboundMovePlayerPacket.PosRot(canonicalTargetX,
-                packet.getY(player.getY()), packet.getZ(player.getZ()),
-                packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()),
-                packet.isOnGround(), packet.horizontalCollision());
+        return new ServerboundMovePlayerPacket.PosRot(canonicalTargetX, packet.getY(player.getY()), packet.getZ(player.getZ()), packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()), packet.isOnGround(), packet.horizontalCollision());
     }
 
     @Inject(method = "handleMovePlayer", at = @At("TAIL"))
     private void ringworld$foldPlayerAfterMovement(ServerboundMovePlayerPacket packet, CallbackInfo ci) {
         ServerLevel world = player.level();
-        if (world.dimension() != Level.OVERWORLD) return;
+        if (!RingWorldApi.isRingWorld(world)) return;
         double shift = RingWorldServer.canonicalizeEntityPosition(player, RingWorldServer.geometryFor(world));
         if (shift == 0.0) return;
         RingWorldServer.recordPlayerCanonicalWrap(player);
@@ -101,25 +100,23 @@ abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovementAccess
         lastGoodX += shift;
     }
 
-    @ModifyVariable(method = "handleMoveVehicle", at = @At("HEAD"), argsOnly = true)
+    @ModifyVariable(method = "handleMoveVehicle", at = @At("HEAD"), argsOnly = true, name = "packet")
     private ServerboundMoveVehiclePacket ringworld$projectVehicleMovement(ServerboundMoveVehiclePacket packet) {
         ServerLevel world = player.level();
         Entity vehicle = player.getRootVehicle();
-        if (world.dimension() != Level.OVERWORLD || vehicle == player) return packet;
+        if (!RingWorldApi.isRingWorld(world) || vehicle == player) return packet;
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         Vec3 position = packet.position();
         double nearestX = geometry.nearestImageX(position.x, vehicle.getX());
         if (nearestX == position.x) return packet;
-        return new ServerboundMoveVehiclePacket(
-                new Vec3(nearestX, position.y, position.z),
-                packet.yRot(), packet.xRot(), packet.onGround());
+        return new ServerboundMoveVehiclePacket(new Vec3(nearestX, position.y, position.z), packet.yRot(), packet.xRot(), packet.onGround());
     }
 
     @Inject(method = "handleMoveVehicle", at = @At("TAIL"))
     private void ringworld$foldVehicleAfterMovement(ServerboundMoveVehiclePacket packet, CallbackInfo ci) {
         ServerLevel world = player.level();
         Entity vehicle = player.getRootVehicle();
-        if (world.dimension() != Level.OVERWORLD || vehicle == player) return;
+        if (!RingWorldApi.isRingWorld(world) || vehicle == player) return;
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         double vehicleShift = RingWorldServer.canonicalizeEntityPosition(vehicle, geometry);
         if (vehicleShift != 0.0) {

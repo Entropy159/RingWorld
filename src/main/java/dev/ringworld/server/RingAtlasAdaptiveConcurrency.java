@@ -1,6 +1,8 @@
 package dev.ringworld.server;
 
-/** Shared request/capture policy: fixed override or one-second automatic backoff/recovery. */
+/**
+ * Shared request/capture policy: fixed override or one-second automatic backoff/recovery.
+ */
 final class RingAtlasAdaptiveConcurrency {
     static final int MAX_REQUESTS = 4;
     private int limit = MAX_REQUESTS;
@@ -10,8 +12,13 @@ final class RingAtlasAdaptiveConcurrency {
     private long lastSample;
     private Integer fixedLimit;
 
-    int limit() { return fixedLimit == null ? limit : fixedLimit; }
-    boolean automatic() { return fixedLimit == null; }
+    int limit() {
+        return fixedLimit == null ? limit : fixedLimit;
+    }
+
+    boolean automatic() {
+        return fixedLimit == null;
+    }
 
     void setFixed(int value) {
         if (value < 1 || value > RingAtlasPregenerationBatch.MAX_REQUESTS)
@@ -28,18 +35,14 @@ final class RingAtlasAdaptiveConcurrency {
 
     int observe(long now, double tickMs, double fps, double frameTarget) {
         if (!automatic()) return limit();
-        if (sampled && now - lastSample < 1_000_000_000L) return limit;
+        if (sampled && now - lastSample < 1000000000L) return limit;
         sampled = true;
         lastSample = now;
-        boolean framesKnown = Double.isFinite(fps) && fps >= 0
-                && Double.isFinite(frameTarget) && frameTarget > 0;
+        boolean framesKnown = Double.isFinite(fps) && fps >= 0 && Double.isFinite(frameTarget) && frameTarget > 0;
         boolean ticksKnown = Double.isFinite(tickMs) && tickMs >= 0;
-        boolean severe = (ticksKnown && tickMs >= 100)
-                || (framesKnown && fps < frameTarget * .4);
-        boolean bad = severe || (ticksKnown && tickMs > 40)
-                || (framesKnown && fps < frameTarget * .8);
-        boolean healthy = ticksKnown && tickMs < 25
-                && (!framesKnown || fps >= frameTarget * .95);
+        boolean severe = (ticksKnown && tickMs >= 100) || (framesKnown && fps < frameTarget * .4);
+        boolean bad = severe || (ticksKnown && tickMs > 40) || (framesKnown && fps < frameTarget * .8);
+        boolean healthy = ticksKnown && tickMs < 25 && (!framesKnown || fps >= frameTarget * .95);
         if (bad) {
             healthySamples = 0;
             if (severe || ++badSamples >= 2) {

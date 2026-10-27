@@ -1,5 +1,6 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingRaidSupport;
@@ -8,10 +9,10 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.raid.Raid;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -21,17 +22,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Keeps the active raid centre, retention, and wave probes local through X=0/C. */
+/**
+ * Keeps the active raid centre, retention, and wave probes local through X=0/C.
+ */
 @Mixin(Raid.class)
-abstract class RaidMixin {
-    @Shadow private BlockPos center;
+public abstract class RaidMixin {
+    @Shadow
+    private BlockPos center;
 
-    @Redirect(
-            method = {"tick", "updateRaiders", "findRandomSpawnPos"},
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/server/level/ServerLevel;isVillage(Lnet/minecraft/core/BlockPos;)Z"))
+    @Redirect(method = {"tick", "updateRaiders", "findRandomSpawnPos"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;isVillage(Lnet/minecraft/core/BlockPos;)Z"))
     private boolean ringworld$periodicVillage(ServerLevel world, BlockPos pos) {
-        if (world.dimension() != Level.OVERWORLD) return world.isVillage(pos);
+        if (!RingWorldApi.isRingWorld(world)) return world.isVillage(pos);
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         for (int imageX : RingRaidSupport.periodicQueryXs(geometry, pos.getX())) {
             if (world.isVillage(new BlockPos(imageX, pos.getY(), pos.getZ()))) return true;
@@ -41,7 +42,7 @@ abstract class RaidMixin {
 
     @Inject(method = "moveRaidCenterToNearbyVillageSection", at = @At("HEAD"), cancellable = true)
     private void ringworld$moveCenterPeriodically(ServerLevel world, CallbackInfo ci) {
-        if (world.dimension() != Level.OVERWORLD) return;
+        if (!RingWorldApi.isRingWorld(world)) return;
 
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         Map<Long, SectionPos> canonicalSections = new LinkedHashMap<>();
@@ -56,10 +57,7 @@ abstract class RaidMixin {
         for (SectionPos section : canonicalSections.values()) {
             BlockPos candidate = section.center();
             if (!ringworld$periodicVillage(world, candidate)) continue;
-            double distance = RingRaidSupport.periodicDistanceSquared(
-                    geometry,
-                    center.getX(), center.getY(), center.getZ(),
-                    candidate.getX(), candidate.getY(), candidate.getZ());
+            double distance = RingRaidSupport.periodicDistanceSquared(geometry, center.getX(), center.getY(), center.getZ(), candidate.getX(), candidate.getY(), candidate.getZ());
             if (distance < nearestDistance) {
                 nearest = candidate;
                 nearestDistance = distance;
@@ -69,54 +67,38 @@ abstract class RaidMixin {
         ci.cancel();
     }
 
-    @Redirect(
-            method = "updateRaiders",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/core/BlockPos;distSqr(Lnet/minecraft/core/Vec3i;)D"))
-    private double ringworld$periodicRaiderDistance(
-            BlockPos raidCenter, Vec3i raiderPos, ServerLevel world) {
-        if (world.dimension() != Level.OVERWORLD) return raidCenter.distSqr(raiderPos);
-        return RingRaidSupport.periodicDistanceSquared(
-                RingWorldServer.geometryFor(world),
-                raidCenter.getX(), raidCenter.getY(), raidCenter.getZ(),
-                raiderPos.getX(), raiderPos.getY(), raiderPos.getZ());
+    @Redirect(method = "updateRaiders", at = @At(value = "INVOKE", target = "Lnet/minecraft/core/BlockPos;distSqr(Lnet/minecraft/core/Vec3i;)D"))
+    private double ringworld$periodicRaiderDistance(BlockPos raidCenter, Vec3i raiderPos, ServerLevel world) {
+        if (!RingWorldApi.isRingWorld(world)) return raidCenter.distSqr(raiderPos);
+        return RingRaidSupport.periodicDistanceSquared(RingWorldServer.geometryFor(world), raidCenter.getX(), raidCenter.getY(), raidCenter.getZ(), raiderPos.getX(), raiderPos.getY(), raiderPos.getZ());
     }
 
-    @Redirect(
-            method = "findRandomSpawnPos",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/server/level/ServerLevel;getHeight(Lnet/minecraft/world/level/levelgen/Heightmap$Types;II)I"))
-    private int ringworld$canonicalSpawnHeight(
-            ServerLevel world, Heightmap.Types type, int blockX, int blockZ) {
-        if (world.dimension() != Level.OVERWORLD) return world.getHeight(type, blockX, blockZ);
+    @Redirect(method = "findRandomSpawnPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getHeight(Lnet/minecraft/world/level/levelgen/Heightmap$Types;II)I"))
+    private int ringworld$canonicalSpawnHeight(ServerLevel world, Heightmap.Types type, int blockX, int blockZ) {
+        if (!RingWorldApi.isRingWorld(world)) return world.getHeight(type, blockX, blockZ);
         return world.getHeight(type, RingWorldServer.geometryFor(world).wrapBlockX(blockX), blockZ);
     }
 
-    @Redirect(
-            method = "findRandomSpawnPos",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/server/level/ServerLevel;hasChunksAt(IIII)Z"))
-    private boolean ringworld$canonicalSpawnChunks(
-            ServerLevel world, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        if (world.dimension() != Level.OVERWORLD) {
+    @Redirect(method = "findRandomSpawnPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;hasChunksAt(IIII)Z"))
+    private boolean ringworld$canonicalSpawnChunks(ServerLevel world, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+        if (!RingWorldApi.isRingWorld(world)) {
             return world.hasChunksAt(minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         }
         RingGeometry geometry = RingWorldServer.geometryFor(world);
-        for (RingRaidSupport.XWindow window
-                : RingRaidSupport.canonicalBlockWindows(geometry, minBlockX, maxBlockX)) {
+        for (RingRaidSupport.XWindow window : RingRaidSupport.canonicalBlockWindows(geometry, minBlockX, maxBlockX)) {
             if (!world.hasChunksAt(window.minX(), minBlockZ, window.maxX(), maxBlockZ)) return false;
         }
         return true;
     }
 
     @Inject(method = "findRandomSpawnPos", at = @At("RETURN"), cancellable = true)
-    private void ringworld$canonicalSpawnResult(
-            ServerLevel world, int attempts, CallbackInfoReturnable<BlockPos> cir) {
+    private void ringworld$canonicalSpawnResult(ServerLevel world, int attempts, CallbackInfoReturnable<BlockPos> cir) {
         BlockPos result = cir.getReturnValue();
-        if (result == null || world.dimension() != Level.OVERWORLD) return;
+        if (result == null || !RingWorldApi.isRingWorld(world)) return;
         cir.setReturnValue(ringworld$canonical(RingWorldServer.geometryFor(world), result));
     }
 
+    @Unique
     private static BlockPos ringworld$canonical(RingGeometry geometry, BlockPos pos) {
         int x = geometry.wrapBlockX(pos.getX());
         return x == pos.getX() ? pos.immutable() : new BlockPos(x, pos.getY(), pos.getZ());

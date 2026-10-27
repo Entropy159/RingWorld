@@ -1,15 +1,19 @@
 package dev.ringworld.client;
 
 import dev.ringworld.RingWorldMod;
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.client.mixin.CreateWorldScreenInvoker;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.world.level.Level;
 
-/** Opt-in, disposable horizon regression; normal clients never enter this fixture. */
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Opt-in, disposable horizon regression; normal clients never enter this fixture.
+ */
 public final class RingHorizonCaptureClient {
     private static final RingHorizonCaptureClient INSTANCE = new RingHorizonCaptureClient();
     private int stage;
@@ -26,7 +30,7 @@ public final class RingHorizonCaptureClient {
 
     private boolean tick(Minecraft client) {
         client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(0.0);
-        if (++ticks > 6_000) return fail(client, "timeout stage=" + stage);
+        if (++ticks > 6000) return fail(client, "timeout stage=" + stage);
         if (client.level == null || client.player == null) {
             if (!client.isGameLoadFinished() || creating) return true;
             if (!opening && RingMinecraftClientAccess.screen(client) instanceof TitleScreen) {
@@ -57,7 +61,7 @@ public final class RingHorizonCaptureClient {
             client.getConnection().sendCommand("gamerule minecraft:advance_time false");
             next();
         } else if (stage <= captureCount()) {
-            if (client.level.dimension() != Level.OVERWORLD || ClientRingState.geometry() == null) return true;
+            if (!RingWorldApi.isRingWorld(client.level) || ClientRingState.geometry() == null) return true;
             int index = stage - 1;
             boolean scene = Boolean.getBoolean("ringworld.horizonSceneControl");
             String phase = scene ? "scene-day" : PHASES[index / 2];
@@ -65,9 +69,7 @@ public final class RingHorizonCaptureClient {
             if (settle++ == 0) {
                 client.getConnection().sendCommand("time set " + (scene ? 6000 : TIMES[index / 2]));
                 client.getConnection().sendCommand("weather " + WEATHER[index / 2]);
-                client.getConnection().sendCommand(scene
-                        ? "tp @s 512.5 " + (elevated ? "160 0 90 -70" : "80 0 90 -20")
-                        : "tp @s 512.5 " + (elevated ? "160 96.5" : "80 96.5") + " 0 0");
+                client.getConnection().sendCommand(scene ? "tp @s 512.5 " + (elevated ? "160 0 90 -70" : "80 0 90 -20") : "tp @s 512.5 " + (elevated ? "160 96.5" : "80 96.5") + " 0 0");
             }
             if (settle < (index / 2 >= 4 ? 220 : 100)) return true;
             capture(client, "horizon-" + phase + (elevated ? "-elevated" : "-ground"));
@@ -86,9 +88,7 @@ public final class RingHorizonCaptureClient {
             if (ClientRingState.geometry() != null) return fail(client, "RingWorld active outside Overworld");
             if (++settle < 100) return true;
             capture(client, nether ? "horizon-nether-control" : "horizon-end-control");
-            client.getConnection().sendCommand(nether
-                    ? "execute in minecraft:the_end run tp @s 10000.5 200 10000.5 45 -30"
-                    : "execute in minecraft:overworld run tp @s 512.5 160 96.5 0 0");
+            client.getConnection().sendCommand(nether ? "execute in minecraft:the_end run tp @s 10000.5 200 10000.5 45 -30" : "execute in minecraft:overworld run tp @s 512.5 160 96.5 0 0");
             next();
         } else if (stage == captureCount() + 4) {
             if (client.level.dimension() != Level.OVERWORLD || ClientRingState.geometry() == null) return true;
@@ -107,20 +107,21 @@ public final class RingHorizonCaptureClient {
     private static final String[] WEATHER = {"clear", "clear", "clear", "clear", "rain", "thunder"};
 
     private static int captureCount() {
-        return Boolean.getBoolean("ringworld.horizonCaptureShort")
-                || Boolean.getBoolean("ringworld.horizonSceneControl") ? 2 : PHASES.length * 2;
+        return Boolean.getBoolean("ringworld.horizonCaptureShort") || Boolean.getBoolean("ringworld.horizonSceneControl") ? 2 : PHASES.length * 2;
     }
 
     private void capture(Minecraft client, String name) {
         capturePending = true;
-        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name + ".png",
-                RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> client.execute(() -> {
-                    capturePending = false;
-                    RingWorldMod.LOGGER.info("[horizon-test] screenshot {}", message.getString());
-                }));
+        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, name + ".png", RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> client.execute(() -> {
+            capturePending = false;
+            RingWorldMod.LOGGER.info("[horizon-test] screenshot {}", message.getString());
+        }));
     }
 
-    private void next() { stage++; settle = 0; }
+    private void next() {
+        stage++;
+        settle = 0;
+    }
 
     private boolean fail(Minecraft client, String reason) {
         RingWorldMod.LOGGER.error("[horizon-test] FAIL: {}", reason);

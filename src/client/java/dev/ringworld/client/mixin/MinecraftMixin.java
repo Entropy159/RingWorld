@@ -9,16 +9,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Clears static RingWorld state whenever Minecraft tears down a world. */
+/**
+ * Clears static RingWorld state whenever Minecraft tears down a world.
+ */
 @Mixin(Minecraft.class)
-abstract class MinecraftMixin {
-    @Inject(
-            method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V",
-            at = @At("HEAD"))
-    private void ringworld$clearDisconnectSession(Screen nextScreen,
-                                                  boolean keepResourcePacks,
-                                                  boolean showDisconnectScreen,
-                                                  CallbackInfo ci) {
+public abstract class MinecraftMixin {
+    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V", at = @At("HEAD"))
+    private void ringworld$clearDisconnectSession(Screen nextScreen, boolean keepResourcePacks, boolean showDisconnectScreen, CallbackInfo ci) {
         RingWorldClientSession.clear();
     }
 
@@ -27,7 +24,9 @@ abstract class MinecraftMixin {
         RingWorldClientSession.clear();
     }
 
-    /** Menu rendering does not reach either loader's level-render callback. */
+    /**
+     * Menu rendering does not reach either loader's level-render callback.
+     */
     @Inject(method = "renderFrame", at = @At("TAIL"))
     private void ringworld$recordCreationUiTestFrame(boolean advanceGameTime, CallbackInfo ci) {
         RingWorldCreationUiTestClient.frameRendered();

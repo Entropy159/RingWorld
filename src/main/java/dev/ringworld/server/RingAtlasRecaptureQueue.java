@@ -3,18 +3,15 @@ package dev.ringworld.server;
 import dev.ringworld.world.RingAtlasSurfaceInvalidation;
 import dev.ringworld.world.RingTerrainAtlas;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-/** Bounded exact-cell queue that collapses extreme bulk edits into atlas tiles. */
+/**
+ * Bounded exact-cell queue that collapses extreme bulk edits into atlas tiles.
+ */
 final class RingAtlasRecaptureQueue {
-    static final int MAX_EXACT_CELLS = 4_096;
+    static final int MAX_EXACT_CELLS = 4096;
     private final Set<RingAtlasSurfaceInvalidation.Cell> exact = new LinkedHashSet<>();
-    private final Set<RingAtlasPregenerationService.TileCoordinate> overflowTiles =
-            new LinkedHashSet<>();
+    private final Set<RingAtlasPregenerationService.TileCoordinate> overflowTiles = new LinkedHashSet<>();
     private RingAtlasPregenerationService.TileCoordinate activeTile;
     private int activeTileOffset;
 
@@ -23,9 +20,7 @@ final class RingAtlasRecaptureQueue {
             exact.add(cell);
             return;
         }
-        overflowTiles.add(new RingAtlasPregenerationService.TileCoordinate(
-                cell.column() / RingTerrainAtlas.TILE_SIZE,
-                cell.row() / RingTerrainAtlas.TILE_SIZE));
+        overflowTiles.add(new RingAtlasPregenerationService.TileCoordinate(cell.column() / RingTerrainAtlas.TILE_SIZE, cell.row() / RingTerrainAtlas.TILE_SIZE));
     }
 
     List<RingAtlasSurfaceInvalidation.Cell> drain(int maximum, int columns, int rows) {
@@ -62,7 +57,15 @@ final class RingAtlasRecaptureQueue {
         return drained;
     }
 
-    boolean hasPending() { return !exact.isEmpty() || activeTile != null || !overflowTiles.isEmpty(); }
-    int exactCount() { return exact.size(); }
-    int overflowTileCount() { return overflowTiles.size() + (activeTile == null ? 0 : 1); }
+    boolean hasPending() {
+        return !exact.isEmpty() || activeTile != null || !overflowTiles.isEmpty();
+    }
+
+    int exactCount() {
+        return exact.size();
+    }
+
+    int overflowTileCount() {
+        return overflowTiles.size() + (activeTile == null ? 0 : 1);
+    }
 }

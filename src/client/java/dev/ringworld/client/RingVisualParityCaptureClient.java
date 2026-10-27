@@ -1,8 +1,8 @@
 package dev.ringworld.client;
 
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingGenerationBoundary;
+import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingTerrainAtlas;
 import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
@@ -20,23 +20,21 @@ import net.minecraft.util.Mth;
 public final class RingVisualParityCaptureClient {
     private static final String ENABLE_PROPERTY = "ringworld.captureRingVisualParity";
     private static final String WORLD_PROPERTY = "ringworld.visualParityWorld";
-    private static final String VIEW_DISTANCE_PROPERTY =
-            "ringworld.visualParityViewDistanceChunks";
+    private static final String VIEW_DISTANCE_PROPERTY = "ringworld.visualParityViewDistanceChunks";
     private static final int DEFAULT_VIEW_DISTANCE_CHUNKS = 16;
     private static final int MIN_VIEW_DISTANCE_CHUNKS = 2;
     private static final int MAX_VIEW_DISTANCE_CHUNKS = 32;
-    private static final int WORLD_OPEN_TIMEOUT_TICKS = 2_400;
+    private static final int WORLD_OPEN_TIMEOUT_TICKS = 2400;
     // Match the bounded cold-load allowance of ProductionLifecycleTestClient:
     // 4,194,304 cells alone need 2,048 server ticks at the normal tile budget.
-    private static final int ATLAS_READY_TIMEOUT_TICKS = 6_000;
+    private static final int ATLAS_READY_TIMEOUT_TICKS = 6000;
     private static final int POSITION_TIMEOUT_TICKS = 600;
-    private static final int RENDER_TIMEOUT_TICKS = 1_200;
+    private static final int RENDER_TIMEOUT_TICKS = 1200;
     private static final int SETTLE_TICKS = 120;
     private static final double SEAM_CAMERA_Y = 120.0;
 
     private int stage;
-    private final RingIntegratedCaptureControl.PlayerSafety playerSafety =
-            new RingIntegratedCaptureControl.PlayerSafety();
+    private final RingIntegratedCaptureControl.PlayerSafety playerSafety = new RingIntegratedCaptureControl.PlayerSafety();
     private int worldOpenTicks;
     private int atlasReadyTicks;
     private int positionTicks;
@@ -44,8 +42,7 @@ public final class RingVisualParityCaptureClient {
     private int settleTicks;
     private int completionTicks;
     private boolean worldOpenRequested;
-    private final CopiedWorldFileFixUpgrade copiedWorldFileFixUpgrade =
-            new CopiedWorldFileFixUpgrade();
+    private final CopiedWorldFileFixUpgrade copiedWorldFileFixUpgrade = new CopiedWorldFileFixUpgrade();
     private boolean focusPolicyApplied;
     private boolean environmentRequested;
     private volatile boolean environmentReady;
@@ -75,13 +72,13 @@ public final class RingVisualParityCaptureClient {
             if (++completionTicks >= 20) finish(client, true, "captures complete");
             return true;
         }
-        if (RingMinecraftClientAccess.screen(client) instanceof PauseScreen) RingMinecraftClientAccess.setScreen(client, null);
+        if (RingMinecraftClientAccess.screen(client) instanceof PauseScreen)
+            RingMinecraftClientAccess.setScreen(client, null);
         if (RingMinecraftClientAccess.screen(client) != null) return true;
 
         RingGeometry geometry = ClientRingState.geometry();
         RingTerrainAtlas atlas = ClientRingState.terrainAtlas();
-        if (geometry == null || atlas == null || !atlas.isComplete()
-                || !dev.ringworld.client.render.RingSurfaceTextureRenderer.captureReady()) {
+        if (geometry == null || atlas == null || !atlas.isComplete() || !dev.ringworld.client.render.RingSurfaceTextureRenderer.captureReady()) {
             if (++atlasReadyTicks > ATLAS_READY_TIMEOUT_TICKS) {
                 finish(client, false, "timed out waiting for complete terrain atlas");
             }
@@ -100,8 +97,7 @@ public final class RingVisualParityCaptureClient {
             requestServerPosition(client, geometry, view);
             return true;
         }
-        if (!atServerPosition(client, geometry, view)
-                && !(view == CaptureView.SEAM && seamArmed)) {
+        if (!atServerPosition(client, geometry, view) && !(view == CaptureView.SEAM && seamArmed)) {
             if (++positionTicks > POSITION_TIMEOUT_TICKS) {
                 finish(client, false, "timed out reaching " + view.id + " position");
             }
@@ -114,8 +110,7 @@ public final class RingVisualParityCaptureClient {
             client.player.setYRot(view.yaw);
             client.player.setXRot(view.pitch);
         }
-        if (!chunksAtViewReady(client, geometry, view)
-                || !client.levelRenderer.hasRenderedAllSections()) {
+        if (!chunksAtViewReady(client, geometry, view) || !client.levelRenderer.hasRenderedAllSections()) {
             settleTicks = 0;
             if (++renderTicks > RENDER_TIMEOUT_TICKS) {
                 finish(client, false, "timed out rendering " + view.id + " position");
@@ -124,16 +119,9 @@ public final class RingVisualParityCaptureClient {
         }
         if (++settleTicks < SETTLE_TICKS) return true;
 
-        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, view.screenshotName,
-                RingMinecraftClientAccess.mainRenderTarget(client), 1,
-                message -> RingWorldMod.LOGGER.info(
-                        "[visual-parity-capture] {} screenshot: {}",
-                        view.id, message.getString()));
+        RingMinecraftClientAccess.grabScreenshot(client.gameDirectory, view.screenshotName, RingMinecraftClientAccess.mainRenderTarget(client), 1, message -> RingWorldMod.LOGGER.info("[visual-parity-capture] {} screenshot: {}", view.id, message.getString()));
         if (view == CaptureView.SEAM) finishSeamMotionMetrics();
-        RingWorldMod.LOGGER.info(
-                "[visual-parity-capture] captured {} at x={}, y={}, z={}, yaw={}, pitch={}",
-                view.id, client.player.getX(), client.player.getY(), client.player.getZ(),
-                client.player.getYRot(), client.player.getXRot());
+        RingWorldMod.LOGGER.info("[visual-parity-capture] captured {} at x={}, y={}, z={}, yaw={}, pitch={}", view.id, client.player.getX(), client.player.getY(), client.player.getZ(), client.player.getYRot(), client.player.getXRot());
         stage++;
         positionRequested = false;
         positionTicks = 0;
@@ -142,7 +130,9 @@ public final class RingVisualParityCaptureClient {
         return true;
     }
 
-    /** An idle mesher can also mean that the teleport's chunks have not arrived. */
+    /**
+     * An idle mesher can also mean that the teleport's chunks have not arrived.
+     */
     private static boolean chunksAtViewReady(Minecraft client, RingGeometry geometry, CaptureView view) {
         int chunkX = client.player.blockPosition().getX() >> 4;
         int chunkZ = client.player.blockPosition().getZ() >> 4;
@@ -154,14 +144,12 @@ public final class RingVisualParityCaptureClient {
         };
     }
 
-    private boolean runNaturalSeamCrossing(
-            Minecraft client, RingGeometry geometry, CaptureView view) {
+    private boolean runNaturalSeamCrossing(Minecraft client, RingGeometry geometry, CaptureView view) {
         if (seamCrossed) return true;
         if (!seamArmed) {
             client.player.setYRot(view.yaw);
             client.player.setXRot(view.pitch);
-            if (!chunksAtViewReady(client, geometry, view)
-                    || !client.levelRenderer.hasRenderedAllSections()) {
+            if (!chunksAtViewReady(client, geometry, view) || !client.levelRenderer.hasRenderedAllSections()) {
                 settleTicks = 0;
                 if (++renderTicks > RENDER_TIMEOUT_TICKS) {
                     finish(client, false, "timed out rendering the seam approach");
@@ -177,9 +165,7 @@ public final class RingVisualParityCaptureClient {
             renderTicks = 0;
             settleTicks = 0;
             startSeamMotionMetrics();
-            RingWorldMod.LOGGER.info(
-                    "[visual-parity-capture] armed natural seam crossing x={} boundary={} yaw={} pitch={}",
-                    previousSeamX, seamBoundary, seamYaw, seamPitch);
+            RingWorldMod.LOGGER.info("[visual-parity-capture] armed natural seam crossing x={} boundary={} yaw={} pitch={}", previousSeamX, seamBoundary, seamYaw, seamPitch);
         }
 
         double currentX = client.player.getX();
@@ -188,8 +174,7 @@ public final class RingVisualParityCaptureClient {
             finish(client, false, "seam crossing position pop=" + maximumSeamStep);
             return false;
         }
-        if (Math.abs(Mth.wrapDegrees(client.player.getYRot() - seamYaw)) > 0.01F
-                || Math.abs(client.player.getXRot() - seamPitch) > 0.01F) {
+        if (Math.abs(Mth.wrapDegrees(client.player.getYRot() - seamYaw)) > 0.01F || Math.abs(client.player.getXRot() - seamPitch) > 0.01F) {
             finish(client, false, "seam crossing changed camera orientation");
             return false;
         }
@@ -197,23 +182,20 @@ public final class RingVisualParityCaptureClient {
             double nextX = Math.min(seamBoundary + 2.0, currentX + 0.25);
             previousSeamX = currentX;
             client.player.setPos(nextX, client.player.getY(), client.player.getZ());
-            client.getConnection().send(new ServerboundMovePlayerPacket.PosRot(
-                    nextX, client.player.getY(), client.player.getZ(),
-                    client.player.getYRot(), client.player.getXRot(),
-                    client.player.onGround(), client.player.horizontalCollision));
+            client.getConnection().send(new ServerboundMovePlayerPacket.PosRot(nextX, client.player.getY(), client.player.getZ(), client.player.getYRot(), client.player.getXRot(), client.player.onGround(), client.player.horizontalCollision));
             return false;
         }
 
         seamCrossed = true;
         renderTicks = 0;
         settleTicks = 0;
-        RingWorldMod.LOGGER.info(
-                "[visual-parity-capture] natural seam crossing complete x={} boundary={} maxStep={}",
-                currentX, seamBoundary, maximumSeamStep);
+        RingWorldMod.LOGGER.info("[visual-parity-capture] natural seam crossing complete x={} boundary={} maxStep={}", currentX, seamBoundary, maximumSeamStep);
         return true;
     }
 
-    /** Called from each loader's existing end-of-level render callback. */
+    /**
+     * Called from each loader's existing end-of-level render callback.
+     */
     public void frameRendered() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY) || !seamMotionMetricsActive) return;
         long now = System.nanoTime();
@@ -222,7 +204,7 @@ public final class RingVisualParityCaptureClient {
             seamMotionTotalFrameNanos += elapsed;
             seamMotionMaxFrameNanos = Math.max(seamMotionMaxFrameNanos, elapsed);
             seamMotionFrameSamples++;
-            if (elapsed > 50_000_000L) seamMotionSlowFrames++;
+            if (elapsed > 50000000L) seamMotionSlowFrames++;
         }
         seamMotionLastFrameNanos = now;
     }
@@ -238,30 +220,22 @@ public final class RingVisualParityCaptureClient {
 
     private void finishSeamMotionMetrics() {
         seamMotionMetricsActive = false;
-        double averageMillis = seamMotionFrameSamples == 0 ? 0.0
-                : seamMotionTotalFrameNanos / 1_000_000.0 / seamMotionFrameSamples;
-        RingWorldMod.LOGGER.info(
-                "[visual-parity-capture] seam motion frame metrics: samples={}, averageMs={}, maxMs={}, over50Ms={}",
-                seamMotionFrameSamples, averageMillis,
-                seamMotionMaxFrameNanos / 1_000_000.0, seamMotionSlowFrames);
+        double averageMillis = seamMotionFrameSamples == 0 ? 0.0 : seamMotionTotalFrameNanos / 1000000.0 / seamMotionFrameSamples;
+        RingWorldMod.LOGGER.info("[visual-parity-capture] seam motion frame metrics: samples={}, averageMs={}, maxMs={}, over50Ms={}", seamMotionFrameSamples, averageMillis, seamMotionMaxFrameNanos / 1000000.0, seamMotionSlowFrames);
     }
 
     private boolean ensureWorldOpen(Minecraft client) {
         if (client.player != null && client.level != null) return true;
         if (++worldOpenTicks > WORLD_OPEN_TIMEOUT_TICKS) {
-            finish(client, false, "timed out opening save '" + worldName()
-                    + "' screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
+            finish(client, false, "timed out opening save '" + worldName() + "' screen=" + CopiedWorldFileFixUpgrade.currentScreen(client));
             return false;
         }
-        if (worldOpenRequested && copiedWorldFileFixUpgrade.handleIfRequired(
-                client, "visual-parity-capture", worldName())) return false;
-        if (!worldOpenRequested && client.isGameLoadFinished()
-                && client.getSingleplayerServer() == null) {
+        if (worldOpenRequested && copiedWorldFileFixUpgrade.handleIfRequired(client, "visual-parity-capture", worldName()))
+            return false;
+        if (!worldOpenRequested && client.isGameLoadFinished() && client.getSingleplayerServer() == null) {
             worldOpenRequested = true;
-            RingWorldMod.LOGGER.info(
-                    "[visual-parity-capture] opening copied save '{}' in-process", worldName());
-            client.createWorldOpenFlows().openWorld(worldName(),
-                    () -> finish(client, false, "save load cancelled for '" + worldName() + "'"));
+            RingWorldMod.LOGGER.info("[visual-parity-capture] opening copied save '{}' in-process", worldName());
+            client.createWorldOpenFlows().openWorld(worldName(), () -> finish(client, false, "save load cancelled for '" + worldName() + "'"));
         }
         return false;
     }
@@ -281,14 +255,8 @@ public final class RingVisualParityCaptureClient {
         int viewDistance = viewDistanceChunks();
         client.options.renderDistance().set(viewDistance);
         environmentRequested = true;
-        RingIntegratedCaptureControl.execute(client, "visual-parity environment setup",
-                context -> RingIntegratedCaptureControl.normalizeEnvironment(
-                        context, 6_000, false),
-                () -> environmentReady = true,
-                detail -> serverControlFailure = detail);
-        RingWorldMod.LOGGER.info(
-                "[visual-parity-capture] normalized noon/clear environment at {} chunks",
-                viewDistance);
+        RingIntegratedCaptureControl.execute(client, "visual-parity environment setup", context -> RingIntegratedCaptureControl.normalizeEnvironment(context, 6000, false), () -> environmentReady = true, detail -> serverControlFailure = detail);
+        RingWorldMod.LOGGER.info("[visual-parity-capture] normalized noon/clear environment at {} chunks", viewDistance);
         return false;
     }
 
@@ -296,21 +264,14 @@ public final class RingVisualParityCaptureClient {
         Pose pose = view.pose(geometry);
         double cameraY = cameraY(client, view);
         positionRequested = true;
-        RingIntegratedCaptureControl.execute(client, "visual-parity " + view.id + " pose",
-                context -> RingIntegratedCaptureControl.teleport(
-                        context, pose.x, cameraY, pose.z),
-                () -> { },
-                detail -> serverControlFailure = detail);
-        RingWorldMod.LOGGER.info(
-                "[visual-parity-capture] requested server-authoritative {} pose x={}, y={}, z={}",
-                view.id, pose.x, cameraY, pose.z);
+        RingIntegratedCaptureControl.execute(client, "visual-parity " + view.id + " pose", context -> RingIntegratedCaptureControl.teleport(context, pose.x, cameraY, pose.z), () -> {
+        }, detail -> serverControlFailure = detail);
+        RingWorldMod.LOGGER.info("[visual-parity-capture] requested server-authoritative {} pose x={}, y={}, z={}", view.id, pose.x, cameraY, pose.z);
     }
 
     private boolean atServerPosition(Minecraft client, RingGeometry geometry, CaptureView view) {
         Pose pose = view.pose(geometry);
-        return Math.abs(geometry.shortestCircumferenceDelta(pose.x, client.player.getX())) < 1.5
-                && Math.abs(client.player.getY() - cameraY(client, view)) < 1.5
-                && Math.abs(client.player.getZ() - pose.z) < 1.5;
+        return Math.abs(geometry.shortestCircumferenceDelta(pose.x, client.player.getX())) < 1.5 && Math.abs(client.player.getY() - cameraY(client, view)) < 1.5 && Math.abs(client.player.getZ() - pose.z) < 1.5;
     }
 
     private double cameraY(Minecraft client, CaptureView view) {
@@ -320,15 +281,11 @@ public final class RingVisualParityCaptureClient {
     }
 
     private int viewDistanceChunks() {
-        String configured = System.getProperty(VIEW_DISTANCE_PROPERTY,
-                Integer.toString(DEFAULT_VIEW_DISTANCE_CHUNKS)).trim();
+        String configured = System.getProperty(VIEW_DISTANCE_PROPERTY, Integer.toString(DEFAULT_VIEW_DISTANCE_CHUNKS)).trim();
         try {
-            return Math.clamp(Integer.parseInt(configured),
-                    MIN_VIEW_DISTANCE_CHUNKS, MAX_VIEW_DISTANCE_CHUNKS);
+            return Math.clamp(Integer.parseInt(configured), MIN_VIEW_DISTANCE_CHUNKS, MAX_VIEW_DISTANCE_CHUNKS);
         } catch (NumberFormatException exception) {
-            RingWorldMod.LOGGER.warn(
-                    "[visual-parity-capture] invalid {}='{}'; using {} chunks",
-                    VIEW_DISTANCE_PROPERTY, configured, DEFAULT_VIEW_DISTANCE_CHUNKS);
+            RingWorldMod.LOGGER.warn("[visual-parity-capture] invalid {}='{}'; using {} chunks", VIEW_DISTANCE_PROPERTY, configured, DEFAULT_VIEW_DISTANCE_CHUNKS);
             return DEFAULT_VIEW_DISTANCE_CHUNKS;
         }
     }
@@ -345,7 +302,8 @@ public final class RingVisualParityCaptureClient {
         client.stop();
     }
 
-    private record Pose(double x, double z) { }
+    private record Pose(double x, double z) {
+    }
 
     private enum CaptureView {
         SEAM("seam", "ringworld-visual-parity-seam.png", -90.0F, 8.0F) {
@@ -353,8 +311,7 @@ public final class RingVisualParityCaptureClient {
             Pose pose(RingGeometry geometry) {
                 return new Pose(geometry.circumferenceBlocks() - 4.0, 0.5);
             }
-        },
-        SEAM_JOIN("seam-join", "ringworld-visual-parity-seam-join.png", 90.0F, 8.0F) {
+        }, SEAM_JOIN("seam-join", "ringworld-visual-parity-seam-join.png", 90.0F, 8.0F) {
             @Override
             Pose pose(RingGeometry geometry) {
                 // Look back from canonical zero into the C-1 side. The natural
@@ -362,19 +319,15 @@ public final class RingVisualParityCaptureClient {
                 // generated terrain wall left behind the player.
                 return new Pose(2.0, 0.5);
             }
-        },
-        MIN_RIM("min-rim", "ringworld-visual-parity-min-rim.png", 180.0F, 0.0F) {
+        }, MIN_RIM("min-rim", "ringworld-visual-parity-min-rim.png", 180.0F, 0.0F) {
             @Override
             Pose pose(RingGeometry geometry) {
-                return new Pose(geometry.circumferenceBlocks() / 4.0,
-                        geometry.minWidthZ() + RingGenerationBoundary.RIM_THICKNESS + 16.5);
+                return new Pose(geometry.circumferenceBlocks() / 4.0, geometry.minWidthZ() + RingGenerationBoundary.RIM_THICKNESS + 16.5);
             }
-        },
-        MAX_RIM("max-rim", "ringworld-visual-parity-max-rim.png", 0.0F, 0.0F) {
+        }, MAX_RIM("max-rim", "ringworld-visual-parity-max-rim.png", 0.0F, 0.0F) {
             @Override
             Pose pose(RingGeometry geometry) {
-                return new Pose(geometry.circumferenceBlocks() / 4.0,
-                        geometry.maxWidthZ() - RingGenerationBoundary.RIM_THICKNESS - 16.5);
+                return new Pose(geometry.circumferenceBlocks() / 4.0, geometry.maxWidthZ() - RingGenerationBoundary.RIM_THICKNESS - 16.5);
             }
         };
 

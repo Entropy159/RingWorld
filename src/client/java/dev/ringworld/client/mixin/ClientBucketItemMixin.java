@@ -13,13 +13,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Direct player fluid placement follows the same outside-building policy. */
+/**
+ * Direct player fluid placement follows the same outside-building policy.
+ */
 @Mixin(BucketItem.class)
-abstract class ClientBucketItemMixin {
+public abstract class ClientBucketItemMixin {
     @Inject(method = "emptyContents", at = @At("HEAD"), cancellable = true)
-    private void ringworld$placementPolicy(LivingEntity actor, Level world, BlockPos pos,
-            BlockHitResult hit, CallbackInfoReturnable<Boolean> cir) {
-        if (actor instanceof Player && world.isClientSide() && ClientRingState.geometry() != null
-                && !RingBuildingSettings.allows(ClientRingState.outsideBuilding(), ClientRingState.geometry(), pos.getZ())) cir.setReturnValue(false);
+    private void ringworld$placementPolicy(LivingEntity actor, Level world, BlockPos pos, BlockHitResult hit, CallbackInfoReturnable<Boolean> cir) {
+        if (actor instanceof Player && world.isClientSide() && ClientRingState.geometry() != null && !RingBuildingSettings.allows(ClientRingState.outsideBuilding(), ClientRingState.geometry(), pos.getZ()))
+            cir.setReturnValue(false);
     }
 }

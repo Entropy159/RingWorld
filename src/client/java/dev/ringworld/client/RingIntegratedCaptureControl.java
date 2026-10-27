@@ -23,12 +23,7 @@ import java.util.function.Consumer;
  * operator and sending chat commands.</p>
  */
 final class RingIntegratedCaptureControl {
-    private RingIntegratedCaptureControl() { }
-
-    static void execute(Minecraft client, String operation,
-                        Consumer<Context> action,
-                        Runnable completed,
-                        Consumer<String> failed) {
+    static void execute(Minecraft client, String operation, Consumer<Context> action, Runnable completed, Consumer<String> failed) {
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null || client.player == null) {
             failed.accept(operation + " requires an integrated server and player");
@@ -52,35 +47,30 @@ final class RingIntegratedCaptureControl {
     }
 
     static void normalizeEnvironment(Context context, int timeTicks, boolean raining) {
-        var source = context.server().createCommandSourceStack()
-                .withPermission(context.server().operatorUserPermissions())
-                .withSuppressedOutput();
-        context.server().getCommands().performPrefixedCommand(
-                source, "time set " + timeTicks);
-        context.world().getGameRules().set(
-                GameRules.ADVANCE_TIME, false, context.server());
-        context.server().getCommands().performPrefixedCommand(
-                source, raining ? "weather rain" : "weather clear");
+        var source = context.server().createCommandSourceStack().withPermission(context.server().operatorUserPermissions()).withSuppressedOutput();
+        context.server().getCommands().performPrefixedCommand(source, "time set " + timeTicks);
+        context.world().getGameRules().set(GameRules.ADVANCE_TIME, false, context.server());
+        context.server().getCommands().performPrefixedCommand(source, raining ? "weather rain" : "weather clear");
         context.player().setGameMode(GameType.SPECTATOR);
     }
 
     static void teleport(Context context, double x, double y, double z) {
-        context.player().teleportTo(context.world(), x, y, z,
-                Set.<Relative>of(), context.player().getYRot(),
-                context.player().getXRot(), false);
+        context.player().teleportTo(context.world(), x, y, z, Set.<Relative>of(), context.player().getYRot(), context.player().getXRot(), false);
     }
 
-    record Context(MinecraftServer server, ServerLevel world, ServerPlayer player) { }
+    record Context(MinecraftServer server, ServerLevel world, ServerPlayer player) {
+    }
 
-    /** Protect only the copied-world capture player, before any Atlas/render wait. */
+    /**
+     * Protect only the copied-world capture player, before any Atlas/render wait.
+     */
     static final class PlayerSafety {
         private boolean requested;
         private volatile boolean ready;
         private volatile String failure;
 
         boolean ensure(Minecraft client, Consumer<String> failed) {
-            if (RingMinecraftClientAccess.screen(client) instanceof DeathScreen
-                    || (client.player != null && !client.player.isAlive())) {
+            if (RingMinecraftClientAccess.screen(client) instanceof DeathScreen || (client.player != null && !client.player.isAlive())) {
                 failed.accept("capture player died before completion");
                 return false;
             }

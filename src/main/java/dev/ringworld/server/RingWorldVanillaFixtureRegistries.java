@@ -15,16 +15,12 @@ import net.minecraft.world.level.block.Block;
  * were removed in 26.2.
  */
 public final class RingWorldVanillaFixtureRegistries {
-    private RingWorldVanillaFixtureRegistries() { }
-
     public static Block block(String path) {
-        return BuiltInRegistries.BLOCK.getOptional(Identifier.withDefaultNamespace(path))
-                .orElseThrow(() -> new IllegalStateException("Missing vanilla fixture block: " + path));
+        return BuiltInRegistries.BLOCK.getOptional(Identifier.withDefaultNamespace(path)).orElseThrow(() -> new IllegalStateException("Missing vanilla fixture block: " + path));
     }
 
     public static Item item(String path) {
-        return BuiltInRegistries.ITEM.getOptional(Identifier.withDefaultNamespace(path))
-                .orElseThrow(() -> new IllegalStateException("Missing vanilla fixture item: " + path));
+        return BuiltInRegistries.ITEM.getOptional(Identifier.withDefaultNamespace(path)).orElseThrow(() -> new IllegalStateException("Missing vanilla fixture item: " + path));
     }
 
     /**
@@ -33,18 +29,14 @@ public final class RingWorldVanillaFixtureRegistries {
      * expose {@code Entity} as their type's base class even though their factory
      * still creates the specialized runtime entity.
      */
-    public static <T extends Entity> T createEntity(String path, Class<T> expectedClass,
-                                                     Level level, EntitySpawnReason reason) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE
-                .getOptional(Identifier.withDefaultNamespace(path))
-                .orElseThrow(() -> new IllegalStateException("Missing vanilla fixture entity type: " + path));
+    public static <T extends Entity> T createEntity(String path, Class<T> expectedClass, Level level, EntitySpawnReason reason) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.withDefaultNamespace(path)).orElseThrow(() -> new IllegalStateException("Missing vanilla fixture entity type: " + path));
         Entity entity = type.create(level, reason);
         if (entity == null) {
             return null;
         }
         if (!expectedClass.isInstance(entity)) {
-            throw new IllegalStateException("Vanilla fixture entity type " + path + " created "
-                    + entity.getClass().getName() + ", not " + expectedClass.getName());
+            throw new IllegalStateException("Vanilla fixture entity type " + path + " created " + entity.getClass().getName() + ", not " + expectedClass.getName());
         }
         return expectedClass.cast(entity);
     }

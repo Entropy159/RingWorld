@@ -1,12 +1,6 @@
 package dev.ringworld.world;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,12 +19,16 @@ import java.util.zip.GZIPOutputStream;
  * lets the sky mesh bilinearly sample exactly the same tiled cache.</p>
  */
 public final class RingTerrainAtlas {
-    /** Format 10 adds water coverage in the upper nibble of the existing light byte. */
+    /**
+     * Format 10 adds water coverage in the upper nibble of the existing light byte.
+     */
     // Sampling semantics changed: cached top-only columns must be rebuilt.
     public static final int FORMAT_VERSION = 11;
     public static final int SAMPLE_STEP_BLOCKS = 1;
     public static final int TILE_SIZE = 16;
-    /** Short height, top and side colours, packed light/water byte, and presence accounting per cell. */
+    /**
+     * Short height, top and side colours, packed light/water byte, and presence accounting per cell.
+     */
     public static final int ESTIMATED_BYTES_PER_CELL = 12;
     private static final int MAGIC = 0x52574154; // RWAT
     private static final int MAX_TILE_BYTES = TILE_SIZE * TILE_SIZE * ESTIMATED_BYTES_PER_CELL;
@@ -62,7 +60,7 @@ public final class RingTerrainAtlas {
         this.sampleStep = sampleStep;
         this.columns = divideCeil(geometry.circumferenceBlocks(), sampleStep);
         this.rows = divideCeil(geometry.widthBlocks(), sampleStep);
-        long cells = Math.multiplyExact((long)columns, rows);
+        long cells = Math.multiplyExact((long) columns, rows);
         if (cells > RingDimensionReport.MAX_ATLAS_CELLS) {
             throw new IllegalArgumentException(RingDimensionReport.atlasLimitMessage(cells));
         }
@@ -76,40 +74,74 @@ public final class RingTerrainAtlas {
 
     public static long worldHash(RingWorldSettings settings) {
         long value = RingLayoutFingerprint.compute(settings);
-        value = RingLayoutFingerprint.mix(value ^ ((long)FORMAT_VERSION << 32));
-        return RingLayoutFingerprint.mix(value
-                ^ SAMPLE_STEP_BLOCKS);
+        value = RingLayoutFingerprint.mix(value ^ ((long) FORMAT_VERSION << 32));
+        return RingLayoutFingerprint.mix(value ^ SAMPLE_STEP_BLOCKS);
     }
 
-    public RingGeometry geometry() { return geometry; }
-    public long worldHash() { return worldHash; }
-    public int sampleStep() { return sampleStep; }
-    public int columns() { return columns; }
-    public int rows() { return rows; }
-    public int tileColumns() { return divideCeil(columns, TILE_SIZE); }
-    public int tileRows() { return divideCeil(rows, TILE_SIZE); }
-    public int presentCount() { return presentCount; }
-    public long revision() { return revision; }
-    public int cellCount() { return present.length; }
+    public RingGeometry geometry() {
+        return geometry;
+    }
+
+    public long worldHash() {
+        return worldHash;
+    }
+
+    public int sampleStep() {
+        return sampleStep;
+    }
+
+    public int columns() {
+        return columns;
+    }
+
+    public int rows() {
+        return rows;
+    }
+
+    public int tileColumns() {
+        return divideCeil(columns, TILE_SIZE);
+    }
+
+    public int tileRows() {
+        return divideCeil(rows, TILE_SIZE);
+    }
+
+    public int presentCount() {
+        return presentCount;
+    }
+
+    public long revision() {
+        return revision;
+    }
+
+    public int cellCount() {
+        return present.length;
+    }
+
     public long estimatedMemoryBytes() {
-        return (long)present.length * ESTIMATED_BYTES_PER_CELL;
+        return (long) present.length * ESTIMATED_BYTES_PER_CELL;
     }
-    public long estimatedWireBytes() {
-        return (long)present.length * ESTIMATED_BYTES_PER_CELL
-                + (long)tileColumns() * tileRows() * 2L;
-    }
-    public boolean isComplete() { return presentCount == present.length; }
-    public double completion() { return present.length == 0 ? 1.0 : (double)presentCount / present.length; }
 
-    /** Stable key for mesh height and distinct side-material vertex colours. */
+    public long estimatedWireBytes() {
+        return (long) present.length * ESTIMATED_BYTES_PER_CELL + (long) tileColumns() * tileRows() * 2L;
+    }
+
+    public boolean isComplete() {
+        return presentCount == present.length;
+    }
+
+    public double completion() {
+        return present.length == 0 ? 1.0 : (double) presentCount / present.length;
+    }
+
+    /**
+     * Stable key for mesh height and distinct side-material vertex colours.
+     */
     public long surfaceHeightFingerprint() {
         long fingerprint = 0xCBF29CE484222325L;
         for (int index = 0; index < heights.length; index++) {
-            long sample = present[index]
-                    ? 0x1_0000L | Short.toUnsignedLong(heights[index])
-                    : 0L;
-            fingerprint ^= sample ^ (present[index] && sideColors[index] != colors[index]
-                    ? (0x1000000L | sideColors[index]) << 17 : 0L);
+            long sample = present[index] ? 0x10000L | Short.toUnsignedLong(heights[index]) : 0L;
+            fingerprint ^= sample ^ (present[index] && sideColors[index] != colors[index] ? (0x1000000L | sideColors[index]) << 17 : 0L);
             fingerprint *= 0x100000001B3L;
         }
         fingerprint ^= Integer.toUnsignedLong(columns);
@@ -134,11 +166,12 @@ public final class RingTerrainAtlas {
         return copy;
     }
 
-    /** Owner-thread checkpoint slice; destination is exclusively owned until copying finishes. */
+    /**
+     * Owner-thread checkpoint slice; destination is exclusively owned until copying finishes.
+     */
     public void copyCheckpointCells(RingTerrainAtlas destination, int first, int count) {
-        if (!geometry.equals(destination.geometry) || worldHash != destination.worldHash
-                || sampleStep != destination.sampleStep || first < 0 || count < 0
-                || first > present.length - count) throw new IllegalArgumentException("invalid checkpoint slice");
+        if (!geometry.equals(destination.geometry) || worldHash != destination.worldHash || sampleStep != destination.sampleStep || first < 0 || count < 0 || first > present.length - count)
+            throw new IllegalArgumentException("invalid checkpoint slice");
         for (int i = first; i < first + count; i++) {
             if (present[i] != destination.present[i]) destination.presentCount += present[i] ? 1 : -1;
         }
@@ -149,22 +182,27 @@ public final class RingTerrainAtlas {
         System.arraycopy(present, first, destination.present, first, count);
     }
 
-    /** Call only after all slices and subsequently dirtied slices match this live source. */
+    /**
+     * Call only after all slices and subsequently dirtied slices match this live source.
+     */
     public void finishCheckpointCopy(RingTerrainAtlas source) {
-        if (!geometry.equals(source.geometry) || worldHash != source.worldHash
-                || sampleStep != source.sampleStep || presentCount != source.presentCount) {
+        if (!geometry.equals(source.geometry) || worldHash != source.worldHash || sampleStep != source.sampleStep || presentCount != source.presentCount) {
             throw new IllegalStateException("incomplete checkpoint copy");
         }
         revision = source.revision;
     }
 
-    /** Advances one coalesced authoritative surface-change generation. */
+    /**
+     * Advances one coalesced authoritative surface-change generation.
+     */
     public long advanceRevision() {
         revision = Math.addExact(revision, 1L);
         return revision;
     }
 
-    /** Commits a fully received authoritative revision without allowing rollback. */
+    /**
+     * Commits a fully received authoritative revision without allowing rollback.
+     */
     public boolean commitRevision(long incomingRevision) throws IOException {
         if (incomingRevision < 0L) throw new IOException("negative terrain atlas revision");
         if (incomingRevision < revision) return false;
@@ -173,23 +211,22 @@ public final class RingTerrainAtlas {
         return changed;
     }
 
-    /** Stores a sample selected by canonical block coordinates. */
+    /**
+     * Stores a sample selected by canonical block coordinates.
+     */
     public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor) {
         return putBlockSample(blockX, blockZ, surfaceY, mapColor, 0);
     }
 
-    public boolean putBlockSample(int blockX, int blockZ, int surfaceY,
-                                  int mapColor, int blockLight) {
+    public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor, int blockLight) {
         return putBlockSample(blockX, blockZ, surfaceY, mapColor, blockLight, mapColor);
     }
 
-    public boolean putBlockSample(int blockX, int blockZ, int surfaceY,
-                                  int mapColor, int blockLight, int sideColor) {
+    public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor, int blockLight, int sideColor) {
         return putBlockSample(blockX, blockZ, surfaceY, mapColor, blockLight, sideColor, 0);
     }
 
-    public boolean putBlockSample(int blockX, int blockZ, int surfaceY,
-                                  int mapColor, int blockLight, int sideColor, int waterCoverage) {
+    public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor, int blockLight, int sideColor, int waterCoverage) {
         int column = geometry.wrapBlockX(blockX) / sampleStep;
         int row = Math.floorDiv(blockZ - geometry.minWidthZ(), sampleStep);
         if (row < 0 || row >= rows) return false;
@@ -200,18 +237,15 @@ public final class RingTerrainAtlas {
         return putCell(column, row, surfaceY, mapColor, 0);
     }
 
-    public boolean putCell(int column, int row, int surfaceY,
-                           int mapColor, int blockLight) {
+    public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight) {
         return putCell(column, row, surfaceY, mapColor, blockLight, mapColor);
     }
 
-    public boolean putCell(int column, int row, int surfaceY,
-                           int mapColor, int blockLight, int sideColor) {
+    public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight, int sideColor) {
         return putCell(column, row, surfaceY, mapColor, blockLight, sideColor, 0);
     }
 
-    public boolean putCell(int column, int row, int surfaceY,
-                           int mapColor, int blockLight, int sideColor, int waterCoverage) {
+    public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight, int sideColor, int waterCoverage) {
         if (waterCoverage < 0 || waterCoverage > 15) {
             throw new IllegalArgumentException("atlas water coverage must be between 0 and 15");
         }
@@ -220,12 +254,10 @@ public final class RingTerrainAtlas {
             throw new IllegalArgumentException("atlas block light must be between 0 and 15");
         }
         int index = index(column, row);
-        short clampedHeight = (short)Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, surfaceY));
+        short clampedHeight = (short) Math.clamp(surfaceY, Short.MIN_VALUE, Short.MAX_VALUE);
         int rgb = mapColor & 0xFFFFFF;
-        byte light = (byte)(blockLight | waterCoverage << 4);
-        boolean changed = !present[index] || heights[index] != clampedHeight
-                || colors[index] != rgb || blockLights[index] != light
-                || sideColors[index] != (sideColor & 0xFFFFFF);
+        byte light = (byte) (blockLight | waterCoverage << 4);
+        boolean changed = !present[index] || heights[index] != clampedHeight || colors[index] != rgb || blockLights[index] != light || sideColors[index] != (sideColor & 0xFFFFFF);
         if (!present[index]) {
             present[index] = true;
             presentCount++;
@@ -242,7 +274,9 @@ public final class RingTerrainAtlas {
         return present[index(Math.floorMod(column, columns), row)];
     }
 
-    /** Raw canonical texel access for the client-side GPU surface texture. */
+    /**
+     * Raw canonical texel access for the client-side GPU surface texture.
+     */
     public int cellColor(int column, int row) {
         if (row < 0 || row >= rows) return -1;
         int index = index(Math.floorMod(column, columns), row);
@@ -255,14 +289,18 @@ public final class RingTerrainAtlas {
         return present[index] ? sideColors[index] : -1;
     }
 
-    /** Raw canonical height access for the low-detail cylindrical mesh. */
+    /**
+     * Raw canonical height access for the low-detail cylindrical mesh.
+     */
     public int cellHeight(int column, int row) {
-        if (row < 0 || row >= rows) return (int)RingGeometry.SURFACE_Y;
+        if (row < 0 || row >= rows) return (int) RingGeometry.SURFACE_Y;
         int index = index(Math.floorMod(column, columns), row);
-        return present[index] ? heights[index] : (int)RingGeometry.SURFACE_Y;
+        return present[index] ? heights[index] : (int) RingGeometry.SURFACE_Y;
     }
 
-    /** Raw exposed block-light level, from zero through vanilla's maximum fifteen. */
+    /**
+     * Raw exposed block-light level, from zero through vanilla's maximum fifteen.
+     */
     public int cellBlockLight(int column, int row) {
         if (row < 0 || row >= rows) return 0;
         int index = index(Math.floorMod(column, columns), row);
@@ -283,8 +321,8 @@ public final class RingTerrainAtlas {
     public SurfaceSample sample(double canonicalX, double canonicalZ) {
         double atlasX = geometry.wrapX(canonicalX) / sampleStep - 0.5;
         double atlasZ = (canonicalZ - geometry.minWidthZ()) / sampleStep - 0.5;
-        int x0 = (int)Math.floor(atlasX);
-        int z0 = (int)Math.floor(atlasZ);
+        int x0 = (int) Math.floor(atlasX);
+        int z0 = (int) Math.floor(atlasZ);
         double fx = atlasX - x0;
         double fz = atlasZ - z0;
 
@@ -296,7 +334,7 @@ public final class RingTerrainAtlas {
         double waterCoverage = 0.0;
         double weightTotal = 0.0;
         for (int dz = 0; dz <= 1; dz++) {
-            int row = Math.max(0, Math.min(rows - 1, z0 + dz));
+            int row = Math.clamp(rows - 1, 0, z0 + dz);
             double wz = dz == 0 ? 1.0 - fz : fz;
             for (int dx = 0; dx <= 1; dx++) {
                 int column = Math.floorMod(x0 + dx, columns);
@@ -314,11 +352,8 @@ public final class RingTerrainAtlas {
             }
         }
         if (weightTotal <= 0.0) return SurfaceSample.MISSING;
-        int color = clampColor(red / weightTotal) << 16
-                | clampColor(green / weightTotal) << 8
-                | clampColor(blue / weightTotal);
-        return new SurfaceSample(height / weightTotal, color,
-                blockLight / weightTotal, weightTotal, waterCoverage / weightTotal);
+        int color = clampColor(red / weightTotal) << 16 | clampColor(green / weightTotal) << 8 | clampColor(blue / weightTotal);
+        return new SurfaceSample(height / weightTotal, color, blockLight / weightTotal, weightTotal, waterCoverage / weightTotal);
     }
 
     public byte[] encodeTile(int tileX, int tileZ) {
@@ -381,14 +416,10 @@ public final class RingTerrainAtlas {
                     // still-pregenerating server snapshot, so an absent wire
                     // cell must never erase valid cached terrain.
                     if (incomingPresent) {
-                        short incomingHeight = (short)height;
+                        short incomingHeight = (short) height;
                         int incomingColor = color & 0xFFFFFF;
-                        byte incomingBlockLight = (byte)blockLight;
-                        changed |= !present[index]
-                                || heights[index] != incomingHeight
-                                || colors[index] != incomingColor
-                                || blockLights[index] != incomingBlockLight
-                                || sideColors[index] != sideColor;
+                        byte incomingBlockLight = (byte) blockLight;
+                        changed |= !present[index] || heights[index] != incomingHeight || colors[index] != incomingColor || blockLights[index] != incomingBlockLight || sideColors[index] != sideColor;
                         if (!present[index]) presentCount++;
                         present[index] = true;
                         heights[index] = incomingHeight;
@@ -406,8 +437,7 @@ public final class RingTerrainAtlas {
     public void save(Path path) throws IOException {
         Files.createDirectories(path.getParent());
         Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
-        try (DataOutputStream output = new DataOutputStream(new BufferedOutputStream(
-                new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)))))) {
+        try (DataOutputStream output = new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)))))) {
             output.writeInt(MAGIC);
             output.writeInt(FORMAT_VERSION);
             output.writeLong(worldHash);
@@ -432,10 +462,8 @@ public final class RingTerrainAtlas {
         }
     }
 
-    public static RingTerrainAtlas load(Path path, RingGeometry expectedGeometry,
-                                        long expectedHash) throws IOException {
-        try (DataInputStream input = new DataInputStream(new GZIPInputStream(
-                new BufferedInputStream(Files.newInputStream(path))))) {
+    public static RingTerrainAtlas load(Path path, RingGeometry expectedGeometry, long expectedHash) throws IOException {
+        try (DataInputStream input = new DataInputStream(new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path))))) {
             if (input.readInt() != MAGIC) throw new IOException("not a RingWorld terrain atlas");
             if (input.readInt() != FORMAT_VERSION) throw new IOException("unsupported terrain atlas version");
             long hash = input.readLong();
@@ -444,8 +472,7 @@ public final class RingTerrainAtlas {
             int sampleStep = input.readInt();
             RingGeometry geometry = new RingGeometry(width, circumference);
             RingTerrainAtlas atlas = new RingTerrainAtlas(geometry, hash, sampleStep);
-            if (!geometry.equals(expectedGeometry) || hash != expectedHash
-                    || input.readInt() != atlas.columns || input.readInt() != atlas.rows) {
+            if (!geometry.equals(expectedGeometry) || hash != expectedHash || input.readInt() != atlas.columns || input.readInt() != atlas.rows) {
                 throw new IOException("terrain atlas does not match this ring world");
             }
             atlas.revision = input.readLong();
@@ -469,24 +496,16 @@ public final class RingTerrainAtlas {
      * falls back to legacy state, and a legacy file is copied only after its
      * geometry and world hash have passed {@link #load}.
      */
-    public static StorageLoad loadStorage(Path currentPath, Path legacyPath,
-                                          RingGeometry expectedGeometry, long expectedHash) {
-        return loadStorage(currentPath, legacyPath, expectedGeometry, expectedHash,
-                SAMPLE_STEP_BLOCKS);
+    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, long expectedHash) {
+        return loadStorage(currentPath, legacyPath, expectedGeometry, expectedHash, SAMPLE_STEP_BLOCKS);
     }
 
-    public static StorageLoad loadStorage(Path currentPath, Path legacyPath,
-                                          RingGeometry expectedGeometry, long expectedHash,
-                                          int expectedSampleStep) {
+    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, long expectedHash, int expectedSampleStep) {
         if (Files.exists(currentPath)) {
             try {
-                return new StorageLoad(
-                        load(currentPath, expectedGeometry, expectedHash),
-                        StorageStatus.CURRENT);
+                return new StorageLoad(load(currentPath, expectedGeometry, expectedHash), StorageStatus.CURRENT);
             } catch (IOException | IllegalArgumentException | ArithmeticException exception) {
-                return new StorageLoad(
-                        new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep),
-                        StorageStatus.INVALID_CURRENT);
+                return new StorageLoad(new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep), StorageStatus.INVALID_CURRENT);
             }
         }
         if (Files.isRegularFile(legacyPath)) {
@@ -495,14 +514,10 @@ public final class RingTerrainAtlas {
                 migrated.save(currentPath);
                 return new StorageLoad(migrated, StorageStatus.MIGRATED_LEGACY);
             } catch (IOException | IllegalArgumentException | ArithmeticException exception) {
-                return new StorageLoad(
-                        new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep),
-                        StorageStatus.INVALID_LEGACY);
+                return new StorageLoad(new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep), StorageStatus.INVALID_LEGACY);
             }
         }
-        return new StorageLoad(
-                new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep),
-                StorageStatus.FRESH);
+        return new StorageLoad(new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep), StorageStatus.FRESH);
     }
 
     public long firstMissingChunkIndex() {
@@ -511,11 +526,11 @@ public final class RingTerrainAtlas {
         for (int chunkX = 0; chunkX < chunksAlong; chunkX++) {
             for (int chunkRow = 0; chunkRow < chunksAcross; chunkRow++) {
                 if (!isChunkPresent(chunkX, chunkRow)) {
-                    return (long)chunkX * chunksAcross + chunkRow;
+                    return (long) chunkX * chunksAcross + chunkRow;
                 }
             }
         }
-        return (long)chunksAlong * chunksAcross;
+        return (long) chunksAlong * chunksAcross;
     }
 
     public boolean isChunkPresent(int chunkX, int chunkRow) {
@@ -530,11 +545,13 @@ public final class RingTerrainAtlas {
         return true;
     }
 
-    /** Exact durable count used for progress reporting after restart/resume. */
+    /**
+     * Exact durable count used for progress reporting after restart/resume.
+     */
     public long presentChunkCount() {
         // Completed worlds publish status to each player repeatedly. The cell
         // counter already proves every chunk is present; avoid a full scan.
-        if (isComplete()) return (long)geometry.circumferenceChunks() * geometry.widthChunks();
+        if (isComplete()) return (long) geometry.circumferenceChunks() * geometry.widthChunks();
         long count = 0;
         for (int chunkX = 0; chunkX < geometry.circumferenceChunks(); chunkX++) {
             for (int chunkRow = 0; chunkRow < geometry.widthChunks(); chunkRow++) {
@@ -545,14 +562,16 @@ public final class RingTerrainAtlas {
     }
 
     public void clear() {
-        Arrays.fill(heights, (short)0);
+        Arrays.fill(heights, (short) 0);
         Arrays.fill(colors, 0);
-        Arrays.fill(blockLights, (byte)0);
+        Arrays.fill(blockLights, (byte) 0);
         Arrays.fill(present, false);
         presentCount = 0;
     }
 
-    private int index(int column, int row) { return row * columns + column; }
+    private int index(int column, int row) {
+        return row * columns + column;
+    }
 
     private void checkTile(int tileX, int tileZ) {
         if (tileX < 0 || tileX >= tileColumns() || tileZ < 0 || tileZ >= tileRows()) {
@@ -565,26 +584,25 @@ public final class RingTerrainAtlas {
     }
 
     private static int clampColor(double value) {
-        return Math.max(0, Math.min(255, (int)Math.round(value)));
+        return Math.clamp((int) Math.round(value), 0, 255);
     }
 
-    public record SurfaceSample(double height, int color, double blockLight, double coverage,
-                                double waterCoverage) {
+    public record SurfaceSample(double height, int color, double blockLight, double coverage, double waterCoverage) {
         public SurfaceSample(double height, int color, double blockLight, double coverage) {
             this(height, color, blockLight, coverage, 0.0);
         }
-        public static final SurfaceSample MISSING = new SurfaceSample(
-                RingGeometry.SURFACE_Y, -1, 0.0, 0.0);
-        public boolean present() { return color >= 0 && coverage > 0.0; }
+
+        public static final SurfaceSample MISSING = new SurfaceSample(RingGeometry.SURFACE_Y, -1, 0.0, 0.0);
+
+        public boolean present() {
+            return color >= 0 && coverage > 0.0;
+        }
     }
 
-    public record StorageLoad(RingTerrainAtlas atlas, StorageStatus status) { }
+    public record StorageLoad(RingTerrainAtlas atlas, StorageStatus status) {
+    }
 
     public enum StorageStatus {
-        CURRENT,
-        MIGRATED_LEGACY,
-        FRESH,
-        INVALID_CURRENT,
-        INVALID_LEGACY
+        CURRENT, MIGRATED_LEGACY, FRESH, INVALID_CURRENT, INVALID_LEGACY
     }
 }

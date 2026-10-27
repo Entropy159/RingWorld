@@ -1,6 +1,8 @@
 package dev.ringworld.world;
 
-/** Pure chunk-coordinate operations for the circumference's periodic graph. */
+/**
+ * Pure chunk-coordinate operations for the circumference's periodic graph.
+ */
 public record RingChunkTopology(int circumferenceChunks) {
     public RingChunkTopology {
         if (circumferenceChunks <= 0) throw new IllegalArgumentException("circumferenceChunks must be positive");
@@ -15,14 +17,11 @@ public record RingChunkTopology(int circumferenceChunks) {
         return Math.min(raw, circumferenceChunks - raw);
     }
 
-    public boolean isWithinVanillaDistance(int centerX, int centerZ, int viewDistance,
-                                           int x, int z, boolean includeEdge) {
-        return isWithinVanillaDistance(circumferenceChunks, centerX, centerZ, viewDistance,
-                x, z, includeEdge);
+    public boolean isWithinVanillaDistance(int centerX, int centerZ, int viewDistance, int x, int z, boolean includeEdge) {
+        return isWithinVanillaDistance(circumferenceChunks, centerX, centerZ, viewDistance, x, z, includeEdge);
     }
 
-    public static boolean isWithinVanillaDistance(int circumferenceChunks, int centerX, int centerZ,
-                                                  int viewDistance, int x, int z, boolean includeEdge) {
+    public static boolean isWithinVanillaDistance(int circumferenceChunks, int centerX, int centerZ, int viewDistance, int x, int z, boolean includeEdge) {
         int edgeAllowance = includeEdge ? 2 : 1;
         int first = Math.floorMod(centerX, circumferenceChunks);
         int second = Math.floorMod(x, circumferenceChunks);

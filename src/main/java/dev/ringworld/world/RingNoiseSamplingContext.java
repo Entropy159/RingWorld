@@ -1,15 +1,15 @@
 package dev.ringworld.world;
 
+import net.minecraft.world.level.levelgen.NoiseRouter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Supplier;
-import net.minecraft.world.level.levelgen.NoiseRouter;
 
-/** Carries the Overworld-only periodic router into vanilla's sampler constructor. */
+/**
+ * Carries the Overworld-only periodic router into vanilla's sampler constructor.
+ */
 public final class RingNoiseSamplingContext {
     private static final ThreadLocal<NoiseRouter> ROUTER = new ThreadLocal<>();
-
-    private RingNoiseSamplingContext() { }
 
     @Nullable
     public static NoiseRouter currentRouter() {

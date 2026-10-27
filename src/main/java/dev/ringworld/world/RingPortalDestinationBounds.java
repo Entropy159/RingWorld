@@ -1,18 +1,25 @@
 package dev.ringworld.world;
 
-import java.util.List;
 import net.minecraft.core.BlockPos;
 
-/** Pure destination bounds for portal lookup and creation in the finite Overworld band. */
+import java.util.List;
+
+/**
+ * Pure destination bounds for portal lookup and creation in the finite Overworld band.
+ */
 public final class RingPortalDestinationBounds {
-    /** Vanilla {@code PortalForcer#createPortal} searches this far from its anchor. */
+    /**
+     * Vanilla {@code PortalForcer#createPortal} searches this far from its anchor.
+     */
     public static final int CREATION_SEARCH_RADIUS = 16;
-    /** Covers the widest vanilla portal frame/foundation offset from a portal block. */
+    /**
+     * Covers the widest vanilla portal frame/foundation offset from a portal block.
+     */
     public static final int FRAME_CLEARANCE = 3;
 
-    private RingPortalDestinationBounds() { }
-
-    /** Lowest Z at which a portal block and its complete frame remain clear of the low rim. */
+    /**
+     * Lowest Z at which a portal block and its complete frame remain clear of the low rim.
+     */
     public static int safePortalMinZ(RingGeometry geometry) {
         return safePortalMinZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
     }
@@ -21,7 +28,9 @@ public final class RingPortalDestinationBounds {
         return geometry.minWidthZ() + rimThicknessBlocks + FRAME_CLEARANCE;
     }
 
-    /** Highest Z at which a portal block and its complete frame remain clear of the high rim. */
+    /**
+     * Highest Z at which a portal block and its complete frame remain clear of the high rim.
+     */
     public static int safePortalMaxZ(RingGeometry geometry) {
         return safePortalMaxZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
     }
@@ -30,7 +39,9 @@ public final class RingPortalDestinationBounds {
         return geometry.maxWidthZ() - rimThicknessBlocks - FRAME_CLEARANCE;
     }
 
-    /** Lowest creation/search anchor whose entire 16-block creation sweep stays safe. */
+    /**
+     * Lowest creation/search anchor whose entire 16-block creation sweep stays safe.
+     */
     public static int safeAnchorMinZ(RingGeometry geometry) {
         return safeAnchorMinZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
     }
@@ -39,7 +50,9 @@ public final class RingPortalDestinationBounds {
         return safePortalMinZ(geometry, rimThicknessBlocks) + CREATION_SEARCH_RADIUS;
     }
 
-    /** Highest creation/search anchor whose entire 16-block creation sweep stays safe. */
+    /**
+     * Highest creation/search anchor whose entire 16-block creation sweep stays safe.
+     */
     public static int safeAnchorMaxZ(RingGeometry geometry) {
         return safeAnchorMaxZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
     }
@@ -57,41 +70,40 @@ public final class RingPortalDestinationBounds {
         return normalizeSearchAnchor(geometry, target, RingGenerationBoundary.RIM_THICKNESS);
     }
 
-    public static BlockPos normalizeSearchAnchor(
-            RingGeometry geometry, BlockPos target, int rimThicknessBlocks) {
+    public static BlockPos normalizeSearchAnchor(RingGeometry geometry, BlockPos target, int rimThicknessBlocks) {
         int minZ = safeAnchorMinZ(geometry, rimThicknessBlocks);
         int maxZ = safeAnchorMaxZ(geometry, rimThicknessBlocks);
         if (minZ > maxZ) {
             throw new IllegalArgumentException("ring width cannot contain a safe Nether portal search envelope");
         }
-        int z = Math.max(minZ, Math.min(maxZ, target.getZ()));
+        int z = Math.clamp(target.getZ(), minZ, maxZ);
         return new BlockPos(geometry.wrapBlockX(target.getX()), target.getY(), z);
     }
 
-    /** True when a discovered portal block and its frame remain inside the playable interior. */
+    /**
+     * True when a discovered portal block and its frame remain inside the playable interior.
+     */
     public static boolean isSafePortalBlock(RingGeometry geometry, BlockPos portalBlock) {
         return isSafePortalBlock(geometry, portalBlock, RingGenerationBoundary.RIM_THICKNESS);
     }
 
-    public static boolean isSafePortalBlock(
-            RingGeometry geometry, BlockPos portalBlock, int rimThicknessBlocks) {
-        return portalBlock.getZ() >= safePortalMinZ(geometry, rimThicknessBlocks)
-                && portalBlock.getZ() <= safePortalMaxZ(geometry, rimThicknessBlocks);
+    public static boolean isSafePortalBlock(RingGeometry geometry, BlockPos portalBlock, int rimThicknessBlocks) {
+        return portalBlock.getZ() >= safePortalMinZ(geometry, rimThicknessBlocks) && portalBlock.getZ() <= safePortalMaxZ(geometry, rimThicknessBlocks);
     }
 
-    /** Flat POI queries centred on all three local X images expose either side of the seam. */
+    /**
+     * Flat POI queries centred on all three local X images expose either side of the seam.
+     */
     public static List<BlockPos> periodicQueryAnchors(RingGeometry geometry, BlockPos normalizedAnchor) {
         int x = geometry.wrapBlockX(normalizedAnchor.getX());
         int circumference = geometry.circumferenceBlocks();
-        return List.of(
-                new BlockPos(x, normalizedAnchor.getY(), normalizedAnchor.getZ()),
-                new BlockPos(x - circumference, normalizedAnchor.getY(), normalizedAnchor.getZ()),
-                new BlockPos(x + circumference, normalizedAnchor.getY(), normalizedAnchor.getZ()));
+        return List.of(new BlockPos(x, normalizedAnchor.getY(), normalizedAnchor.getZ()), new BlockPos(x - circumference, normalizedAnchor.getY(), normalizedAnchor.getZ()), new BlockPos(x + circumference, normalizedAnchor.getY(), normalizedAnchor.getZ()));
     }
 
-    /** Periodic-X equivalent of vanilla's squared distance used to select a portal POI. */
-    public static double periodicDistanceSquared(
-            RingGeometry geometry, BlockPos anchor, BlockPos candidate) {
+    /**
+     * Periodic-X equivalent of vanilla's squared distance used to select a portal POI.
+     */
+    public static double periodicDistanceSquared(RingGeometry geometry, BlockPos anchor, BlockPos candidate) {
         double dx = geometry.shortestCircumferenceDelta(anchor.getX(), candidate.getX());
         double dy = candidate.getY() - anchor.getY();
         double dz = candidate.getZ() - anchor.getZ();

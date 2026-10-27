@@ -8,22 +8,15 @@ import java.util.Optional;
  * Platform networking adapters encode this record without exposing platform
  * player or world types to the shared model.
  */
-public record AtlasPregenerationStatus(
-        long worldHash,
-        int circumferenceBlocks,
-        int widthBlocks,
-        int atlasFormat,
-        int sampleStep,
-        long canonicalChunks,
-        long completedCanonicalChunks,
-        AtlasPregenerationProgress progress,
-        boolean canControl,
-        Optional<String> message) {
+public record AtlasPregenerationStatus(long worldHash, int circumferenceBlocks, int widthBlocks, int atlasFormat,
+                                       int sampleStep, long canonicalChunks, long completedCanonicalChunks,
+                                       AtlasPregenerationProgress progress, boolean canControl,
+                                       Optional<String> message) {
     public AtlasPregenerationStatus {
         if (circumferenceBlocks <= 0 || widthBlocks <= 0 || atlasFormat <= 0 || sampleStep <= 0) {
             throw new IllegalArgumentException("atlas identity dimensions and formats must be positive");
         }
-        if (canonicalChunks < 0 || completedCanonicalChunks < 0 || completedCanonicalChunks > canonicalChunks) {
+        if (completedCanonicalChunks < 0 || completedCanonicalChunks > canonicalChunks) {
             throw new IllegalArgumentException("completed canonical chunks must be in [0, canonicalChunks]");
         }
         Objects.requireNonNull(progress, "progress");
@@ -33,5 +26,7 @@ public record AtlasPregenerationStatus(
         message = Objects.requireNonNull(message, "message").map(String::strip).filter(value -> !value.isEmpty());
     }
 
-    public boolean matchesWorld(long expectedWorldHash) { return worldHash == expectedWorldHash; }
+    public boolean matchesWorld(long expectedWorldHash) {
+        return worldHash == expectedWorldHash;
+    }
 }

@@ -1,9 +1,10 @@
 package dev.ringworld.world;
 
-import java.nio.file.Path;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+
+import java.nio.file.Path;
 
 /**
  * Read-only access to Minecraft's authoritative per-dimension storage path.
@@ -16,7 +17,6 @@ public interface RingWorldStorageAccess {
     Path ringworld$getDimensionPath(ResourceKey<Level> dimension);
 
     static Path dimensionPath(ServerLevel level) {
-        return ((RingWorldStorageAccess) level.getServer())
-                .ringworld$getDimensionPath(level.dimension());
+        return ((RingWorldStorageAccess) level.getServer()).ringworld$getDimensionPath(level.dimension());
     }
 }

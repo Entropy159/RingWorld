@@ -1,10 +1,10 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingSpawnBounds;
 import dev.ringworld.world.RingWorldConfig;
 import dev.ringworld.world.RingWorldStorageAccess;
-import java.nio.file.Path;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -18,20 +18,23 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/** Owns first-world spawn bounds and the read-only dimension-storage bridge. */
+import java.nio.file.Path;
+
+/**
+ * Owns first-world spawn bounds and the read-only dimension-storage bridge.
+ */
 @Mixin(MinecraftServer.class)
-abstract class MinecraftServerMixin implements RingWorldStorageAccess {
-    @Shadow @Final protected LevelStorageSource.LevelStorageAccess storageSource;
+public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
+    @Shadow
+    @Final
+    protected LevelStorageSource.LevelStorageAccess storageSource;
 
     @Override
     public Path ringworld$getDimensionPath(ResourceKey<Level> dimension) {
         return storageSource.getDimensionPath(dimension);
     }
 
-    @Redirect(
-            method = "setInitialSpawn",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/biome/Climate$Sampler;findSpawnPosition()Lnet/minecraft/core/BlockPos;"))
+    @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/biome/Climate$Sampler;findSpawnPosition()Lnet/minecraft/core/BlockPos;"))
     private static BlockPos ringworld$constrainInitialSpawn(Climate.Sampler sampler) {
         BlockPos vanilla = sampler.findSpawnPosition();
         RingWorldConfig config = RingWorldConfig.load();
@@ -52,18 +55,13 @@ abstract class MinecraftServerMixin implements RingWorldStorageAccess {
      * value, not just the original sampler suggestion, before it reaches saved
      * level data.
      */
-    @Redirect(
-            method = "setInitialSpawn",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/LevelData$RespawnData;of(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/core/BlockPos;FF)Lnet/minecraft/world/level/storage/LevelData$RespawnData;"),
-            require = 3)
-    private static LevelData.RespawnData ringworld$canonicalInitialRespawnData(
-            ResourceKey<Level> dimension, BlockPos position, float yaw, float pitch) {
-        if (dimension != Level.OVERWORLD) {
+    @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/LevelData$RespawnData;of(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/core/BlockPos;FF)Lnet/minecraft/world/level/storage/LevelData$RespawnData;"), require = 3)
+    private static LevelData.RespawnData ringworld$canonicalInitialRespawnData(ResourceKey<Level> dimension, BlockPos position, float yaw, float pitch) {
+        if (!RingWorldApi.isRingWorld(dimension)) {
             return LevelData.RespawnData.of(dimension, position, yaw, pitch);
         }
         RingWorldConfig config = RingWorldConfig.load();
         RingGeometry geometry = new RingGeometry(config.widthBlocks(), config.circumferenceBlocks());
-        return LevelData.RespawnData.of(dimension,
-                RingSpawnBounds.canonicalInitialSpawn(position, geometry), yaw, pitch);
+        return LevelData.RespawnData.of(dimension, RingSpawnBounds.canonicalInitialSpawn(position, geometry), yaw, pitch);
     }
 }

@@ -5,20 +5,16 @@ import dev.ringworld.world.AtlasPregenerationState;
 
 import java.util.Objects;
 
-/** Pure command-state policy shared by the adapter and unit tests. */
+/**
+ * Pure command-state policy shared by the adapter and unit tests.
+ */
 final class RingAtlasCommandPolicy {
     enum Outcome {
-        START,
-        PAUSE,
-        RESUME,
-        ALREADY_COMPLETE,
-        ALREADY_ACTIVE,
-        NOT_RUNNING,
-        NOT_PAUSED,
-        UNSUPPORTED
+        START, PAUSE, RESUME, ALREADY_COMPLETE, ALREADY_ACTIVE, NOT_RUNNING, NOT_PAUSED, UNSUPPORTED
     }
 
-    private RingAtlasCommandPolicy() { }
+    private RingAtlasCommandPolicy() {
+    }
 
     static Outcome decide(AtlasPregenerationAction action, AtlasPregenerationState state) {
         Objects.requireNonNull(action, "action");
@@ -29,8 +25,7 @@ final class RingAtlasCommandPolicy {
                 case RUNNING, PAUSED, SAVING -> Outcome.ALREADY_ACTIVE;
                 case IDLE, CANCELLED, FAILED -> Outcome.START;
             };
-            case PAUSE -> state == AtlasPregenerationState.RUNNING
-                    ? Outcome.PAUSE : Outcome.NOT_RUNNING;
+            case PAUSE -> state == AtlasPregenerationState.RUNNING ? Outcome.PAUSE : Outcome.NOT_RUNNING;
             case RESUME -> switch (state) {
                 case IDLE, CANCELLED, FAILED -> Outcome.START;
                 case PAUSED -> Outcome.RESUME;

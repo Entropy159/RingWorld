@@ -1,41 +1,42 @@
 package dev.ringworld.world;
 
+import jdk.jfr.Event;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
+
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
-/** Serialized, coalescing cache writes with caller-owned snapshot capture. */
+/**
+ * Serialized, coalescing cache writes with caller-owned snapshot capture.
+ */
 public final class RingAtlasCacheWriter {
     private final Executor executor;
     private final LinkedHashMap<Path, Write> pending = new LinkedHashMap<>();
     private boolean draining;
 
     public RingAtlasCacheWriter() {
-        this(new ThreadPoolExecutor(0, 1, 1, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(), task -> {
-                    Thread thread = new Thread(task, "RingWorld atlas cache writer");
-                    // Finish queued final snapshots on normal JVM exit. Idle workers
-                    // expire, so this does not keep an otherwise closed client alive.
-                    thread.setDaemon(false);
-                    return thread;
-                }));
-        Runtime.getRuntime().addShutdownHook(new Thread(this::awaitIdle,
-                "RingWorld atlas cache final flush"));
+        this(new ThreadPoolExecutor(0, 1, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), task -> {
+            Thread thread = new Thread(task, "RingWorld atlas cache writer");
+            // Finish queued final snapshots on normal JVM exit. Idle workers
+            // expire, so this does not keep an otherwise closed client alive.
+            thread.setDaemon(false);
+            return thread;
+        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::awaitIdle, "RingWorld atlas cache final flush"));
     }
 
-    RingAtlasCacheWriter(Executor executor) { this.executor = executor; }
+    RingAtlasCacheWriter(Executor executor) {
+        this.executor = executor;
+    }
 
     public CompletableFuture<Void> submit(Path path, RingTerrainAtlas atlas) {
         Path target = path.toAbsolutePath().normalize();
         RingTerrainAtlas snapshot = atlas.snapshot();
         synchronized (this) {
             Write previous = pending.get(target);
-            CompletableFuture<Void> completion = previous == null
-                    ? new CompletableFuture<>() : previous.completion();
+            CompletableFuture<Void> completion = previous == null ? new CompletableFuture<>() : previous.completion();
             pending.put(target, new Write(snapshot, completion));
             if (!draining) {
                 draining = true;
@@ -77,7 +78,9 @@ public final class RingAtlasCacheWriter {
         }
     }
 
-    /** Only the JVM shutdown hook waits; render-thread teardown merely queues a snapshot. */
+    /**
+     * Only the JVM shutdown hook waits; render-thread teardown merely queues a snapshot.
+     */
     private synchronized void awaitIdle() {
         boolean interrupted = false;
         while (draining) {
@@ -90,11 +93,12 @@ public final class RingAtlasCacheWriter {
         if (interrupted) Thread.currentThread().interrupt();
     }
 
-    private record Write(RingTerrainAtlas snapshot, CompletableFuture<Void> completion) {}
+    private record Write(RingTerrainAtlas snapshot, CompletableFuture<Void> completion) {
+    }
 
-    @jdk.jfr.Name("ringworld.AtlasCacheSave")
-    @jdk.jfr.Label("RingWorld Atlas cache save")
-    private static final class CacheSaveEvent extends jdk.jfr.Event {
+    @Name("ringworld.AtlasCacheSave")
+    @Label("RingWorld Atlas cache save")
+    private static final class CacheSaveEvent extends Event {
         long revision;
         int cells;
         boolean success;

@@ -1,11 +1,6 @@
 package dev.ringworld.net;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Loader-neutral server-thread state machine for the mandatory geometry
@@ -27,9 +22,7 @@ public final class RingHandshakeTracker {
             acknowledged.add(playerId);
             return AcknowledgementResult.ACCEPTED;
         }
-        return acknowledged.contains(playerId)
-                ? AcknowledgementResult.ALREADY_ACKNOWLEDGED
-                : AcknowledgementResult.UNEXPECTED;
+        return acknowledged.contains(playerId) ? AcknowledgementResult.ALREADY_ACKNOWLEDGED : AcknowledgementResult.UNEXPECTED;
     }
 
     public boolean isAcknowledged(UUID playerId) {
@@ -54,8 +47,6 @@ public final class RingHandshakeTracker {
     }
 
     public enum AcknowledgementResult {
-        ACCEPTED,
-        ALREADY_ACKNOWLEDGED,
-        UNEXPECTED
+        ACCEPTED, ALREADY_ACKNOWLEDGED, UNEXPECTED
     }
 }

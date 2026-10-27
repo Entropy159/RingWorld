@@ -13,14 +13,15 @@ import java.util.function.LongSupplier;
  * explicit no-detail sentinel; the texture worker resolves the O(cells)
  * fingerprint only when this snapshot is complete.</p>
  */
-public record RingSurfaceBuildSnapshot(
-        RingTerrainAtlas atlas,
-        int renderRevision,
-        long heightFingerprint) {
-    /** Partial builds never own or compute a detailed terrain-mesh hash. */
+public record RingSurfaceBuildSnapshot(RingTerrainAtlas atlas, int renderRevision, long heightFingerprint) {
+    /**
+     * Partial builds never own or compute a detailed terrain-mesh hash.
+     */
     public static final long NO_DETAILED_HEIGHT_FINGERPRINT = Long.MIN_VALUE;
 
-    /** Captures identity/content without scanning atlas heights on the caller. */
+    /**
+     * Captures identity/content without scanning atlas heights on the caller.
+     */
     public RingSurfaceBuildSnapshot(RingTerrainAtlas atlas, int renderRevision) {
         this(atlas, renderRevision, NO_DETAILED_HEIGHT_FINGERPRINT);
     }
@@ -31,8 +32,7 @@ public record RingSurfaceBuildSnapshot(
             throw new IllegalArgumentException("render revision must be non-negative");
         }
         if (!atlas.isComplete() && heightFingerprint != NO_DETAILED_HEIGHT_FINGERPRINT) {
-            throw new IllegalArgumentException(
-                    "partial atlas snapshots cannot own a detailed height fingerprint");
+            throw new IllegalArgumentException("partial atlas snapshots cannot own a detailed height fingerprint");
         }
     }
 
@@ -44,12 +44,13 @@ public record RingSurfaceBuildSnapshot(
         return resolveDetailedHeightFingerprint(atlas::surfaceHeightFingerprint);
     }
 
-    /** Pure seam proving that partial builds never invoke the O(cells) scan. */
+    /**
+     * Pure seam proving that partial builds never invoke the O(cells) scan.
+     */
     RingSurfaceBuildSnapshot resolveDetailedHeightFingerprint(LongSupplier fingerprintSupplier) {
         Objects.requireNonNull(fingerprintSupplier, "fingerprintSupplier");
         if (!atlas.isComplete() || heightFingerprint != NO_DETAILED_HEIGHT_FINGERPRINT) return this;
-        return new RingSurfaceBuildSnapshot(
-                atlas, renderRevision, fingerprintSupplier.getAsLong());
+        return new RingSurfaceBuildSnapshot(atlas, renderRevision, fingerprintSupplier.getAsLong());
     }
 
     /**
@@ -58,16 +59,14 @@ public record RingSurfaceBuildSnapshot(
      * slower than the update interval. Never publish backwards or across worlds;
      * the renderer separately checks its session/quality generation token.
      */
-    public boolean canPublish(RingGeometry geometry, long worldHash,
-                              int liveRevision, int displayedRevision) {
-        return renderRevision <= liveRevision && renderRevision > displayedRevision
-                && atlas.worldHash() == worldHash && atlas.geometry().equals(geometry);
+    public boolean canPublish(RingGeometry geometry, long worldHash, int liveRevision, int displayedRevision) {
+        return renderRevision <= liveRevision && renderRevision > displayedRevision && atlas.worldHash() == worldHash && atlas.geometry().equals(geometry);
     }
 
-    /** True only while this immutable content still represents the live client state. */
+    /**
+     * True only while this immutable content still represents the live client state.
+     */
     public boolean matches(RingGeometry geometry, long worldHash, int revision) {
-        return renderRevision == revision
-                && atlas.worldHash() == worldHash
-                && atlas.geometry().equals(geometry);
+        return renderRevision == revision && atlas.worldHash() == worldHash && atlas.geometry().equals(geometry);
     }
 }

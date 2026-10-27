@@ -3,9 +3,6 @@ package dev.ringworld.server;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.mixin.RaidFixtureAccessor;
 import dev.ringworld.world.RingGeometry;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -26,6 +23,10 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Opt-in, two-process dedicated-server proof for seam-straddling vanilla raids.
@@ -58,7 +59,8 @@ public final class RingWorldRaidSeamTest {
     private static int restoreWaitTicks;
     private static boolean reloadPrepared;
 
-    private RingWorldRaidSeamTest() { }
+    private RingWorldRaidSeamTest() {
+    }
 
     public static boolean enabled() {
         return Boolean.getBoolean(ENABLED);
@@ -69,8 +71,7 @@ public final class RingWorldRaidSeamTest {
         boolean reload = RELOAD_PHASE.equalsIgnoreCase(System.getProperty(PHASE, "arm"));
         if (reload && !reloadPrepared) {
             loadSeamChunks(world, geometry);
-            if (!persistedOccupiedPoi(world, highSidePoi(geometry))
-                    || !persistedOccupiedPoi(world, lowSidePoi())) {
+            if (!persistedOccupiedPoi(world, highSidePoi(geometry)) || !persistedOccupiedPoi(world, lowSidePoi())) {
                 fail(world, geometry, "saved occupied seam POIs did not restore");
                 return;
             }
@@ -90,8 +91,7 @@ public final class RingWorldRaidSeamTest {
         }
     }
 
-    private static void tickArm(ServerLevel world, RingGeometry geometry,
-                                ServerPlayer playerA, ServerPlayer playerB) {
+    private static void tickArm(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
         switch (stage) {
             case 0 -> {
                 prepare(world, geometry, playerA, playerB);
@@ -105,21 +105,16 @@ public final class RingWorldRaidSeamTest {
                 }
                 if (raid.getTotalRaidersAlive() > 0 && raid.isStarted()) {
                     navigationRaider = raid.getAllRaiders().stream().findFirst().orElse(null);
-                    boolean spawned = navigationRaider != null
-                            && canonical(geometry, navigationRaider)
-                            && world.isPositionEntityTicking(navigationRaider.blockPosition());
+                    boolean spawned = navigationRaider != null && canonical(geometry, navigationRaider) && world.isPositionEntityTicking(navigationRaider.blockPosition());
                     boolean bossbar = bossbarContains(raid, playerA) && bossbarContains(raid, playerB);
                     if (!spawned || !bossbar) {
                         fail(world, geometry, "wave/bossbar assertion failed spawned=" + spawned + " bossbar=" + bossbar);
                         return;
                     }
                     navigationRaider.addTag(RAIDER_TAG);
-                    world.setBlock(marker(), RingWorldVanillaFixtureRegistries
-                            .block("lime_concrete").defaultBlockState(), 3);
+                    world.setBlock(marker(), RingWorldVanillaFixtureRegistries.block("lime_concrete").defaultBlockState(), 3);
                     boolean saved = world.getServer().saveEverything(false, true, false);
-                    RingWorldMod.LOGGER.info("[raid-seam] arm-save-ready=true saved={} center={} raiders={} bossbarA={} bossbarB={}",
-                            saved, raid.getCenter(), raid.getTotalRaidersAlive(),
-                            bossbarContains(raid, playerA), bossbarContains(raid, playerB));
+                    RingWorldMod.LOGGER.info("[raid-seam] arm-save-ready=true saved={} center={} raiders={} bossbarA={} bossbarB={}", saved, raid.getCenter(), raid.getTotalRaidersAlive(), bossbarContains(raid, playerA), bossbarContains(raid, playerB));
                     terminal = true;
                     if (Boolean.getBoolean(STOP_AFTER_SAVE)) world.getServer().halt(false);
                 } else if (ticks > TIMEOUT_TICKS) {
@@ -130,8 +125,7 @@ public final class RingWorldRaidSeamTest {
         }
     }
 
-    private static void tickReload(ServerLevel world, RingGeometry geometry,
-                                   ServerPlayer playerA, ServerPlayer playerB) {
+    private static void tickReload(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
         switch (stage) {
             case 0 -> {
                 preparePlayers(world, geometry, playerA, playerB);
@@ -142,15 +136,10 @@ public final class RingWorldRaidSeamTest {
                 loadSeamChunks(world, geometry);
                 raid = world.getRaidAt(lowSideProbe());
                 navigationRaider = taggedRaider(world);
-                boolean restored = raid != null && navigationRaider != null
-                        && canonical(geometry, raid.getCenter())
-                        && world.getRaidAt(highSideProbe(geometry)) == raid
-                        && raid.getAllRaiders().contains(navigationRaider)
-                        && navigationRaider.getCurrentRaid() == raid;
+                boolean restored = raid != null && navigationRaider != null && canonical(geometry, raid.getCenter()) && world.getRaidAt(highSideProbe(geometry)) == raid && raid.getAllRaiders().contains(navigationRaider) && navigationRaider.getCurrentRaid() == raid;
                 if (!restored) {
                     if (++restoreWaitTicks > TIMEOUT_TICKS) {
-                        fail(world, geometry, "saved raid/raider did not restore canonically"
-                                + " raid=" + (raid != null) + " raider=" + (navigationRaider != null));
+                        fail(world, geometry, "saved raid/raider did not restore canonically" + " raid=" + (raid != null) + " raider=" + (navigationRaider != null));
                     }
                     return;
                 }
@@ -168,8 +157,7 @@ public final class RingWorldRaidSeamTest {
                 ticks = 0;
             }
             case 2 -> {
-                if (navigationRaider == null || navigationRaider.isRemoved()
-                        || navigationRaider.getCurrentRaid() != raid || !raid.getAllRaiders().contains(navigationRaider)) {
+                if (navigationRaider == null || navigationRaider.isRemoved() || navigationRaider.getCurrentRaid() != raid || !raid.getAllRaiders().contains(navigationRaider)) {
                     fail(world, geometry, "raider was removed from its restored raid during navigation");
                     return;
                 }
@@ -180,14 +168,13 @@ public final class RingWorldRaidSeamTest {
                     navigationGoal.tick();
                 }
                 double step = geometry.shortestCircumferenceDelta(previousRaiderX, navigationRaider.getX());
-                if (previousRaiderX - navigationRaider.getX() > geometry.circumferenceBlocks() / 2.0
-                        && step > 0.0 && step < 4.0) sawRaiderFold = true;
+                if (previousRaiderX - navigationRaider.getX() > geometry.circumferenceBlocks() / 2.0 && step > 0.0 && step < 4.0)
+                    sawRaiderFold = true;
                 previousRaiderX = navigationRaider.getX();
                 if (sawRaiderFold && navigationRaider.getX() < 3.0) {
-                    ((RaidFixtureAccessor) raid).ringworld$setFixtureGroupsSpawned(
-                            raid.getNumGroups(world.getDifficulty()));
+                    ((RaidFixtureAccessor) raid).ringworld$setFixtureGroupsSpawned(raid.getNumGroups(world.getDifficulty()));
                     for (Raider raider : new ArrayList<>(raid.getAllRaiders())) {
-                        raider.hurtServer(world, world.damageSources().playerAttack(playerA), 1_000.0F);
+                        raider.hurtServer(world, world.damageSources().playerAttack(playerA), 1000.0F);
                         if (raider.isAlive()) raider.kill(world);
                     }
                     stage = 3;
@@ -200,23 +187,17 @@ public final class RingWorldRaidSeamTest {
                 boolean victory = raid.isVictory() && playerA.hasEffect(MobEffects.HERO_OF_THE_VILLAGE);
                 if (victory) {
                     world.setBlock(marker(), Blocks.GOLD_BLOCK.defaultBlockState(), 3);
-                    RingWorldMod.LOGGER.info("[raid-seam] PASS center={} fold={} hero={} canonicalRaider={}",
-                            raid.getCenter(), sawRaiderFold, true, canonical(geometry, navigationRaider));
+                    RingWorldMod.LOGGER.info("[raid-seam] PASS center={} fold={} hero={} canonicalRaider={}", raid.getCenter(), sawRaiderFold, true, canonical(geometry, navigationRaider));
                     terminal = true;
                 } else if (ticks > 300) {
-                    fail(world, geometry, "real raid did not reach victory and grant Hero of the Village"
-                            + " status=" + (raid.isVictory() ? "victory" : raid.isActive() ? "active" : "inactive")
-                            + " raiders=" + raid.getTotalRaidersAlive()
-                            + " groups=" + raid.getGroupsSpawned()
-                            + " hero=" + playerA.hasEffect(MobEffects.HERO_OF_THE_VILLAGE));
+                    fail(world, geometry, "real raid did not reach victory and grant Hero of the Village" + " status=" + (raid.isVictory() ? "victory" : raid.isActive() ? "active" : "inactive") + " raiders=" + raid.getTotalRaidersAlive() + " groups=" + raid.getGroupsSpawned() + " hero=" + playerA.hasEffect(MobEffects.HERO_OF_THE_VILLAGE));
                 }
             }
             default -> throw new IllegalStateException("Unknown raid reload stage " + stage);
         }
     }
 
-    private static void prepare(ServerLevel world, RingGeometry geometry,
-                                ServerPlayer playerA, ServerPlayer playerB) {
+    private static void prepare(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
         preparePlayers(world, geometry, playerA, playerB);
         prepareChunksAndLane(world, geometry);
         world.getGameRules().set(GameRules.RAIDS, true, world.getServer());
@@ -224,32 +205,26 @@ public final class RingWorldRaidSeamTest {
         ensureOccupiedPois(world, geometry);
         if (terminal) return;
 
-        playerA.addEffect(new MobEffectInstance(MobEffects.RAID_OMEN, 1_200, 0));
+        playerA.addEffect(new MobEffectInstance(MobEffects.RAID_OMEN, 1200, 0));
         raid = world.getRaids().createOrExtendRaid(playerA, highSideProbe(geometry));
         BlockPos expectedCenter = new BlockPos(1, Y, Z);
-        boolean centre = raid != null && raid.getCenter().equals(expectedCenter)
-                && world.getRaidAt(highSideProbe(geometry)) == raid
-                && world.getRaidAt(lowSideProbe()) == raid;
+        boolean centre = raid != null && raid.getCenter().equals(expectedCenter) && world.getRaidAt(highSideProbe(geometry)) == raid && world.getRaidAt(lowSideProbe()) == raid;
         if (!centre) {
-            fail(world, geometry, "seam POIs did not create expected canonical center expected="
-                    + expectedCenter + " actual=" + (raid == null ? null : raid.getCenter()));
+            fail(world, geometry, "seam POIs did not create expected canonical center expected=" + expectedCenter + " actual=" + (raid == null ? null : raid.getCenter()));
             return;
         }
         ((RaidFixtureAccessor) raid).ringworld$setFixtureRaidCooldownTicks(20);
-        RingWorldMod.LOGGER.info("[raid-seam] arm-created center={} highProbe={} lowProbe={}",
-                raid.getCenter(), highSideProbe(geometry), lowSideProbe());
+        RingWorldMod.LOGGER.info("[raid-seam] arm-created center={} highProbe={} lowProbe={}", raid.getCenter(), highSideProbe(geometry), lowSideProbe());
     }
 
     private static void ensureOccupiedPois(ServerLevel world, RingGeometry geometry) {
         PoiManager pois = world.getPoiManager();
-        Holder<PoiType> home = world.registryAccess()
-                .lookupOrThrow(Registries.POINT_OF_INTEREST_TYPE).getOrThrow(PoiTypes.HOME);
+        Holder<PoiType> home = world.registryAccess().lookupOrThrow(Registries.POINT_OF_INTEREST_TYPE).getOrThrow(PoiTypes.HOME);
         for (BlockPos poi : List.of(highSidePoi(geometry), lowSidePoi())) {
             world.setBlock(poi, RingWorldVanillaFixtureRegistries.block("red_bed").defaultBlockState(), 3);
             pois.remove(poi);
             pois.add(poi, home);
-            boolean occupied = pois.take(holder -> holder.is(PoiTypeTags.VILLAGE),
-                    (holder, candidate) -> candidate.equals(poi), poi, 0).isPresent();
+            boolean occupied = pois.take(holder -> holder.is(PoiTypeTags.VILLAGE), (holder, candidate) -> candidate.equals(poi), poi, 0).isPresent();
             if (!occupied) {
                 fail(world, geometry, "could not occupy seam POI " + poi);
                 return;
@@ -258,14 +233,10 @@ public final class RingWorldRaidSeamTest {
     }
 
     private static boolean persistedOccupiedPoi(ServerLevel world, BlockPos expected) {
-        return world.getPoiManager().getInRange(
-                        holder -> holder.is(PoiTypeTags.VILLAGE), expected, 0,
-                        PoiManager.Occupancy.IS_OCCUPIED)
-                .anyMatch(record -> record.getPos().equals(expected));
+        return world.getPoiManager().getInRange(holder -> holder.is(PoiTypeTags.VILLAGE), expected, 0, PoiManager.Occupancy.IS_OCCUPIED).anyMatch(record -> record.getPos().equals(expected));
     }
 
-    private static void preparePlayers(ServerLevel world, RingGeometry geometry,
-                                       ServerPlayer playerA, ServerPlayer playerB) {
+    private static void preparePlayers(ServerLevel world, RingGeometry geometry, ServerPlayer playerA, ServerPlayer playerB) {
         for (ServerPlayer player : List.of(playerA, playerB)) {
             player.setGameMode(GameType.CREATIVE);
             player.getAbilities().flying = true;
@@ -273,10 +244,8 @@ public final class RingWorldRaidSeamTest {
             player.setHealth(player.getMaxHealth());
             player.setDeltaMovement(Vec3.ZERO);
         }
-        playerA.teleportTo(world, geometry.circumferenceBlocks() - 5.0, Y, Z + 0.5,
-                Set.<Relative>of(), 90.0f, 0.0f, false);
-        playerB.teleportTo(world, 2.5, Y, Z + 0.5,
-                Set.<Relative>of(), -90.0f, 0.0f, false);
+        playerA.teleportTo(world, geometry.circumferenceBlocks() - 5.0, Y, Z + 0.5, Set.<Relative>of(), 90.0f, 0.0f, false);
+        playerB.teleportTo(world, 2.5, Y, Z + 0.5, Set.<Relative>of(), -90.0f, 0.0f, false);
     }
 
     private static void prepareChunksAndLane(ServerLevel world, RingGeometry geometry) {
@@ -305,18 +274,14 @@ public final class RingWorldRaidSeamTest {
     }
 
     private static void armNavigation(ServerLevel world, RingGeometry geometry) {
-        navigationRaider.teleportTo(world, geometry.circumferenceBlocks() - 5.5, Y, Z + 0.5,
-                Set.<Relative>of(), 90.0f, 0.0f, false);
+        navigationRaider.teleportTo(world, geometry.circumferenceBlocks() - 5.5, Y, Z + 0.5, Set.<Relative>of(), 90.0f, 0.0f, false);
         navigationRaider.setDeltaMovement(Vec3.ZERO);
         navigationRaider.getNavigation().stop();
         navigationGoal = new PathfindToRaidGoal<>(navigationRaider);
         navigationGoal.tick();
         previousRaiderX = navigationRaider.getX();
         sawRaiderFold = false;
-        RingWorldMod.LOGGER.info("[raid-seam] restored raider navigation armed source={} target={} path={}",
-                navigationRaider.blockPosition(), navigationRaider.getNavigation().getTargetPos(),
-                navigationRaider.getNavigation().getPath() == null ? null
-                        : navigationRaider.getNavigation().getPath().getTarget());
+        RingWorldMod.LOGGER.info("[raid-seam] restored raider navigation armed source={} target={} path={}", navigationRaider.blockPosition(), navigationRaider.getNavigation().getTargetPos(), navigationRaider.getNavigation().getPath() == null ? null : navigationRaider.getNavigation().getPath().getTarget());
     }
 
     private static boolean bossbarContains(Raid raid, ServerPlayer player) {
