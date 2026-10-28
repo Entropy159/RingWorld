@@ -1,9 +1,9 @@
 package dev.ringworld.api;
 
+import dev.ringworld.Constants;
 import dev.ringworld.world.RingBuildingSettings;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingWorldSettings;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -14,11 +14,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class RingWorldApi {
     public static boolean isRingWorld(Level world) {
-        return isRingWorld(world.dimension());
-    }
-
-    public static boolean isRingWorld(ResourceKey<Level> dimension) {
-        return dimension == Level.OVERWORLD;
+        return world.dimensionTypeRegistration().is(Constants.RING_DIMENSION_TAG);
     }
 
     @Nullable

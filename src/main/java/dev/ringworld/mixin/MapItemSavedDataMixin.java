@@ -8,6 +8,9 @@ import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.saveddata.maps.MapBanner;
@@ -63,7 +66,7 @@ public abstract class MapItemSavedDataMixin {
      */
     @Inject(method = "addDecoration", at = @At("HEAD"))
     private void ringworld$captureDecorationContext(Holder<MapDecorationType> type, LevelAccessor level, String key, double xPos, double zPos, double yRot, Component name, CallbackInfo ci) {
-        ringworld$decorationGeometry = level instanceof ServerLevel world && RingWorldApi.isRingWorld(world) && RingWorldApi.isRingWorld(dimension) ? RingWorldServer.geometryFor(world) : null;
+        ringworld$decorationGeometry = level instanceof ServerLevel world && RingWorldApi.isRingWorld(world) ? RingWorldServer.geometryFor(world) : null;
         ringworld$decorationCanonicalX = xPos;
     }
 
@@ -85,7 +88,7 @@ public abstract class MapItemSavedDataMixin {
      */
     @Redirect(method = "toggleBanner", at = @At(value = "INVOKE", target = "Lnet/minecraft/core/BlockPos;getX()I"))
     private int ringworld$nearestBannerGateX(net.minecraft.core.BlockPos pos, LevelAccessor level, net.minecraft.core.BlockPos requestedPos) {
-        if (!(level instanceof ServerLevel world) || !RingWorldApi.isRingWorld(world) || !RingWorldApi.isRingWorld(dimension)) {
+        if (!(level instanceof ServerLevel world) || !RingWorldApi.isRingWorld(world)) {
             return pos.getX();
         }
         return RingMapCompassSupport.nearestMapBannerBlockX(RingWorldServer.geometryFor(world), pos.getX(), centerX);
@@ -97,8 +100,8 @@ public abstract class MapItemSavedDataMixin {
      * so old saved decorations receive the same nearest-image calculation.
      */
     @Inject(method = "tickCarriedBy", at = @At("TAIL"))
-    private void ringworld$alignStoredDecorationImages(net.minecraft.world.entity.player.Player player, net.minecraft.world.item.ItemStack map, net.minecraft.world.entity.decoration.ItemFrame frame, CallbackInfo ci) {
-        if (ringworld$storedDecorationImagesAligned || !(player.level() instanceof ServerLevel world) || !RingWorldApi.isRingWorld(world) || !RingWorldApi.isRingWorld(dimension))
+    private void ringworld$alignStoredDecorationImages(Player player, ItemStack map, ItemFrame frame, CallbackInfo ci) {
+        if (ringworld$storedDecorationImagesAligned || !(player.level() instanceof ServerLevel world) || !RingWorldApi.isRingWorld(world))
             return;
 
         for (MapBanner banner : bannerMarkers.values()) {

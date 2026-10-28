@@ -8,6 +8,18 @@ repositories {
 		name "CaffeineMC"
 		url "https://maven.caffeinemc.net/releases"
 	}
+
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
 }
 
 loom {
@@ -30,6 +42,7 @@ dependencies {
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	implementation "net.caffeinemc:sodium-fabric:${sodium_version}+mc${minecraft_version}"
+	localRuntime "maven.modrinth:mc-worlds:${worlds_version}+${minecraft_version}"
 }
 
 processResources {

@@ -8,6 +8,7 @@ import dev.ringworld.world.atlas.RingTerrainAtlas;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.LevelResource;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.List;
 
 /**
  * Immutable ring dimensions stored alongside a world once it is created.
@@ -23,7 +25,16 @@ public final class RingWorldSettings extends SavedData {
     public static final Identifier STORAGE_ID = RingWorldMod.id("settings");
     public static final String LEGACY_STORAGE_KEY = RingWorldMod.MOD_ID + "_settings";
     public static final int FORMAT_VERSION = 5;
-    private static final Codec<RingWorldSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.INT.fieldOf("width").forGetter(RingWorldSettings::widthBlocks), Codec.INT.fieldOf("circumference").forGetter(RingWorldSettings::circumferenceBlocks), Codec.LONG.fieldOf("seed").forGetter(RingWorldSettings::generatorSeed), Codec.INT.fieldOf("wallHeight").forGetter(RingWorldSettings::wallHeightBlocks), Codec.INT.optionalFieldOf("surfaceReferenceY", (int) RingGeometry.SURFACE_Y).forGetter(RingWorldSettings::surfaceReferenceY), Codec.INT.optionalFieldOf("terrainNoiseMapping", RingTerrainNoiseMapping.LEGACY_AXIAL).forGetter(RingWorldSettings::terrainNoiseMapping), RingWallStyle.CODEC.optionalFieldOf("wallStyle", RingWallStyle.LEGACY).forGetter(RingWorldSettings::wallStyle), RingWorldGenerationSettings.CODEC.optionalFieldOf("generation", RingWorldGenerationSettings.DEFAULT).forGetter(RingWorldSettings::generationSettings), Codec.INT.fieldOf("format").forGetter(RingWorldSettings::formatVersion)).apply(instance, RingWorldSettings::new));
+    private static final Codec<RingWorldSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.INT.fieldOf("width").forGetter(RingWorldSettings::widthBlocks),
+            Codec.INT.fieldOf("circumference").forGetter(RingWorldSettings::circumferenceBlocks),
+            Codec.LONG.fieldOf("seed").forGetter(RingWorldSettings::generatorSeed),
+            Codec.INT.fieldOf("wallHeight").forGetter(RingWorldSettings::wallHeightBlocks),
+            Codec.INT.optionalFieldOf("surfaceReferenceY", (int) RingGeometry.SURFACE_Y).forGetter(RingWorldSettings::surfaceReferenceY),
+            Codec.INT.optionalFieldOf("terrainNoiseMapping", RingTerrainNoiseMapping.LEGACY_AXIAL).forGetter(RingWorldSettings::terrainNoiseMapping),
+            RingWallStyle.CODEC.optionalFieldOf("wallStyle", RingWallStyle.LEGACY).forGetter(RingWorldSettings::wallStyle),
+            RingWorldGenerationSettings.CODEC.optionalFieldOf("generation", RingWorldGenerationSettings.DEFAULT).forGetter(RingWorldSettings::generationSettings),
+            Codec.INT.fieldOf("format").forGetter(RingWorldSettings::formatVersion)).apply(instance, RingWorldSettings::new));
     private static final SavedDataType<RingWorldSettings> TYPE = new SavedDataType<>(STORAGE_ID, RingWorldSettings::new, CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
     private final int widthBlocks;

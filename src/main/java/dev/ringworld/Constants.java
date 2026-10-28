@@ -3,6 +3,9 @@ package dev.ringworld;
 import dev.ringworld.world.RingLodQuality;
 import dev.ringworld.world.RingSkyProfile;
 import dev.ringworld.world.RingWorldCreationUiModel;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.dimension.DimensionType;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +33,8 @@ public final class Constants {
     public static final int MIN_CIRCUMFERENCE = 2048;
     public static final RingSkyProfile DEFAULT_SKY_PROFILE = new RingSkyProfile(RingSkyProfile.Backdrop.ATMOSPHERE, RingSkyProfile.LightSource.SMALL, RingSkyProfile.FORMAT_VERSION);
     public static final float SUN_ANGLE_OFFSET_Y = 20;
+
+    public static final TagKey<DimensionType> RING_DIMENSION_TAG = TagKey.create(Registries.DIMENSION_TYPE, RingWorldMod.id("ring"));
 
     public static Collection<RingWorldCreationUiModel.Preset> defaultPresets() {
         List<RingWorldCreationUiModel.Preset> presets = new ArrayList<>();

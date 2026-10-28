@@ -1,16 +1,23 @@
 package dev.ringworld.world;
 
+import com.google.gson.Gson;
 import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * Bootstrap settings used only while creating a world. Once a world has saved
