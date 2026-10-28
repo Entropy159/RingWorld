@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.world.atlas.RingTerrainAtlas;
+
 import java.util.Objects;
 import java.util.function.LongSupplier;
 

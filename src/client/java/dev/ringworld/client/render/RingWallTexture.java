@@ -2,6 +2,7 @@ package dev.ringworld.client.render;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.ringworld.world.*;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 import java.util.Arrays;
 

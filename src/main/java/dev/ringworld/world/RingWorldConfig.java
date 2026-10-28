@@ -2,6 +2,8 @@ package dev.ringworld.world;
 
 import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
+import dev.ringworld.world.atlas.RingAtlasFidelity;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -48,9 +50,9 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
                 throw new IllegalStateException("Could not read " + path, exception);
             }
         } else {
-            properties.setProperty("widthBlocks", Integer.toString(RingWorldSettings.DEFAULT_WIDTH));
-            properties.setProperty("circumferenceBlocks", Integer.toString(RingWorldSettings.DEFAULT_CIRCUMFERENCE));
-            properties.setProperty("wallHeightBlocks", Integer.toString(RingWorldSettings.DEFAULT_WALL_HEIGHT));
+            properties.setProperty("widthBlocks", Integer.toString(Constants.DEFAULT_WIDTH));
+            properties.setProperty("circumferenceBlocks", Integer.toString(Constants.DEFAULT_CIRCUMFERENCE));
+            properties.setProperty("wallHeightBlocks", Integer.toString(Constants.DEFAULT_WALL_HEIGHT));
             properties.setProperty("wallThicknessBlocks", Integer.toString(RingWallStyle.DEFAULT.thicknessBlocks()));
             properties.setProperty("wallPalette", Integer.toString(RingWallStyle.DEFAULT.palette().id()));
             properties.setProperty("wallPattern", Integer.toString(RingWallStyle.DEFAULT.pattern().id()));
@@ -72,9 +74,9 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
                 throw new IllegalStateException("Could not create " + path, exception);
             }
         }
-        int width = integer(properties, "widthBlocks", RingWorldSettings.DEFAULT_WIDTH);
-        int circumference = integer(properties, "circumferenceBlocks", RingWorldSettings.DEFAULT_CIRCUMFERENCE);
-        int wallHeight = integer(properties, "wallHeightBlocks", RingWorldSettings.DEFAULT_WALL_HEIGHT);
+        int width = integer(properties, "widthBlocks", Constants.DEFAULT_WIDTH);
+        int circumference = integer(properties, "circumferenceBlocks", Constants.DEFAULT_CIRCUMFERENCE);
+        int wallHeight = integer(properties, "wallHeightBlocks", Constants.DEFAULT_WALL_HEIGHT);
         RingWallStyle wallStyle = wallStyle(properties);
         RingSkyProfile skyProfile = skyProfile(properties);
         RingWorldGenerationSettings generationSettings = generationSettings(properties);
@@ -165,8 +167,8 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
 
     static void validateNewWorldLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, int rimThicknessBlocks, int atlasSampleStepBlocks) {
         RingGeometry geometry = new RingGeometry(widthBlocks, circumferenceBlocks);
-        if (circumferenceBlocks < RingWorldSettings.MIN_NEW_WORLD_CIRCUMFERENCE) {
-            throw new IllegalArgumentException("circumferenceBlocks must be at least " + RingWorldSettings.MIN_NEW_WORLD_CIRCUMFERENCE + " for a new RingWorld");
+        if (circumferenceBlocks < Constants.MIN_CIRCUMFERENCE) {
+            throw new IllegalArgumentException("circumferenceBlocks must be at least " + Constants.MIN_CIRCUMFERENCE + " for a new RingWorld");
         }
         RingDimensionReport.evaluate(geometry, wallHeightBlocks, Constants.DEFAULT_MIN_Y, Constants.DEFAULT_MAX_Y, rimThicknessBlocks, atlasSampleStepBlocks).requireValid();
     }

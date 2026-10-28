@@ -2,6 +2,9 @@ package dev.ringworld.server;
 
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.net.RingWorldNetworking;
+import dev.ringworld.server.atlas.FabricTerrainAtlasPlatform;
+import dev.ringworld.server.atlas.RingTerrainAtlasServer;
+import dev.ringworld.server.atlas.pregen.RingWorldHeadlessPrewarm;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -13,7 +16,6 @@ import net.minecraft.network.chat.Component;
  */
 public final class FabricRingWorldServer {
     public static void register() {
-        RingWorldServer.configurePreLoadRejectionHandler(RingWorldHeadlessPrewarm::recordPreLoadRejection);
         RingWorldHeadlessPrewarm.register();
         FabricTerrainAtlasPlatform.register();
         ServerTickEvents.END_LEVEL_TICK.register(world -> {

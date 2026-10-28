@@ -14,6 +14,7 @@ import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingClientLodTuning;
 import dev.ringworld.client.RingMinecraftClientAccess;
 import dev.ringworld.world.*;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;

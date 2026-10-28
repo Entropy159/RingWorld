@@ -2,6 +2,7 @@ package dev.ringworld.world;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.ringworld.world.atlas.RingAtlasFidelity;
 
 /**
  * Immutable optional world-generation choices selected before first load.

@@ -1,6 +1,6 @@
 package dev.ringworld.client.mixin;
 
-import dev.ringworld.client.RingWorldCreationScreen;
+import dev.ringworld.client.screen.RingWorldCreationScreen;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.tabs.GridLayoutTab;

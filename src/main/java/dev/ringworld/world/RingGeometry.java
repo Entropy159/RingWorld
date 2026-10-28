@@ -1,5 +1,6 @@
 package dev.ringworld.world;
 
+import dev.ringworld.Constants;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -12,10 +13,10 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
     public static final double SURFACE_Y = 64.0;
 
     public RingGeometry {
-        if (widthBlocks < RingWorldSettings.MIN_WIDTH || widthBlocks % 16 != 0) {
+        if (widthBlocks < Constants.MIN_WIDTH || widthBlocks % 16 != 0) {
             throw new IllegalArgumentException("width must be a positive 16-block multiple");
         }
-        if (circumferenceBlocks < RingWorldSettings.MIN_CIRCUMFERENCE || circumferenceBlocks % 16 != 0) {
+        if (circumferenceBlocks < Constants.MIN_CIRCUMFERENCE || circumferenceBlocks % 16 != 0) {
             throw new IllegalArgumentException("circumference must be a safe 16-block multiple");
         }
     }

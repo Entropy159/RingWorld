@@ -1,5 +1,6 @@
 package dev.ringworld.net;
 
+import dev.ringworld.Constants;
 import dev.ringworld.world.RingLayoutFingerprint;
 import dev.ringworld.world.RingSkyProfile;
 import dev.ringworld.world.RingWorldSettings;
@@ -12,7 +13,7 @@ public final class RingSettingsHandshake {
     }
 
     public static RingSettingsPayload payloadFor(RingWorldSettings settings) {
-        return payloadFor(settings, RingSkyProfile.DEFAULT);
+        return payloadFor(settings, Constants.DEFAULT_SKY_PROFILE);
     }
 
     public static RingSettingsPayload payloadFor(RingWorldSettings settings, RingSkyProfile skyProfile) {

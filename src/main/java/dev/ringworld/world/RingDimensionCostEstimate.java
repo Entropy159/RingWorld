@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.world.atlas.RingTerrainAtlas;
+
 /**
  * Measured-reference operational cost estimate for one immutable layout.
  *

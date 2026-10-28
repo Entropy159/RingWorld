@@ -10,8 +10,6 @@ import java.util.Arrays;
  */
 public record RingSkyProfile(Backdrop backdrop, LightSource lightSource, int formatVersion) {
     public static final int FORMAT_VERSION = 1;
-    public static final RingSkyProfile DEFAULT = new RingSkyProfile(Backdrop.ATMOSPHERE, LightSource.SMALL, FORMAT_VERSION);
-
     public static final Codec<RingSkyProfile> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.INT.fieldOf("backdrop").xmap(Backdrop::fromId, Backdrop::id).forGetter(RingSkyProfile::backdrop), Codec.INT.fieldOf("lightSource").xmap(LightSource::fromId, LightSource::id).forGetter(RingSkyProfile::lightSource), Codec.INT.fieldOf("format").forGetter(RingSkyProfile::formatVersion)).apply(instance, RingSkyProfile::new));
 
     public RingSkyProfile {
@@ -52,15 +50,17 @@ public record RingSkyProfile(Backdrop backdrop, LightSource lightSource, int for
     }
 
     public enum LightSource {
-        SMALL(0, "Small", 3.0F), LARGE(1, "Large", 15.0F), NONE(2, "None", 0.0F);
+        SMALL(0, "Small", "Sm", 3.0F), LARGE(1, "Large", "Lg", 15.0F), NONE(2, "None", "No", 0.0F), VANILLA(3, "Vanilla", "Va", 15);
 
         private final int id;
         private final String label;
+        private final String compact;
         private final float halfWidth;
 
-        LightSource(int id, String label, float halfWidth) {
+        LightSource(int id, String label, String compact, float halfWidth) {
             this.id = id;
             this.label = label;
+            this.compact = compact;
             this.halfWidth = halfWidth;
         }
 
@@ -70,6 +70,10 @@ public record RingSkyProfile(Backdrop backdrop, LightSource lightSource, int for
 
         public String label() {
             return label;
+        }
+
+        public String compact() {
+            return compact;
         }
 
         public float halfWidth() {

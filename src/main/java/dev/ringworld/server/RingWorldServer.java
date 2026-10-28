@@ -2,6 +2,7 @@ package dev.ringworld.server;
 
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.server.atlas.pregen.HeadlessPrewarmCoordinator;
 import dev.ringworld.world.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,7 +18,6 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
 
 /**
  * Server-authoritative seam and boundary behaviour.
@@ -25,16 +25,6 @@ import java.util.function.BiConsumer;
 public final class RingWorldServer {
     private static final Map<ServerLevel, RingGeometry> WORLD_GEOMETRY = new IdentityHashMap<>();
     private static final Map<ServerLevel, LinkedHashMap<Long, net.minecraft.world.level.chunk.LevelChunk>> PENDING_LEGACY_RIM_MIGRATIONS = new IdentityHashMap<>();
-    private static BiConsumer<net.minecraft.server.MinecraftServer, Throwable> PRE_LOAD_REJECTION_HANDLER = (server, failure) -> {
-    };
-
-    /**
-     * Installs the loader-owned headless-startup evidence hook.
-     */
-    public static void configurePreLoadRejectionHandler(BiConsumer<net.minecraft.server.MinecraftServer, Throwable> handler) {
-        PRE_LOAD_REJECTION_HANDLER = handler == null ? (server, failure) -> {
-        } : handler;
-    }
 
     /**
      * Queues safe deferred rim migration from a loader-owned chunk-load callback.
@@ -86,7 +76,7 @@ public final class RingWorldServer {
         try {
             return attachWorldGeometry(world);
         } catch (Throwable failure) {
-            PRE_LOAD_REJECTION_HANDLER.accept(world.getServer(), failure);
+            HeadlessPrewarmCoordinator.recordPreLoadRejection(world.getServer(), failure);
             throw failure;
         }
     }

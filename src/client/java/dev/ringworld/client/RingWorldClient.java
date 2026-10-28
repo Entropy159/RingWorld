@@ -5,6 +5,7 @@ import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.net.*;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingLodCommandSuggestions;
+import dev.ringworld.world.atlas.RingAtlasLightProfile;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -153,8 +154,8 @@ public final class RingWorldClient implements ClientModInitializer {
             }
             dispatcher.register(ClientCommands.literal("ringworld").then(ClientCommands.literal("building").then(outside)));
 
-            var falloff = ClientCommands.argument("falloff", FloatArgumentType.floatArg(dev.ringworld.world.RingAtlasLightProfile.MIN_FALLOFF, dev.ringworld.world.RingAtlasLightProfile.MAX_FALLOFF)).executes(context -> setGamma(context.getSource(), FloatArgumentType.getFloat(context, "falloff"), dev.ringworld.world.RingAtlasLightProfile.DEFAULT_GAMMA_PEAK));
-            falloff.then(ClientCommands.argument("peak", FloatArgumentType.floatArg(dev.ringworld.world.RingAtlasLightProfile.MIN_PEAK, dev.ringworld.world.RingAtlasLightProfile.MAX_PEAK)).executes(context -> setGamma(context.getSource(), FloatArgumentType.getFloat(context, "falloff"), FloatArgumentType.getFloat(context, "peak"))));
+            var falloff = ClientCommands.argument("falloff", FloatArgumentType.floatArg(RingAtlasLightProfile.MIN_FALLOFF, RingAtlasLightProfile.MAX_FALLOFF)).executes(context -> setGamma(context.getSource(), FloatArgumentType.getFloat(context, "falloff"), RingAtlasLightProfile.DEFAULT_GAMMA_PEAK));
+            falloff.then(ClientCommands.argument("peak", FloatArgumentType.floatArg(RingAtlasLightProfile.MIN_PEAK, RingAtlasLightProfile.MAX_PEAK)).executes(context -> setGamma(context.getSource(), FloatArgumentType.getFloat(context, "falloff"), FloatArgumentType.getFloat(context, "peak"))));
             var ringLights = ClientCommands.literal("ringlights").executes(context -> showAtlasLight(context.getSource())).then(ClientCommands.literal("show").executes(context -> showAtlasLight(context.getSource()))).then(ClientCommands.literal("reset").executes(context -> {
                 var profile = RingAtlasLightTuning.reset();
                 context.getSource().sendFeedback(Component.literal("Ring Atlas light: " + profile.summary()));

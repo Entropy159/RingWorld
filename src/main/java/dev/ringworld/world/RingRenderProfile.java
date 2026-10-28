@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.world.atlas.RingAtlasFidelity;
+
 /**
  * One dimension-aware visual/resource profile shared by Java renderers and
  * shader globals. Coverage distances include intrinsic horizontal blocks and

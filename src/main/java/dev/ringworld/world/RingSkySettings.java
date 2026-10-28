@@ -2,6 +2,7 @@ package dev.ringworld.world;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -16,7 +17,7 @@ import net.minecraft.world.level.storage.SavedDataStorage;
 public final class RingSkySettings extends SavedData {
     public static final Identifier STORAGE_ID = RingWorldMod.id("sky_settings");
     private static final Codec<RingSkySettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(RingSkyProfile.CODEC.fieldOf("profile").forGetter(RingSkySettings::profile)).apply(instance, RingSkySettings::new));
-    private static final SavedDataType<RingSkySettings> TYPE = new SavedDataType<>(STORAGE_ID, () -> new RingSkySettings(RingSkyProfile.DEFAULT), CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
+    private static final SavedDataType<RingSkySettings> TYPE = new SavedDataType<>(STORAGE_ID, () -> new RingSkySettings(Constants.DEFAULT_SKY_PROFILE), CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 
     private final RingSkyProfile profile;
 
@@ -32,7 +33,7 @@ public final class RingSkySettings extends SavedData {
         SavedDataStorage storage = world.getDataStorage();
         RingSkySettings saved = storage.get(TYPE);
         if (saved != null) return saved;
-        RingSkySettings fallback = new RingSkySettings(RingSkyProfile.DEFAULT);
+        RingSkySettings fallback = new RingSkySettings(Constants.DEFAULT_SKY_PROFILE);
         fallback.setDirty();
         storage.set(TYPE, fallback);
         return fallback;

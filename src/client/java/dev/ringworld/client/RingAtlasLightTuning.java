@@ -1,6 +1,6 @@
 package dev.ringworld.client;
 
-import dev.ringworld.world.RingAtlasLightProfile;
+import dev.ringworld.world.atlas.RingAtlasLightProfile;
 
 /**
  * Process-local Atlas lighting controls used by the dual-loader debug command.

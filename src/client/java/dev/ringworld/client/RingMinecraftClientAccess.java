@@ -4,20 +4,14 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
-import org.lwjgl.glfw.GLFW;
-
-import java.io.File;
-import java.util.function.Consumer;
 
 /**
  * Minecraft 26.2 client accessors retained behind the shared client source ABI.
@@ -28,13 +22,6 @@ public final class RingMinecraftClientAccess {
      */
     public static RandomState createPreviewRandomState(RegistryAccess.Frozen registries, Holder<NoiseGeneratorSettings> settings, ResourceKey<NoiseGeneratorSettings> settingsKey, long seed) {
         return RandomState.create(registries, settingsKey, seed);
-    }
-
-    /**
-     * Reveal an opt-in hidden review window without activating the desktop app.
-     */
-    public static void showBackgroundReviewWindow(Minecraft client) {
-        GLFW.glfwShowWindow(client.getWindow().handle());
     }
 
     public static int maxTextureSize() {
@@ -77,7 +64,4 @@ public final class RingMinecraftClientAccess {
         client.levelRenderer.sectionOcclusionGraph().invalidate();
     }
 
-    public static void grabScreenshot(File gameDirectory, String name, RenderTarget target, int scale, Consumer<Component> callback) {
-        Screenshot.grab(gameDirectory, name, target, scale, callback);
-    }
 }

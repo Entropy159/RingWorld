@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.world.atlas.RingTerrainAtlas;
+
 /**
  * Local display choices. These IDs are not saved generation settings or network values.
  */

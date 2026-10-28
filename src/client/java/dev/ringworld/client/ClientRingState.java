@@ -1,10 +1,13 @@
 package dev.ringworld.client;
 
+import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.net.RingTerrainAtlasMetadataPayload;
 import dev.ringworld.net.RingTerrainPreviewPayload;
 import dev.ringworld.world.*;
+import dev.ringworld.world.atlas.RingAtlasCacheWriter;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.Nullable;
 
@@ -24,7 +27,7 @@ public final class ClientRingState {
     private static volatile RingWallStyle wallStyle = RingWallStyle.LEGACY;
     private static volatile boolean outsideBuilding = true;
     private static volatile boolean canControlBuilding;
-    private static volatile RingSkyProfile skyProfile = RingSkyProfile.DEFAULT;
+    private static volatile RingSkyProfile skyProfile = Constants.DEFAULT_SKY_PROFILE;
     private static volatile RingWorldGenerationSettings generationSettings = RingWorldGenerationSettings.DEFAULT;
     private static volatile long generatorSeed;
     private static volatile long layoutFingerprint;
@@ -49,7 +52,7 @@ public final class ClientRingState {
     private static long terrainAtlasPendingSinceMillis;
     private static long lastTerrainAtlasChangeMillis;
     private static Path cacheDirectory = Path.of("ringworld-cache");
-    private static final dev.ringworld.world.RingAtlasCacheWriter CACHE_WRITER = new dev.ringworld.world.RingAtlasCacheWriter();
+    private static final RingAtlasCacheWriter CACHE_WRITER = new RingAtlasCacheWriter();
     private static java.util.concurrent.CompletableFuture<Void> terrainAtlasSave;
 
     private ClientRingState() {
@@ -68,11 +71,11 @@ public final class ClientRingState {
     }
 
     public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, RingWallStyle.LEGACY, RingSkyProfile.DEFAULT, newLayoutFingerprint);
+        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, RingWallStyle.LEGACY, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
     }
 
     public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, RingSkyProfile.DEFAULT, newLayoutFingerprint);
+        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
     }
 
     public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newLayoutFingerprint) {
@@ -351,7 +354,7 @@ public final class ClientRingState {
      * Raw teardown assertion; unlike {@link #geometry()}, this does not depend on the active level.
      */
     public static boolean sessionCleared() {
-        return geometry == null && wallHeightBlocks == 0 && surfaceReferenceY == 0 && terrainNoiseMapping == 0 && settingsFormatVersion == 0 && wallStyle.equals(RingWallStyle.LEGACY) && skyProfile.equals(RingSkyProfile.DEFAULT) && outsideBuilding && !canControlBuilding && generationSettings.equals(RingWorldGenerationSettings.DEFAULT) && generatorSeed == 0L && layoutFingerprint == 0L && cameraPosition == null && cameraSeamCrossings == 0L && seamCorrectionPackets == 0L && terrainAtlas == null && terrainPreview == null && terrainPreviewStage == -1 && serverAtlasWorldHash == 0L && !hasServerAtlasWorldHash && terrainAtlasCachePath == null && !terrainAtlasDirty && !terrainAtlasPendingRender;
+        return geometry == null && wallHeightBlocks == 0 && surfaceReferenceY == 0 && terrainNoiseMapping == 0 && settingsFormatVersion == 0 && wallStyle.equals(RingWallStyle.LEGACY) && skyProfile.equals(Constants.DEFAULT_SKY_PROFILE) && outsideBuilding && !canControlBuilding && generationSettings.equals(RingWorldGenerationSettings.DEFAULT) && generatorSeed == 0L && layoutFingerprint == 0L && cameraPosition == null && cameraSeamCrossings == 0L && seamCorrectionPackets == 0L && terrainAtlas == null && terrainPreview == null && terrainPreviewStage == -1 && serverAtlasWorldHash == 0L && !hasServerAtlasWorldHash && terrainAtlasCachePath == null && !terrainAtlasDirty && !terrainAtlasPendingRender;
     }
 
     /**
@@ -423,7 +426,7 @@ public final class ClientRingState {
         terrainNoiseMapping = 0;
         settingsFormatVersion = 0;
         wallStyle = RingWallStyle.LEGACY;
-        skyProfile = RingSkyProfile.DEFAULT;
+        skyProfile = Constants.DEFAULT_SKY_PROFILE;
         outsideBuilding = true;
         canControlBuilding = false;
         generationSettings = RingWorldGenerationSettings.DEFAULT;

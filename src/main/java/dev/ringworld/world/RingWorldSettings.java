@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
@@ -22,24 +23,6 @@ public final class RingWorldSettings extends SavedData {
     public static final Identifier STORAGE_ID = RingWorldMod.id("settings");
     public static final String LEGACY_STORAGE_KEY = RingWorldMod.MOD_ID + "_settings";
     public static final int FORMAT_VERSION = 5;
-    public static final int DEFAULT_WIDTH = 256;
-    public static final int DEFAULT_CIRCUMFERENCE = 16384;
-    /**
-     * 160 blocks from minimum build height: a visible top near Y=96 in vanilla terrain.
-     */
-    public static final int DEFAULT_WALL_HEIGHT = 160;
-    /**
-     * Structural geometry/storage minimum; persisted worlds may use this width.
-     */
-    public static final int MIN_WIDTH = 128;
-    /**
-     * Bootstrap layouts below this circumference are not offered for new worlds.
-     */
-    public static final int MIN_NEW_WORLD_CIRCUMFERENCE = 2048;
-    /**
-     * Structural loading minimum retained for persisted legacy layouts.
-     */
-    public static final int MIN_CIRCUMFERENCE = 1024;
     private static final Codec<RingWorldSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.INT.fieldOf("width").forGetter(RingWorldSettings::widthBlocks), Codec.INT.fieldOf("circumference").forGetter(RingWorldSettings::circumferenceBlocks), Codec.LONG.fieldOf("seed").forGetter(RingWorldSettings::generatorSeed), Codec.INT.fieldOf("wallHeight").forGetter(RingWorldSettings::wallHeightBlocks), Codec.INT.optionalFieldOf("surfaceReferenceY", (int) RingGeometry.SURFACE_Y).forGetter(RingWorldSettings::surfaceReferenceY), Codec.INT.optionalFieldOf("terrainNoiseMapping", RingTerrainNoiseMapping.LEGACY_AXIAL).forGetter(RingWorldSettings::terrainNoiseMapping), RingWallStyle.CODEC.optionalFieldOf("wallStyle", RingWallStyle.LEGACY).forGetter(RingWorldSettings::wallStyle), RingWorldGenerationSettings.CODEC.optionalFieldOf("generation", RingWorldGenerationSettings.DEFAULT).forGetter(RingWorldSettings::generationSettings), Codec.INT.fieldOf("format").forGetter(RingWorldSettings::formatVersion)).apply(instance, RingWorldSettings::new));
     private static final SavedDataType<RingWorldSettings> TYPE = new SavedDataType<>(STORAGE_ID, RingWorldSettings::new, CODEC, DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
 

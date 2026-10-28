@@ -3,7 +3,7 @@ package dev.ringworld.client.mixin;
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingPosition;
-import dev.ringworld.world.RingTerrainAtlas;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 import dev.ringworld.world.RingTerrainNoiseMapping;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;

@@ -1,6 +1,7 @@
 package dev.ringworld.world;
 
 import dev.ringworld.Constants;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 import java.util.ArrayList;
 import java.util.List;

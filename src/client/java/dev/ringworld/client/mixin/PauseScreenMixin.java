@@ -1,7 +1,7 @@
 package dev.ringworld.client.mixin;
 
 import dev.ringworld.client.RingMinecraftClientAccess;
-import dev.ringworld.client.RingWorldMapScreen;
+import dev.ringworld.client.screen.RingWorldMapScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;

@@ -1,6 +1,7 @@
 package dev.ringworld.world;
 
 import dev.ringworld.Constants;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,10 +17,9 @@ import java.util.Locale;
  * after this model has accepted the values.</p>
  */
 public final class RingWorldCreationUiModel {
-    public static final ArrayList<Preset> PRESETS = new ArrayList<>();
-    public static final Preset SMALL = new Preset("Small", 2048, 128, 160, "Strong curvature; monuments unavailable.", "Small is experimental: portal may need mining.");
-    public static final Preset MEDIUM = new Preset("Medium", RingWorldSettings.DEFAULT_CIRCUMFERENCE, RingWorldSettings.DEFAULT_WIDTH, RingWorldSettings.DEFAULT_WALL_HEIGHT, "Balanced default.", "Medium is the recommended starting size.");
-    public static final Preset LARGE = new Preset("Large", 32768, 512, 160, "Long lap; slower generation.", "Large may take longer to generate.");
+    public static final ArrayList<Preset> PRESETS = new ArrayList<>() {{
+        addAll(Constants.defaultPresets());
+    }};
     public static final String MONUMENT_COPY = "One monument search runs on first load; its result is saved.";
 
     public record Preset(String label, int circumferenceBlocks, int widthBlocks, int wallHeightBlocks,
@@ -29,7 +29,6 @@ public final class RingWorldCreationUiModel {
             if (description == null || description.isBlank()) {
                 throw new IllegalArgumentException("preset description is required");
             }
-            PRESETS.add(this);
         }
     }
 
@@ -157,7 +156,7 @@ public final class RingWorldCreationUiModel {
     }
 
     public static String confirmationCopy(RingDimensionReport report, boolean requestOceanMonument, RingWallStyle wallStyle) {
-        return confirmationCopy(report, requestOceanMonument, wallStyle, RingSkyProfile.DEFAULT);
+        return confirmationCopy(report, requestOceanMonument, wallStyle, Constants.DEFAULT_SKY_PROFILE);
     }
 
     public static String confirmationCopy(RingDimensionReport report, boolean requestOceanMonument, RingWallStyle wallStyle, RingSkyProfile skyProfile) {
@@ -185,15 +184,15 @@ public final class RingWorldCreationUiModel {
     }
 
     private static void validateWidth(int width, List<String> errors) {
-        if (width < RingWorldSettings.MIN_WIDTH) {
-            errors.add("Width must be at least " + RingWorldSettings.MIN_WIDTH + " blocks.");
+        if (width < Constants.MIN_WIDTH) {
+            errors.add("Width must be at least " + Constants.MIN_WIDTH + " blocks.");
         }
         if (width % 16 != 0) errors.add("Width must be a multiple of 16 blocks.");
     }
 
     private static void validateCircumference(int circumference, List<String> errors) {
-        if (circumference < RingWorldSettings.MIN_NEW_WORLD_CIRCUMFERENCE) {
-            errors.add("Circumference must be at least " + RingWorldSettings.MIN_NEW_WORLD_CIRCUMFERENCE + " blocks for a new world.");
+        if (circumference < Constants.MIN_CIRCUMFERENCE) {
+            errors.add("Circumference must be at least " + Constants.MIN_CIRCUMFERENCE + " blocks for a new world.");
         }
         if (circumference % 16 != 0) {
             errors.add("Circumference must be a multiple of 16 blocks.");

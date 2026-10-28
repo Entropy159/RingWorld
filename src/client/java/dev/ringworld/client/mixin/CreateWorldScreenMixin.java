@@ -1,6 +1,7 @@
 package dev.ringworld.client.mixin;
 
-import dev.ringworld.client.RingWorldCreationScreen;
+import dev.ringworld.client.screen.RingWorldCreationScreen;
+import dev.ringworld.client.screen.RingWorldEditorScreen;
 import dev.ringworld.world.RingWorldConfig;
 import dev.ringworld.world.RingWorldCreationUiModel;
 import net.minecraft.client.gui.components.Button;
@@ -35,7 +36,7 @@ public abstract class CreateWorldScreenMixin extends Screen implements RingWorld
     private LayoutElement ringworld$addLayoutButton(HeaderAndFooterLayout layout, LayoutElement footerElement) {
         RingWorldConfig config = RingWorldConfig.load();
         LinearLayout footer = (LinearLayout) footerElement;
-        ringworld$layoutButton = footer.addChild(Button.builder(ringworld$buttonLabel(config), button -> dev.ringworld.client.RingMinecraftClientAccess.setScreen(minecraft, new dev.ringworld.client.RingWorldEditorScreen(this))).width(120).build());
+        ringworld$layoutButton = footer.addChild(Button.builder(ringworld$buttonLabel(config), button -> dev.ringworld.client.RingMinecraftClientAccess.setScreen(minecraft, new RingWorldEditorScreen(this))).width(120).build());
         ringworld$layoutButton.setTooltip(ringworld$buttonTooltip(config));
         return layout.addToFooter(footerElement);
     }

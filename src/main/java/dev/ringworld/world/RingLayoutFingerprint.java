@@ -50,7 +50,7 @@ public final class RingLayoutFingerprint {
         return mix(value ^ (Integer.toUnsignedLong(RingGenerationBoundary.RIM_STYLE_VERSION) << 25));
     }
 
-    static long mix(long value) {
+    public static long mix(long value) {
         value ^= value >>> 30;
         value *= 0xBF58476D1CE4E5B9L;
         value ^= value >>> 27;

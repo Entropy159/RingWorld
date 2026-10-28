@@ -1,6 +1,8 @@
 package dev.ringworld.world;
 
 import dev.ringworld.Constants;
+import dev.ringworld.world.atlas.RingAtlasFidelity;
+import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 import java.util.Objects;
 

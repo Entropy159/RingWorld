@@ -1,6 +1,6 @@
 package dev.ringworld.client;
 
-import dev.ringworld.world.RingAtlasHudProgress;
+import dev.ringworld.world.atlas.RingAtlasHudProgress;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;

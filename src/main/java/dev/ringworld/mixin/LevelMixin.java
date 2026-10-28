@@ -1,6 +1,6 @@
 package dev.ringworld.mixin;
 
-import dev.ringworld.server.RingAtlasPregenerationService;
+import dev.ringworld.server.atlas.pregen.RingAtlasPregenerationService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;

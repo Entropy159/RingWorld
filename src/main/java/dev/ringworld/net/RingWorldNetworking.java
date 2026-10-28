@@ -1,8 +1,8 @@
 package dev.ringworld.net;
 
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.server.HeadlessPrewarmCoordinator;
-import dev.ringworld.server.RingTerrainAtlasServer;
+import dev.ringworld.server.atlas.pregen.HeadlessPrewarmCoordinator;
+import dev.ringworld.server.atlas.RingTerrainAtlasServer;
 import dev.ringworld.world.RingSkySettings;
 import dev.ringworld.world.RingWorldSettings;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;

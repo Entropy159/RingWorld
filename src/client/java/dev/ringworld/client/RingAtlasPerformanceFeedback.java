@@ -1,6 +1,6 @@
 package dev.ringworld.client;
 
-import dev.ringworld.server.RingAtlasPregenerationService;
+import dev.ringworld.server.atlas.pregen.RingAtlasPregenerationService;
 import net.minecraft.client.Minecraft;
 
 /**
