@@ -1,5 +1,7 @@
 package dev.ringworld.net;
 
+import net.minecraft.server.level.ServerLevel;
+
 import java.util.*;
 
 /**
@@ -11,10 +13,12 @@ public final class RingHandshakeTracker {
 
     private final Map<UUID, Long> pendingDeadlines = new HashMap<>();
     private final Set<UUID> acknowledged = new HashSet<>();
+    private final Map<UUID, ServerLevel> levels = new HashMap<>();
 
-    public void begin(UUID playerId, long currentTick) {
+    public void begin(UUID playerId, long currentTick, ServerLevel level) {
         acknowledged.remove(playerId);
         pendingDeadlines.put(playerId, Math.addExact(currentTick, ACK_TIMEOUT_TICKS));
+        levels.put(playerId, level);
     }
 
     public AcknowledgementResult acknowledge(UUID playerId) {
@@ -27,6 +31,10 @@ public final class RingHandshakeTracker {
 
     public boolean isAcknowledged(UUID playerId) {
         return acknowledged.contains(playerId);
+    }
+
+    public ServerLevel getLevel(UUID playerId) {
+        return levels.get(playerId);
     }
 
     public Set<UUID> expire(long currentTick) {
@@ -44,6 +52,7 @@ public final class RingHandshakeTracker {
     public void clear(UUID playerId) {
         pendingDeadlines.remove(playerId);
         acknowledged.remove(playerId);
+        levels.remove(playerId);
     }
 
     public enum AcknowledgementResult {

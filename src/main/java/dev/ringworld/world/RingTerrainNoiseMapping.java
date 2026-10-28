@@ -31,9 +31,6 @@ public final class RingTerrainNoiseMapping {
      */
     public static final double MINIMUM_NOISE_RADIUS_BLOCKS = 32.0;
 
-    private RingTerrainNoiseMapping() {
-    }
-
     public static int forSettingsFormat(int settingsFormat) {
         return settingsFormat >= 3 ? CURRENT : LEGACY_AXIAL;
     }
@@ -58,16 +55,6 @@ public final class RingTerrainNoiseMapping {
         };
     }
 
-    /**
-     * New-world-only safety rule. Persisted legacy worlds are not revalidated through it.
-     */
-    public static void requireSafeNewWorldGeometry(RingGeometry geometry) {
-        double minimumRadius = minimumSampledRadius(geometry);
-        if (minimumRadius < MINIMUM_NOISE_RADIUS_BLOCKS) {
-            throw new IllegalArgumentException("circumference is too small for the selected width's periodic terrain-noise band; " + "minimum sampled radius=" + String.format(java.util.Locale.ROOT, "%.2f", minimumRadius) + ", required=" + String.format(java.util.Locale.ROOT, "%.2f", MINIMUM_NOISE_RADIUS_BLOCKS));
-        }
-    }
-
     public static double minimumSampledRadius(RingGeometry geometry) {
         return geometry.radius() + geometry.minWidthZ() - QUERY_MARGIN_BLOCKS;
     }
@@ -78,15 +65,5 @@ public final class RingTerrainNoiseMapping {
     public static int carverSeedChunkX(RingGeometry geometry, int mapping, int sourceChunkX) {
         requireSupported(mapping);
         return mapping >= ANNULAR_COMPLETE ? Math.floorMod(sourceChunkX, geometry.circumferenceChunks()) : sourceChunkX;
-    }
-
-    static ContinuousCoordinate continuousAnnular(RingGeometry geometry, double sourceX, double sourceZ) {
-        double canonicalX = geometry.wrapX(sourceX);
-        double angle = Math.PI * 2.0 * canonicalX / geometry.circumferenceBlocks();
-        double radius = geometry.radius() + sourceZ;
-        return new ContinuousCoordinate(radius * Math.sin(angle), radius * Math.cos(angle));
-    }
-
-    record ContinuousCoordinate(double x, double z) {
     }
 }

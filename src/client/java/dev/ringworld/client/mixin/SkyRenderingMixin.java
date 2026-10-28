@@ -142,16 +142,27 @@ public abstract class SkyRenderingMixin {
     }
 
     @ModifyConstant(method = "renderSunMoonAndStars", constant = @Constant(floatValue = -90))
-    private float sunAngle(float constant) {
+    private float sunAngleY(float constant) {
         if (!notVanilla()) {
             constant += Constants.SUN_ANGLE_OFFSET_Y;
         }
         return constant;
     }
 
+    @Inject(method = "renderSunMoonAndStars", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", ordinal = 1))
+    private void sunAngleZ(PoseStack poseStack, float sunAngle, float moonAngle, float starAngle, MoonPhase moonPhase, float rainBrightness, float starBrightness, CallbackInfo ci) {
+        if (!notVanilla()) {
+            poseStack.pushPose();
+            poseStack.mulPose(Axis.ZP.rotationDegrees(Constants.SUN_ANGLE_OFFSET_Z));
+        }
+    }
+
     @Inject(method = "renderSunMoonAndStars", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", ordinal = 2))
     private void resetAngle(PoseStack poseStack, float sunAngle, float moonAngle, float starAngle, MoonPhase moonPhase, float rainBrightness, float starBrightness, CallbackInfo ci) {
         poseStack.popPose();
+        if (!notVanilla()) {
+            poseStack.popPose(); //Remove Z rotation
+        }
         poseStack.pushPose();
         poseStack.mulPose(Axis.YP.rotationDegrees(-90));
     }

@@ -35,7 +35,6 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
      */
     public static final int MAX_CIRCUMFERENCE_SEGMENTS = 2048;
     public static final int MAX_WIDTH_BANDS = 128;
-    public static final int POSITION_TEXTURE_COLOR_VERTEX_BYTES = 24;
     public static final double REVEAL_NEAR = 0.82;
     public static final double REVEAL_FAR = 0.98;
     public static final double HAZE_NEAR = 0.04;
@@ -69,8 +68,6 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
         double proxyEnd = Math.clamp(proxyStart + 16.0, effective * PROXY_FADE_END_FACTOR, half);
         double detailStart = effective * DETAIL_START_FACTOR;
         double detailEnd = Math.clamp(detailStart + 16.0, effective * DETAIL_END_FACTOR, half);
-        double cloudEnd = Math.min(effective * 0.82, geometry.circumferenceBlocks() * 0.12);
-        double cloudStart = Math.clamp(cloudEnd * 0.55, 8.0, cloudEnd);
 
         int textureColumns = Math.min(geometry.circumferenceBlocks(), maxColumns);
         int textureRows = Math.min(geometry.widthBlocks(), maxRows);
@@ -78,40 +75,7 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
         int widthBands = Math.min(divideCeil(geometry.widthBlocks(), meshStep), MAX_WIDTH_BANDS);
         long vertices = Math.multiplyExact(Math.multiplyExact((long) circumferenceSegments, widthBands), 6L);
 
-        return new RingRenderProfile(VISUAL_PROFILE_VERSION, viewDistanceBlocks, effective, half, liveStart, liveEnd, proxyStart, proxyEnd, detailStart, detailEnd, REVEAL_NEAR, REVEAL_FAR, HAZE_NEAR, HAZE_FAR, HAZE_EXPONENT, cloudStart, cloudEnd, textureColumns, textureRows, circumferenceSegments, widthBands, vertices, (double) geometry.circumferenceBlocks() / textureColumns, (double) geometry.widthBlocks() / textureRows);
-    }
-
-    public boolean wholeRingViewRequested() {
-        return requestedViewDistanceBlocks >= halfCircumferenceBlocks;
-    }
-
-    /**
-     * RGBA8 base texture plus the renderer's complete filtered mip chain.
-     */
-    public long estimatedGpuTextureBytes() {
-        int width = textureColumns;
-        int height = textureRows;
-        long texels = 0L;
-        while (true) {
-            texels = Math.addExact(texels, Math.multiplyExact((long) width, height));
-            if (Math.min(width, height) <= 1) break;
-            width = Math.max(1, width >> 1);
-            height = Math.max(1, height >> 1);
-        }
-        return Math.multiplyExact(texels, 4L);
-    }
-
-    public long estimatedGpuMeshBytes() {
-        return Math.multiplyExact(vertexCount, POSITION_TEXTURE_COLOR_VERTEX_BYTES);
-    }
-
-    /**
-     * Conservative peak for expanded ARGB pixels, float heights, and one
-     * NativeImage upload at base resolution.
-     */
-    public long estimatedTextureBuildScratchBytes() {
-        long texels = Math.multiplyExact((long) textureColumns, textureRows);
-        return Math.multiplyExact(texels, 12L);
+        return new RingRenderProfile(VISUAL_PROFILE_VERSION, viewDistanceBlocks, effective, half, liveStart, liveEnd, proxyStart, proxyEnd, detailStart, detailEnd, REVEAL_NEAR, REVEAL_FAR, HAZE_NEAR, HAZE_FAR, HAZE_EXPONENT, half, half, textureColumns, textureRows, circumferenceSegments, widthBands, vertices, (double) geometry.circumferenceBlocks() / textureColumns, (double) geometry.widthBlocks() / textureRows);
     }
 
     private static int divideCeil(int value, int divisor) {

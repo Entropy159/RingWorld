@@ -3,6 +3,7 @@ package dev.ringworld.net;
 import dev.ringworld.Constants;
 import dev.ringworld.world.RingLayoutFingerprint;
 import dev.ringworld.world.RingSkyProfile;
+import dev.ringworld.world.RingTerrainNoiseMapping;
 import dev.ringworld.world.RingWorldSettings;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -23,7 +24,7 @@ public final class RingSettingsHandshake {
      * Recomputes the identity from every settings field carried on the wire.
      */
     public static long fingerprintFor(RingSettingsPayload payload) {
-        dev.ringworld.world.RingTerrainNoiseMapping.requireSupported(payload.terrainNoiseMapping());
+        RingTerrainNoiseMapping.requireSupported(payload.terrainNoiseMapping());
         return RingLayoutFingerprint.compute(payload.width(), payload.circumference(), payload.seed(), payload.wallHeight(), payload.surfaceReferenceY(), payload.terrainNoiseMapping(), payload.wallStyle(), payload.generationSettings(), payload.formatVersion());
     }
 

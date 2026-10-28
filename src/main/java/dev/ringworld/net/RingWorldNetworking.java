@@ -24,9 +24,6 @@ import java.util.UUID;
 public final class RingWorldNetworking {
     private static final RingHandshakeTracker HANDSHAKES = new RingHandshakeTracker();
 
-    private RingWorldNetworking() {
-    }
-
     public static void registerPayloads() {
         PayloadTypeRegistry.clientboundPlay().register(RingSettingsPayload.ID, RingSettingsPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingSkyProfilePayload.ID, RingSkyProfilePayload.CODEC);
@@ -87,12 +84,12 @@ public final class RingWorldNetworking {
             return;
         }
         RingWorldSettings settings = RingWorldSettings.get(level);
-        HANDSHAKES.begin(handler.player.getUUID(), handler.player.level().getServer().getTickCount());
+        HANDSHAKES.begin(handler.player.getUUID(), handler.player.level().getServer().getTickCount(), level);
         ServerPlayNetworking.send(handler.player, RingSettingsHandshake.payloadFor(level.dimension(), settings, RingSkySettings.get(level).profile()));
     }
 
     private static void validateAcknowledgement(RingSettingsAckPayload payload, ServerGamePacketListenerImpl handler) {
-        ServerLevel level = handler.player.level();
+        ServerLevel level = HANDSHAKES.getLevel(handler.player.getUUID());
         RingWorldSettings settings = RingWorldSettings.get(level);
         if (!RingSettingsHandshake.accepts(settings, payload)) {
             HANDSHAKES.clear(handler.player.getUUID());

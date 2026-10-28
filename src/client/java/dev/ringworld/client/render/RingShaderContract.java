@@ -8,7 +8,6 @@ import net.minecraft.resources.Identifier;
  */
 public final class RingShaderContract {
     public static final String UNIFORM = "RingWorld";
-    public static final int UNIFORM_BYTES = 11 * 16;
 
     /**
      * Keep adapted entry points in our namespace, leaving stock assets untouched.

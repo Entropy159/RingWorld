@@ -17,6 +17,7 @@ public final class Constants {
     public static final int MIN_WALL_HEIGHT_BLOCKS = 32;
     public static final int MIN_RADIAL_CLEARANCE_BLOCKS = 64;
     public static final int CLOUD_CLEARANCE_BLOCKS = 48; //Default: 8
+    public static final float CLOUD_FADE_BLOCKS = 16;
     public static final int MIN_PLAYABLE_INTERIOR_BLOCKS = 64;
     public static final double NORMAL_WALKING_SPEED_BLOCKS_PER_SECOND = 4.317;
     public static final int MAX_AXIS_BLOCKS = 1048576;
@@ -33,6 +34,7 @@ public final class Constants {
     public static final int MIN_CIRCUMFERENCE = 2048;
     public static final RingSkyProfile DEFAULT_SKY_PROFILE = new RingSkyProfile(RingSkyProfile.Backdrop.ATMOSPHERE, RingSkyProfile.LightSource.SMALL, RingSkyProfile.FORMAT_VERSION);
     public static final float SUN_ANGLE_OFFSET_Y = 20;
+    public static final float SUN_ANGLE_OFFSET_Z = 20;
 
     public static final TagKey<DimensionType> RING_DIMENSION_TAG = TagKey.create(Registries.DIMENSION_TYPE, RingWorldMod.id("ring"));
 

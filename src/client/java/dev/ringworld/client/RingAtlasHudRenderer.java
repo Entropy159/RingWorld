@@ -16,9 +16,6 @@ public final class RingAtlasHudRenderer {
     private static final int BACKGROUND = 0xA0000000;
     private static final int TEXT = 0xFFFFFFFF;
 
-    private RingAtlasHudRenderer() {
-    }
-
     public static void render(GuiGraphicsExtractor graphics, Minecraft minecraft) {
         var atlas = ClientRingState.terrainAtlas();
         if (atlas == null) return;
