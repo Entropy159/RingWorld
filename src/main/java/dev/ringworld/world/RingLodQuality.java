@@ -52,7 +52,7 @@ public enum RingLodQuality {
      */
     public RingTerrainAtlas displaySnapshot(RingTerrainAtlas source) {
         if (!source.isComplete() || sampleStep <= source.sampleStep()) return source.snapshot();
-        var result = new RingTerrainAtlas(source.geometry(), source.worldHash(), sampleStep);
+        var result = new RingTerrainAtlas(source.geometry(), source.dimension(), source.worldHash(), sampleStep);
         for (int row = 0; row < result.rows(); row++) {
             int sourceRow = Math.min(source.rows() - 1, (row * sampleStep + sampleStep / 2) / source.sampleStep());
             for (int col = 0; col < result.columns(); col++) {

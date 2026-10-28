@@ -55,7 +55,7 @@ public final class RingWorldClient implements ClientModInitializer {
                 return;
             }
             clearRingSession();
-            ClientRingState.set(new RingGeometry(payload.width(), payload.circumference()), payload.wallHeight(), payload.surfaceReferenceY(), payload.terrainNoiseMapping(), payload.wallStyle(), payload.skyProfile(), payload.generationSettings(), payload.seed(), payload.formatVersion(), fingerprint);
+            ClientRingState.set(new RingGeometry(payload.width(), payload.circumference()), payload.dimension(), payload.wallHeight(), payload.surfaceReferenceY(), payload.terrainNoiseMapping(), payload.wallStyle(), payload.skyProfile(), payload.generationSettings(), payload.seed(), payload.formatVersion(), fingerprint);
             RingClientPayloadTransport.send(RingSettingsHandshake.acknowledgementFor(payload));
         }));
         ClientPlayNetworking.registerGlobalReceiver(dev.ringworld.net.RingBuildingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.setBuildingSettings(payload)));
@@ -78,7 +78,7 @@ public final class RingWorldClient implements ClientModInitializer {
                 }
                 return;
             }
-            RingClientPayloadTransport.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
+            RingClientPayloadTransport.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
         }));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data())));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.commitTerrainAtlasRevision(payload.worldHash(), payload.revision())));

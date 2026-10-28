@@ -84,7 +84,7 @@ public final class RingAtlasPregenerationService {
         }
         Path legacyPath = legacyCachePath(world);
         int sampleStep = RingTerrainAtlas.SAMPLE_STEP_BLOCKS;
-        RingTerrainAtlas.StorageLoad storage = RingTerrainAtlas.loadStorage(path, legacyPath, geometry, hash, sampleStep);
+        RingTerrainAtlas.StorageLoad storage = RingTerrainAtlas.loadStorage(path, legacyPath, geometry, world.dimension(), hash, sampleStep);
         RingTerrainAtlas atlas = storage.atlas();
         logLoad(storage.status(), path, legacyPath, atlas);
         WorldState state = new WorldState(atlas, path, storage.status() == RingTerrainAtlas.StorageStatus.INVALID_CURRENT || storage.status() == RingTerrainAtlas.StorageStatus.INVALID_LEGACY);
@@ -381,7 +381,7 @@ public final class RingAtlasPregenerationService {
                 ready.selection.captured();
                 job.lastError = Optional.empty();
                 if (job.completedChunks % 100 == 0 || state.atlas.isComplete()) {
-                    RingWorldMod.LOGGER.info("RingWorld terrain atlas progress: {}", status(world));
+                    RingWorldMod.LOGGER.info("RingWorld {} terrain atlas progress: {}", world.dimensionTypeRegistration().unwrapKey().orElse(null), status(world));
                 }
             } catch (RuntimeException failure) {
                 job.recordFailure(ready, failure);

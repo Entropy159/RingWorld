@@ -1,26 +1,33 @@
 package dev.ringworld.net;
 
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingSkyProfile;
+import dev.ringworld.world.RingWallStyle;
+import dev.ringworld.world.RingWorldGenerationSettings;
+import dev.ringworld.world.RingWorldLayout;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
 
 /**
  * Complete immutable layout sent before the client renders a ring world.
  */
-public record RingSettingsPayload(int width, int circumference, long seed, int wallHeight, int surfaceReferenceY,
+public record RingSettingsPayload(ResourceKey<Level> dimension, int width, int circumference, long seed, int wallHeight,
+                                  int surfaceReferenceY,
                                   int terrainNoiseMapping, RingWallStyle wallStyle, RingSkyProfile skyProfile,
                                   RingWorldGenerationSettings generationSettings, int formatVersion,
                                   long fingerprint) implements CustomPacketPayload {
     /**
      * Source-compatible constructor for tests and pre-format-5 default layouts.
      */
-    public RingSettingsPayload(int width, int circumference, long seed, int wallHeight, int surfaceReferenceY, int terrainNoiseMapping, RingWallStyle wallStyle, RingSkyProfile skyProfile, int formatVersion, long fingerprint) {
-        this(width, circumference, seed, wallHeight, surfaceReferenceY, terrainNoiseMapping, wallStyle, skyProfile, RingWorldGenerationSettings.DEFAULT, formatVersion, fingerprint);
+    public RingSettingsPayload(ResourceKey<Level> dimension, int width, int circumference, long seed, int wallHeight, int surfaceReferenceY, int terrainNoiseMapping, RingWallStyle wallStyle, RingSkyProfile skyProfile, int formatVersion, long fingerprint) {
+        this(dimension, width, circumference, seed, wallHeight, surfaceReferenceY, terrainNoiseMapping, wallStyle, skyProfile, RingWorldGenerationSettings.DEFAULT, formatVersion, fingerprint);
     }
 
     /**
@@ -48,7 +55,7 @@ public record RingSettingsPayload(int width, int circumference, long seed, int w
         buffer.writeBoolean(settings.moreStructures());
         buffer.writeVarInt(settings.formatVersion());
     }, buffer -> new RingWorldGenerationSettings(RingAtlasFidelity.fromId(buffer.readVarInt()), RingWorldLayout.fromId(buffer.readVarInt()), buffer.readBoolean(), buffer.readBoolean(), buffer.readVarInt()));
-    public static final StreamCodec<RegistryFriendlyByteBuf, RingSettingsPayload> CODEC = StreamCodec.composite(ByteBufCodecs.VAR_INT, RingSettingsPayload::width, ByteBufCodecs.VAR_INT, RingSettingsPayload::circumference, ByteBufCodecs.LONG, RingSettingsPayload::seed, ByteBufCodecs.VAR_INT, RingSettingsPayload::wallHeight, ByteBufCodecs.VAR_INT, RingSettingsPayload::surfaceReferenceY, ByteBufCodecs.VAR_INT, RingSettingsPayload::terrainNoiseMapping, WALL_STYLE_CODEC, RingSettingsPayload::wallStyle, SKY_PROFILE_CODEC, RingSettingsPayload::skyProfile, GENERATION_SETTINGS_CODEC, RingSettingsPayload::generationSettings, ByteBufCodecs.VAR_INT, RingSettingsPayload::formatVersion, ByteBufCodecs.LONG, RingSettingsPayload::fingerprint, RingSettingsPayload::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, RingSettingsPayload> CODEC = StreamCodec.composite(ResourceKey.streamCodec(Registries.DIMENSION), RingSettingsPayload::dimension, ByteBufCodecs.VAR_INT, RingSettingsPayload::width, ByteBufCodecs.VAR_INT, RingSettingsPayload::circumference, ByteBufCodecs.LONG, RingSettingsPayload::seed, ByteBufCodecs.VAR_INT, RingSettingsPayload::wallHeight, ByteBufCodecs.VAR_INT, RingSettingsPayload::surfaceReferenceY, ByteBufCodecs.VAR_INT, RingSettingsPayload::terrainNoiseMapping, WALL_STYLE_CODEC, RingSettingsPayload::wallStyle, SKY_PROFILE_CODEC, RingSettingsPayload::skyProfile, GENERATION_SETTINGS_CODEC, RingSettingsPayload::generationSettings, ByteBufCodecs.VAR_INT, RingSettingsPayload::formatVersion, ByteBufCodecs.LONG, RingSettingsPayload::fingerprint, RingSettingsPayload::new);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {

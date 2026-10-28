@@ -55,9 +55,6 @@ public final class RingTerrainAtlasServer {
         }
     };
 
-    private RingTerrainAtlasServer() {
-    }
-
     public static void configureTransport(PayloadTransport adapter) {
         if (adapter == null) throw new IllegalArgumentException("payload transport is required");
         transport = adapter;
@@ -199,7 +196,7 @@ public final class RingTerrainAtlasServer {
         } catch (IllegalStateException ignored) {
             return;
         }
-        transport.send(player, new RingTerrainAtlasMetadataPayload(atlas.worldHash(), atlas.sampleStep(), atlas.columns(), atlas.rows(), RingTerrainAtlas.TILE_SIZE, atlas.presentCount(), atlas.isComplete(), atlas.revision()));
+        transport.send(player, new RingTerrainAtlasMetadataPayload(atlas.worldHash(), atlas.dimension(), atlas.sampleStep(), atlas.columns(), atlas.rows(), RingTerrainAtlas.TILE_SIZE, atlas.presentCount(), atlas.isComplete(), atlas.revision()));
         if (!atlas.isComplete()) sendPreview(player, world, atlas);
         // Geometry acknowledgement is the first point at which a client can
         // safely bind this status to a RingWorld layout.
@@ -282,10 +279,10 @@ public final class RingTerrainAtlasServer {
     }
 
     public static void requestTiles(ServerPlayer player, long worldHash, long clientRevision, boolean cacheComplete) {
-        ServerLevel overworld = player.level();
+        ServerLevel level = player.level();
         RingTerrainAtlas atlas;
         try {
-            atlas = RingAtlasPregenerationService.atlas(overworld);
+            atlas = RingAtlasPregenerationService.atlas(level);
         } catch (IllegalStateException ignored) {
             return;
         }
@@ -298,7 +295,7 @@ public final class RingTerrainAtlasServer {
                     tiles.add(new RingAtlasPregenerationService.TileCoordinate(x, z));
                 }
         }
-        STREAMS.put(player.getUUID(), new ClientStream(overworld, tiles, exactCompleteCache ? clientRevision : -1L));
+        STREAMS.put(player.getUUID(), new ClientStream(level, tiles, exactCompleteCache ? clientRevision : -1L));
         if (!tiles.isEmpty()) {
             RingWorldMod.LOGGER.info("Streaming {} RingWorld terrain atlas tiles (~{} KiB) to {}", tiles.size(), Math.max(1L, atlas.estimatedWireBytes() / 1024L), player.getName().getString());
         }

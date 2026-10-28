@@ -5,6 +5,10 @@ import dev.ringworld.world.RingDimensionReport;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingLayoutFingerprint;
 import dev.ringworld.world.RingWorldSettings;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 
 import java.io.*;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -29,7 +33,7 @@ public final class RingTerrainAtlas {
      * Format 10 adds water coverage in the upper nibble of the existing light byte.
      */
     // Sampling semantics changed: cached top-only columns must be rebuilt.
-    public static final int FORMAT_VERSION = 11;
+    public static final int FORMAT_VERSION = 12;
     public static final int SAMPLE_STEP_BLOCKS = 1;
     public static final int TILE_SIZE = 16;
     /**
@@ -40,6 +44,7 @@ public final class RingTerrainAtlas {
     private static final int MAX_TILE_BYTES = TILE_SIZE * TILE_SIZE * ESTIMATED_BYTES_PER_CELL;
 
     private final RingGeometry geometry;
+    private final ResourceKey<Level> dimension;
     private final long worldHash;
     private final int sampleStep;
     private final int columns;
@@ -53,15 +58,16 @@ public final class RingTerrainAtlas {
     private int presentCount;
     private long revision;
 
-    public RingTerrainAtlas(RingGeometry geometry, long worldHash) {
-        this(geometry, worldHash, SAMPLE_STEP_BLOCKS);
+    public RingTerrainAtlas(RingGeometry geometry, ResourceKey<Level> dimension, long worldHash) {
+        this(geometry, dimension, worldHash, SAMPLE_STEP_BLOCKS);
     }
 
-    public RingTerrainAtlas(RingGeometry geometry, long worldHash, int sampleStep) {
+    public RingTerrainAtlas(RingGeometry geometry, ResourceKey<Level> dimension, long worldHash, int sampleStep) {
         if (sampleStep <= 0 || 16 % sampleStep != 0) {
             throw new IllegalArgumentException("atlas sample step must divide one chunk");
         }
         this.geometry = geometry;
+        this.dimension = dimension;
         this.worldHash = worldHash;
         this.sampleStep = sampleStep;
         this.columns = divideCeil(geometry.circumferenceBlocks(), sampleStep);
@@ -86,6 +92,10 @@ public final class RingTerrainAtlas {
 
     public RingGeometry geometry() {
         return geometry;
+    }
+
+    public ResourceKey<Level> dimension() {
+        return dimension;
     }
 
     public long worldHash() {
@@ -161,7 +171,7 @@ public final class RingTerrainAtlas {
      * mutate the live atlas without racing consumers of this snapshot.
      */
     public RingTerrainAtlas snapshot() {
-        RingTerrainAtlas copy = new RingTerrainAtlas(geometry, worldHash, sampleStep);
+        RingTerrainAtlas copy = new RingTerrainAtlas(geometry, dimension, worldHash, sampleStep);
         System.arraycopy(heights, 0, copy.heights, 0, heights.length);
         System.arraycopy(colors, 0, copy.colors, 0, colors.length);
         System.arraycopy(sideColors, 0, copy.sideColors, 0, sideColors.length);
@@ -446,6 +456,7 @@ public final class RingTerrainAtlas {
         try (DataOutputStream output = new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)))))) {
             output.writeInt(MAGIC);
             output.writeInt(FORMAT_VERSION);
+            output.writeUTF(dimension.identifier().toString());
             output.writeLong(worldHash);
             output.writeInt(geometry.widthBlocks());
             output.writeInt(geometry.circumferenceBlocks());
@@ -472,12 +483,13 @@ public final class RingTerrainAtlas {
         try (DataInputStream input = new DataInputStream(new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path))))) {
             if (input.readInt() != MAGIC) throw new IOException("not a RingWorld terrain atlas");
             if (input.readInt() != FORMAT_VERSION) throw new IOException("unsupported terrain atlas version");
+            ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, Identifier.parse(input.readUTF()));
             long hash = input.readLong();
             int width = input.readInt();
             int circumference = input.readInt();
             int sampleStep = input.readInt();
             RingGeometry geometry = new RingGeometry(width, circumference);
-            RingTerrainAtlas atlas = new RingTerrainAtlas(geometry, hash, sampleStep);
+            RingTerrainAtlas atlas = new RingTerrainAtlas(geometry, dimension, hash, sampleStep);
             if (!geometry.equals(expectedGeometry) || hash != expectedHash || input.readInt() != atlas.columns || input.readInt() != atlas.rows) {
                 throw new IOException("terrain atlas does not match this ring world");
             }
@@ -502,16 +514,16 @@ public final class RingTerrainAtlas {
      * falls back to legacy state, and a legacy file is copied only after its
      * geometry and world hash have passed {@link #load}.
      */
-    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, long expectedHash) {
-        return loadStorage(currentPath, legacyPath, expectedGeometry, expectedHash, SAMPLE_STEP_BLOCKS);
+    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, ResourceKey<Level> dimension, long expectedHash) {
+        return loadStorage(currentPath, legacyPath, expectedGeometry, dimension, expectedHash, SAMPLE_STEP_BLOCKS);
     }
 
-    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, long expectedHash, int expectedSampleStep) {
+    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, ResourceKey<Level> dimension, long expectedHash, int expectedSampleStep) {
         if (Files.exists(currentPath)) {
             try {
                 return new StorageLoad(load(currentPath, expectedGeometry, expectedHash), StorageStatus.CURRENT);
             } catch (IOException | IllegalArgumentException | ArithmeticException exception) {
-                return new StorageLoad(new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep), StorageStatus.INVALID_CURRENT);
+                return new StorageLoad(new RingTerrainAtlas(expectedGeometry, dimension, expectedHash, expectedSampleStep), StorageStatus.INVALID_CURRENT);
             }
         }
         if (Files.isRegularFile(legacyPath)) {
@@ -520,10 +532,10 @@ public final class RingTerrainAtlas {
                 migrated.save(currentPath);
                 return new StorageLoad(migrated, StorageStatus.MIGRATED_LEGACY);
             } catch (IOException | IllegalArgumentException | ArithmeticException exception) {
-                return new StorageLoad(new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep), StorageStatus.INVALID_LEGACY);
+                return new StorageLoad(new RingTerrainAtlas(expectedGeometry, dimension, expectedHash, expectedSampleStep), StorageStatus.INVALID_LEGACY);
             }
         }
-        return new StorageLoad(new RingTerrainAtlas(expectedGeometry, expectedHash, expectedSampleStep), StorageStatus.FRESH);
+        return new StorageLoad(new RingTerrainAtlas(expectedGeometry, dimension, expectedHash, expectedSampleStep), StorageStatus.FRESH);
     }
 
     public long firstMissingChunkIndex() {

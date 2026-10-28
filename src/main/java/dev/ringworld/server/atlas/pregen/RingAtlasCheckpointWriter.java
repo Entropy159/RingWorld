@@ -80,7 +80,7 @@ public final class RingAtlasCheckpointWriter implements AutoCloseable {
             allocation = CompletableFuture.completedFuture(reusable);
             reusable = null;
         } else {
-            allocation = CompletableFuture.supplyAsync(() -> new RingTerrainAtlas(geometry, hash, step), executor);
+            allocation = CompletableFuture.supplyAsync(() -> new RingTerrainAtlas(geometry, atlas.dimension(), hash, step), executor);
         }
         return active;
     }

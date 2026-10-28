@@ -4,20 +4,19 @@ import dev.ringworld.Constants;
 import dev.ringworld.world.RingLayoutFingerprint;
 import dev.ringworld.world.RingSkyProfile;
 import dev.ringworld.world.RingWorldSettings;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 
 /**
  * Loader-neutral immutable-layout handshake derivation and comparison.
  */
 public final class RingSettingsHandshake {
-    private RingSettingsHandshake() {
+    public static RingSettingsPayload payloadFor(ResourceKey<Level> dimension, RingWorldSettings settings) {
+        return payloadFor(dimension, settings, Constants.DEFAULT_SKY_PROFILE);
     }
 
-    public static RingSettingsPayload payloadFor(RingWorldSettings settings) {
-        return payloadFor(settings, Constants.DEFAULT_SKY_PROFILE);
-    }
-
-    public static RingSettingsPayload payloadFor(RingWorldSettings settings, RingSkyProfile skyProfile) {
-        return new RingSettingsPayload(settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(), settings.wallHeightBlocks(), settings.surfaceReferenceY(), settings.terrainNoiseMapping(), settings.wallStyle(), skyProfile, settings.generationSettings(), settings.formatVersion(), settings.layoutFingerprint());
+    public static RingSettingsPayload payloadFor(ResourceKey<Level> dimension, RingWorldSettings settings, RingSkyProfile skyProfile) {
+        return new RingSettingsPayload(dimension, settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(), settings.wallHeightBlocks(), settings.surfaceReferenceY(), settings.terrainNoiseMapping(), settings.wallStyle(), skyProfile, settings.generationSettings(), settings.formatVersion(), settings.layoutFingerprint());
     }
 
     /**

@@ -9,6 +9,8 @@ import dev.ringworld.world.*;
 import dev.ringworld.world.atlas.RingAtlasCacheWriter;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -20,6 +22,7 @@ import java.nio.file.Path;
  */
 public final class ClientRingState {
     private static volatile RingGeometry geometry;
+    private static volatile ResourceKey<Level> dimension;
     private static volatile int wallHeightBlocks;
     private static volatile int surfaceReferenceY;
     private static volatile int terrainNoiseMapping;
@@ -55,9 +58,6 @@ public final class ClientRingState {
     private static final RingAtlasCacheWriter CACHE_WRITER = new RingAtlasCacheWriter();
     private static java.util.concurrent.CompletableFuture<Void> terrainAtlasSave;
 
-    private ClientRingState() {
-    }
-
     /**
      * Platform bootstrap supplies its game-local cache directory before login.
      */
@@ -66,32 +66,33 @@ public final class ClientRingState {
         cacheDirectory = directory.toAbsolutePath().normalize();
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, dev.ringworld.world.RingTerrainNoiseMapping.CURRENT, newLayoutFingerprint);
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, long newLayoutFingerprint) {
+        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, dev.ringworld.world.RingTerrainNoiseMapping.CURRENT, newLayoutFingerprint);
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, RingWallStyle.LEGACY, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, long newLayoutFingerprint) {
+        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, RingWallStyle.LEGACY, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, long newLayoutFingerprint) {
+        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, 0L, newLayoutFingerprint);
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newLayoutFingerprint) {
+        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, 0L, newLayoutFingerprint);
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newGeneratorSeed, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, newGeneratorSeed, RingWorldSettings.FORMAT_VERSION, newLayoutFingerprint);
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newGeneratorSeed, long newLayoutFingerprint) {
+        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, newGeneratorSeed, RingWorldSettings.FORMAT_VERSION, newLayoutFingerprint);
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
-        set(newGeometry, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, RingWorldGenerationSettings.DEFAULT, newGeneratorSeed, newSettingsFormatVersion, newLayoutFingerprint);
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
+        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, RingWorldGenerationSettings.DEFAULT, newGeneratorSeed, newSettingsFormatVersion, newLayoutFingerprint);
     }
 
-    public static void set(RingGeometry newGeometry, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, RingWorldGenerationSettings newGenerationSettings, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> newDimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, RingWorldGenerationSettings newGenerationSettings, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
         geometry = newGeometry;
+        dimension = newDimension;
         wallHeightBlocks = newWallHeightBlocks;
         surfaceReferenceY = newSurfaceReferenceY;
         terrainNoiseMapping = dev.ringworld.world.RingTerrainNoiseMapping.requireSupported(newTerrainNoiseMapping);
@@ -126,6 +127,10 @@ public final class ClientRingState {
     public static RingGeometry geometry() {
         Minecraft client = Minecraft.getInstance();
         return geometry != null && client.level != null && RingWorldApi.isRingWorld(client.level) ? geometry : null;
+    }
+
+    public static ResourceKey<Level> dimension() {
+        return dimension;
     }
 
     public static int wallHeightBlocks() {
@@ -225,7 +230,8 @@ public final class ClientRingState {
         RingGeometry current = geometry;
         if (current == null || metadata.tileSize() != RingTerrainAtlas.TILE_SIZE) return false;
         RingTerrainAtlas replacement = null;
-        Path cache = cacheDirectory.resolve("terrain-" + Long.toUnsignedString(metadata.worldHash(), 16) + ".rwat.gz");
+        ResourceKey<Level> newDimension = metadata.dimension();
+        Path cache = cacheDirectory.resolve("terrain-" + newDimension.identifier().toLanguageKey() + Long.toUnsignedString(metadata.worldHash(), 16) + ".rwat.gz");
         if (metadata.revision() < 0L) return false;
         if (Files.exists(cache)) {
             try {
@@ -236,7 +242,7 @@ public final class ClientRingState {
             }
         }
         if (replacement == null) {
-            replacement = new RingTerrainAtlas(current, metadata.worldHash(), metadata.sampleStep());
+            replacement = new RingTerrainAtlas(current, newDimension, metadata.worldHash(), metadata.sampleStep());
         }
         if (replacement.columns() != metadata.columns() || replacement.rows() != metadata.rows()) {
             RingWorldMod.LOGGER.warn("Server RingWorld terrain atlas dimensions do not match ring geometry");

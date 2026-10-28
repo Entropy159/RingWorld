@@ -1,10 +1,11 @@
 package dev.ringworld.net;
 
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.server.atlas.pregen.HeadlessPrewarmCoordinator;
 import dev.ringworld.server.atlas.RingTerrainAtlasServer;
+import dev.ringworld.server.atlas.pregen.HeadlessPrewarmCoordinator;
 import dev.ringworld.world.RingSkySettings;
 import dev.ringworld.world.RingWorldSettings;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -47,6 +48,10 @@ public final class RingWorldNetworking {
             if (HeadlessPrewarmCoordinator.rejectPlayerJoins(server)) return;
             sendSettings(handler);
         });
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, from, to) -> {
+            if (HeadlessPrewarmCoordinator.rejectPlayerJoins(player.level().getServer())) return;
+            sendSettings(player.connection);
+        });
         ServerPlayNetworking.registerGlobalReceiver(RingBuildingControlPayload.ID, (payload, context) -> context.server().execute(() -> {
             if (!requireAcknowledged(context.player())) return;
             RingTerrainAtlasServer.controlBuilding(context.player(), payload.fingerprint(), payload.enabled());
@@ -83,7 +88,7 @@ public final class RingWorldNetworking {
         }
         RingWorldSettings settings = RingWorldSettings.get(level);
         HANDSHAKES.begin(handler.player.getUUID(), handler.player.level().getServer().getTickCount());
-        ServerPlayNetworking.send(handler.player, RingSettingsHandshake.payloadFor(settings, RingSkySettings.get(level).profile()));
+        ServerPlayNetworking.send(handler.player, RingSettingsHandshake.payloadFor(level.dimension(), settings, RingSkySettings.get(level).profile()));
     }
 
     private static void validateAcknowledgement(RingSettingsAckPayload payload, ServerGamePacketListenerImpl handler) {
