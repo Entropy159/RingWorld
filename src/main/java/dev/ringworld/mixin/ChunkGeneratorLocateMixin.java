@@ -84,7 +84,7 @@ public abstract class ChunkGeneratorLocateMixin {
                         StructureCheckResult presence = manager.checkStructurePresence(candidateChunk, structure.value(), placement, skipKnownStructures);
                         if (presence == StructureCheckResult.START_NOT_PRESENT) continue;
                         ChunkAccess chunk = world.getChunk(chunkX, chunkZ, ChunkStatus.STRUCTURE_STARTS);
-                        StructureStart start = manager.getStartForStructure(SectionPos.bottomOf(chunk), structure.value(), chunk);
+                        StructureStart start = manager.getStartForStructure(structure.value(), chunk);
                         if (start == null || !start.isValid()) continue;
                         if (skipKnownStructures) {
                             if (!start.canBeReferenced()) continue;
@@ -151,7 +151,7 @@ public abstract class ChunkGeneratorLocateMixin {
         // This is the same canonical STRUCTURE_STARTS lookup vanilla uses. It
         // may generate the selected start, but never asks for an X alias chunk.
         ChunkAccess chunk = world.getChunk(candidateChunk.x(), candidateChunk.z(), ChunkStatus.STRUCTURE_STARTS);
-        StructureStart start = manager.getStartForStructure(SectionPos.bottomOf(chunk), monument.value(), chunk);
+        StructureStart start = manager.getStartForStructure(monument.value(), chunk);
         if (start == null || !start.isValid()) return null;
         if (skipKnownStructures) {
             if (!start.canBeReferenced()) return null;

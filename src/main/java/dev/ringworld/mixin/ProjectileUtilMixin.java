@@ -51,8 +51,8 @@ public abstract class ProjectileUtilMixin {
      * collector even at pierce level zero, so it needs the same periodic
      * candidate projection as the single-hit helper above.
      */
-    @Inject(method = "getManyEntityHitResult(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;FLnet/minecraft/world/level/ClipContext$Block;Z)Ljava/util/Collection;", at = @At("HEAD"), cancellable = true)
-    private static void ringworld$periodicPiercingCollisions(Level world, Entity source, Vec3 start, Vec3 end, AABB query, Predicate<Entity> predicate, float margin, ClipContext.Block shapeType, boolean includeInside, CallbackInfoReturnable<Collection<EntityHitResult>> cir) {
+    @Inject(method = "getManyEntityHitResult(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;FLnet/minecraft/world/level/ClipContext$Block;ZZ)Ljava/util/Collection;", at = @At("HEAD"), cancellable = true)
+    private static void ringworld$periodicPiercingCollisions(Level world, Entity source, Vec3 start, Vec3 end, AABB query, Predicate<Entity> predicate, float margin, ClipContext.Block shapeType, boolean includeInside, boolean projectSurfaceHitLocation, CallbackInfoReturnable<Collection<EntityHitResult>> cir) {
         if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) return;
 
         RingTopology topology = new RingTopology(RingWorldServer.geometryFor(serverWorld));
@@ -77,7 +77,7 @@ public abstract class ProjectileUtilMixin {
             Vec3 center = hitbox.getCenter();
             BlockHitResult obstruction = world.clipIncludingBorder(new ClipContext(marginPoint, center, shapeType, ClipContext.Fluid.NONE, source));
             if (obstruction.getType() != HitResult.Type.MISS) center = obstruction.getLocation();
-            hitbox.clip(marginPoint, center).ifPresent(hit -> hits.add(new EntityHitResult(candidate, hit)));
+            hitbox.clip(marginPoint, center).ifPresent(hit -> hits.add(new EntityHitResult(candidate, projectSurfaceHitLocation ? hit : marginPoint)));
         }
         cir.setReturnValue(hits);
     }

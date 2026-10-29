@@ -1,181 +1,170 @@
 package dev.ringworld.world;
 
-import net.minecraft.util.KeyDispatchDataCodec;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.util.Interval;
 import net.minecraft.world.level.levelgen.NoiseRouter;
+import net.minecraft.world.level.levelgen.densityfunction.*;
 import net.minecraft.world.level.levelgen.synth.BlendedNoise;
 import org.jspecify.annotations.NonNull;
 
+import java.util.IdentityHashMap;
+
 /**
- * Applies cylindrical coordinates only at noise-consuming density leaves.
+ * Rewrites noise leaves before 26.3 compiles and caches their samplers.
  */
-public final class RingNoiseRouter {
-    public static NoiseRouter wrap(NoiseRouter router, RingGeometry geometry) {
-        return wrap(router, geometry, RingTerrainNoiseMapping.CURRENT);
+public final class RingNoiseRouter implements DfRewriteRule {
+    private final RingGeometry geometry;
+    private final int mapping;
+    private final RingWorldGenerationSettings settings;
+    private final long seed;
+    private final int seaLevel;
+    private final NoiseRouter router;
+    private final RingNoiseCoordinates coordinates;
+    private final RingMacroTerrain macro;
+    private final IdentityHashMap<DensityFunction, DensityFunction> rewritten = new IdentityHashMap<>();
+
+    public RingNoiseRouter(RingGeometry geometry, int mapping, RingWorldGenerationSettings settings, long seed, int seaLevel, NoiseRouter router) {
+        this.geometry = geometry;
+        this.mapping = mapping;
+        this.settings = settings;
+        this.seed = seed;
+        this.seaLevel = seaLevel;
+        this.router = router;
+        coordinates = RingNoiseCoordinates.forGeometry(geometry, mapping);
+        macro = new RingMacroTerrain(geometry, seed, settings);
     }
 
-    public static NoiseRouter wrap(NoiseRouter router, RingGeometry geometry, int mappingVersion) {
-        return router.mapAll(new CylindricalVisitor(RingNoiseCoordinates.forGeometry(geometry, mappingVersion), mappingVersion));
+    public boolean matches(RingGeometry geometry, int mapping, RingWorldGenerationSettings settings, long seed, int seaLevel, NoiseRouter router) {
+        return this.geometry.equals(geometry) && this.mapping == mapping && this.settings.equals(settings) && this.seed == seed && this.seaLevel == seaLevel && this.router == router;
     }
 
-    public static NoiseRouter wrap(NoiseRouter router, RingGeometry geometry, int mappingVersion, RingWorldGenerationSettings settings, long seed, int seaLevel) {
-        NoiseRouter periodic = wrap(router, geometry, mappingVersion);
-        RingMacroTerrain macro = new RingMacroTerrain(geometry, seed, settings);
-        if (!macro.active()) return periodic;
-        return new NoiseRouter(periodic.barrierNoise(), periodic.fluidLevelFloodednessNoise(), periodic.fluidLevelSpreadNoise(), periodic.lavaNoise(), periodic.temperature(), periodic.vegetation(), settings.layout() == RingWorldLayout.ARCHIPELAGO ? new MacroDensity(periodic.continents(), macro, Mode.CONTINENTS, seaLevel) : periodic.continents(), periodic.erosion(), periodic.depth(), periodic.ridges(), new MacroDensity(periodic.preliminarySurfaceLevel(), macro, Mode.SURFACE, seaLevel), new MacroDensity(periodic.finalDensity(), macro, Mode.FINAL_DENSITY, seaLevel), periodic.veinToggle(), periodic.veinRidged(), periodic.veinGap());
+    @Override
+    public synchronized @NonNull DensityFunction rewrite(@NonNull DensityFunction original) {
+        DensityFunction cached = rewritten.get(original);
+        if (cached != null) return cached;
+        DensityFunction input = DfRewriteRule.INLINE_REFERENCE.rewrite(original);
+        DensityFunction result;
+        if (input != original) result = rewrite(input);
+        else if (input instanceof RingCoordinateDensityFunction || (mapping >= RingTerrainNoiseMapping.ANNULAR_COMPLETE_V2 && input instanceof BlendedNoise)) {
+            // The whole noise leaf sees one transform, including its shift children.
+            result = new Cylindrical(input, coordinates);
+        } else result = input.rewriteChildren(this);
+        if (macro.active()) {
+            if (original == router.finalDensity()) result = new Macro(result, macro, Mode.FINAL_DENSITY, seaLevel);
+            else if (original == router.chunkSurfaceLevel()) result = new Macro(result, macro, Mode.SURFACE, seaLevel);
+            else if (original == router.continents() && settings.layout() == RingWorldLayout.ARCHIPELAGO)
+                result = new Macro(result, macro, Mode.CONTINENTS, seaLevel);
+        }
+        rewritten.put(original, result);
+        return result;
     }
 
-    /**
-     * Cache and interpolation wrappers must continue receiving the real
-     * NoiseChunk object: several vanilla optimizations and the aquifer
-     * grid rely on that identity and its local coordinates. Only functions
-     * which actually consume horizontal coordinates are wrapped.
-     */
-    private record CylindricalVisitor(RingNoiseCoordinates coordinates,
-                                      int mappingVersion) implements DensityFunction.Visitor {
+    private record Cylindrical(DensityFunction input, RingNoiseCoordinates coordinates) implements DensityFunction {
         @Override
-        public @NonNull DensityFunction apply(@NonNull DensityFunction function) {
-            if (isCoordinateConsumer(function)) {
-                return new CylindricalDensityFunction(function, coordinates);
-            }
-            return function;
-        }
+        public @NonNull DensitySampler compileSampler(@NonNull CompileContext compiler) {
+            DensitySampler delegate = input.compileSampler(compiler);
+            return new DensitySampler() {
+                @Override
+                public float sampleValue(@NonNull SamplerContext context, int x, int y, int z) {
+                    return delegate.sampleValue(context, coordinates.noiseX(x, z), y, coordinates.noiseZ(x, z));
+                }
 
-        private boolean isCoordinateConsumer(DensityFunction function) {
-            return function instanceof RingCoordinateDensityFunction || (mappingVersion >= RingTerrainNoiseMapping.ANNULAR_COMPLETE_V2 && function instanceof BlendedNoise);
-        }
-    }
-
-    private record CylindricalDensityFunction(DensityFunction delegate,
-                                              RingNoiseCoordinates coordinates) implements DensityFunction {
-        @Override
-        public double compute(@NonNull FunctionContext pos) {
-            return delegate.compute(transform(pos));
+                @Override
+                public void sampleVolume(@NonNull SamplerContext context, @NonNull DensityBuffer output, @NonNull DensityVolume volume) {
+                    int index = 0;
+                    for (int z = 0; z < volume.sizeZ(); z++)
+                        for (int x = 0; x < volume.sizeX(); x++) {
+                            int sourceX = volume.blockX(x), sourceZ = volume.blockZ(z);
+                            int mappedX = coordinates.noiseX(sourceX, sourceZ), mappedZ = coordinates.noiseZ(sourceX, sourceZ);
+                            for (int y = 0; y < volume.sizeY(); y++)
+                                output.set(index++, delegate.sampleValue(context, mappedX, volume.blockY(y), mappedZ));
+                        }
+                }
+            };
         }
 
         @Override
-        public void fillArray(double @NonNull [] values, @NonNull ContextProvider applier) {
-            delegate.fillArray(values, new TransformingApplier(applier, coordinates));
+        public @NonNull DensityFunction rewriteChildren(@NonNull DfRewriteRule rule) {
+            return new Cylindrical(input.rewriteChildren(rule), coordinates);
         }
 
         @Override
-        public @NonNull DensityFunction mapAll(Visitor visitor) {
-            return visitor.apply(new CylindricalDensityFunction(delegate.mapAll(visitor), coordinates));
-        }
-
-        // 26.2's recursive visitor owns traversal; this method maps only the
-        // immediate child. Older ABIs use mapAll above and never call it.
-        public @NonNull DensityFunction mapChildren(Visitor visitor) {
-            return new CylindricalDensityFunction(visitor.apply(delegate), coordinates);
+        public @NonNull Interval range() {
+            return input.range();
         }
 
         @Override
-        public double minValue() {
-            return delegate.minValue();
+        public int domainAxes() {
+            int axes = input.domainAxes();
+            // Cylindrical X and Z both depend on the two intrinsic coordinates.
+            return (axes & (AXIS_X | AXIS_Z)) == 0 ? axes : axes | AXIS_X | AXIS_Z;
         }
 
         @Override
-        public double maxValue() {
-            return delegate.maxValue();
-        }
-
-        @Override
-        public @NonNull KeyDispatchDataCodec<? extends DensityFunction> codec() {
-            return delegate.codec();
-        }
-
-        private FunctionContext transform(FunctionContext source) {
-            if (RingDensityContexts.isTransformed(source)) return source;
-            int sourceX = source.blockX();
-            int sourceZ = source.blockZ();
-            return RingDensityContexts.transformed(source, coordinates.noiseX(sourceX, sourceZ), coordinates.noiseZ(sourceX, sourceZ));
-        }
-    }
-
-    private record TransformingApplier(DensityFunction.ContextProvider delegate,
-                                       RingNoiseCoordinates coordinates) implements DensityFunction.ContextProvider {
-        @Override
-        public DensityFunction.@NonNull FunctionContext forIndex(int index) {
-            DensityFunction.FunctionContext source = delegate.forIndex(index);
-            if (RingDensityContexts.isTransformed(source)) return source;
-            int sourceX = source.blockX();
-            int sourceZ = source.blockZ();
-            return RingDensityContexts.transformed(source, coordinates.noiseX(sourceX, sourceZ), coordinates.noiseZ(sourceX, sourceZ));
-        }
-
-        @Override
-        public void fillAllDirectly(double @NonNull [] densities, @NonNull DensityFunction function) {
-            delegate.fillAllDirectly(densities, new CylindricalDensityFunction(function, coordinates));
+        public @NonNull MapCodec<? extends DensityFunction> codec() {
+            throw new UnsupportedOperationException("Ring samplers are runtime-only");
         }
     }
 
     private enum Mode {CONTINENTS, SURFACE, FINAL_DENSITY}
 
-    /**
-     * Runtime-only outer policy; the saved generator codec remains vanilla.
-     */
-    private record MacroDensity(DensityFunction delegate, RingMacroTerrain macro, Mode mode,
-                                int seaLevel) implements DensityFunction {
+    private record Macro(DensityFunction input, RingMacroTerrain macro, Mode mode,
+                         int seaLevel) implements DensityFunction {
         @Override
-        public double compute(@NonNull FunctionContext pos) {
-            return computeWithBase(pos, delegate.compute(pos));
+        public @NonNull DensitySampler compileSampler(@NonNull CompileContext compiler) {
+            DensitySampler delegate = input.compileSampler(compiler);
+            return new DensitySampler() {
+                @Override
+                public float sampleValue(@NonNull SamplerContext context, int x, int y, int z) {
+                    return adjust(x, y, z, delegate.sampleValue(context, x, y, z));
+                }
+
+                @Override
+                public void sampleVolume(@NonNull SamplerContext context, @NonNull DensityBuffer output, @NonNull DensityVolume volume) {
+                    delegate.sampleVolume(context, output, volume);
+                    int index = 0;
+                    for (int z = 0; z < volume.sizeZ(); z++)
+                        for (int x = 0; x < volume.sizeX(); x++)
+                            for (int y = 0; y < volume.sizeY(); y++, index++)
+                                output.set(index, adjust(volume.blockX(x), volume.blockY(y), volume.blockZ(z), output.get(index)));
+                }
+            };
         }
 
-        @Override
-        public void fillArray(double @NonNull [] values, @NonNull ContextProvider provider) {
-            delegate.fillArray(values, provider);
-            for (int index = 0; index < values.length; index++)
-                values[index] = computeWithBase(provider.forIndex(index), values[index]);
-        }
-
-        private double computeWithBase(FunctionContext pos, double base) {
-            double land = macro.landBias(pos.blockX(), pos.blockZ());
-            double river = macro.riverInfluence(pos.blockX(), pos.blockZ());
-            return switch (mode) {
+        private float adjust(int x, int y, int z, float base) {
+            double land = macro.landBias(x, z), river = macro.riverInfluence(x, z);
+            return (float) switch (mode) {
                 case CONTINENTS -> Math.clamp(base + land * 0.62, -1.0, 1.0);
                 case SURFACE ->
-                        Math.min(base + land * 13.0, river > 0.0 ? seaLevel - 1.0 + (1.0 - river) * 4.0 : Double.POSITIVE_INFINITY);
+                        Math.min(base + land * 13.0, river > 0 ? seaLevel - 1.0 + (1.0 - river) * 4.0 : Double.POSITIVE_INFINITY);
                 case FINAL_DENSITY -> {
-                    double surfaceBand = Math.max(0.0, 1.0 - Math.abs(pos.blockY() - seaLevel) / 64.0);
-                    double density = base + land * 0.36 * surfaceBand;
-                    // An absolute channel floor survives vanilla density-scale
-                    // changes between Minecraft versions. The core cuts seven
-                    // blocks below sea level; the smooth influence raises that
-                    // floor into natural banks before returning to untouched
-                    // terrain. Aquifers and surface rules still own the water,
-                    // bed material, decoration, and local cave interaction.
-                    double channelFloor = seaLevel - 7.0 + (1.0 - river) * 9.0;
-                    if (river > 0.0 && pos.blockY() >= channelFloor) {
+                    double band = Math.max(0.0, 1.0 - Math.abs(y - seaLevel) / 64.0);
+                    double density = base + land * 0.36 * band;
+                    if (river > 0 && y >= seaLevel - 7.0 + (1.0 - river) * 9.0)
                         density = Math.min(density, -0.35 - river * 0.65);
-                    }
                     yield density;
                 }
             };
         }
 
         @Override
-        public @NonNull DensityFunction mapAll(Visitor visitor) {
-            return visitor.apply(new MacroDensity(delegate.mapAll(visitor), macro, mode, seaLevel));
-        }
-
-        public @NonNull DensityFunction mapChildren(Visitor visitor) {
-            return new MacroDensity(visitor.apply(delegate), macro, mode, seaLevel);
+        public @NonNull DensityFunction rewriteChildren(DfRewriteRule rule) {
+            return new Macro(rule.rewrite(input), macro, mode, seaLevel);
         }
 
         @Override
-        public double minValue() {
-            return Double.NEGATIVE_INFINITY;
+        public @NonNull Interval range() {
+            return Interval.INFINITE;
         }
 
         @Override
-        public double maxValue() {
-            return Double.POSITIVE_INFINITY;
+        public int domainAxes() {
+            return ALL_AXES;
         }
 
         @Override
-        public @NonNull KeyDispatchDataCodec<? extends DensityFunction> codec() {
-            return delegate.codec();
+        public @NonNull MapCodec<? extends DensityFunction> codec() {
+            throw new UnsupportedOperationException("Ring samplers are runtime-only");
         }
     }
-
 }

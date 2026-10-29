@@ -12,6 +12,7 @@ import net.minecraft.world.level.levelgen.structure.BuiltinStructureSets;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.placement.AbstractSpreadingStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.ConcentricRingsStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement;
@@ -93,7 +94,7 @@ public abstract class ChunkGeneratorStructureStateMixin implements RingStructure
         RingGeometry geometry = ringworld$geometry;
         if (geometry == null)
             return RingMonumentResolution.unsatisfied(RingMonumentResolution.Reason.BUILTIN_REGISTRY_UNAVAILABLE);
-        RingMonumentPlacement.SearchResult result = RingMonumentPlacement.findCandidate(levelSeed, geometry, candidate -> ringworld$monumentPlacement.applyAdditionalChunkRestrictions(candidate.chunkX(), candidate.chunkZ(), levelSeed) && ringworld$monumentPlacement.applyInteractionsWithOtherStructures((ChunkGeneratorStructureState) (Object) this, candidate.chunkX(), candidate.chunkZ()) && ringworld$validMonumentCandidate(candidate));
+        RingMonumentPlacement.SearchResult result = RingMonumentPlacement.findCandidate(levelSeed, geometry, candidate -> ringworld$monumentPlacement.applyAdditionalChunkRestrictions(candidate.chunkX(), candidate.chunkZ(), levelSeed) && ((AbstractSpreadingStructurePlacement) ringworld$monumentPlacement).applyInteractionsWithOtherStructures((ChunkGeneratorStructureState) (Object) this, candidate.chunkX(), candidate.chunkZ()) && ringworld$validMonumentCandidate(candidate));
         if (result.candidate() != null) return RingMonumentResolution.satisfied(result.candidate());
         if (result.checkedCandidates() == 0)
             return RingMonumentResolution.unsatisfied(RingMonumentResolution.Reason.NO_CANDIDATE_IN_BOUNDS);
@@ -108,7 +109,7 @@ public abstract class ChunkGeneratorStructureStateMixin implements RingStructure
             return false;
         }
         RingMonumentResolution.Candidate saved = ringworld$monument.candidate();
-        ringworld$monumentCompatible = saved != null && ringworld$monumentPlacement.applyAdditionalChunkRestrictions(saved.chunkX(), saved.chunkZ(), levelSeed) && ringworld$monumentPlacement.applyInteractionsWithOtherStructures((ChunkGeneratorStructureState) (Object) this, saved.chunkX(), saved.chunkZ()) && ringworld$validMonumentCandidate(new RingMonumentPlacement.Candidate(saved.chunkX(), saved.chunkZ()));
+        ringworld$monumentCompatible = saved != null && ringworld$monumentPlacement.applyAdditionalChunkRestrictions(saved.chunkX(), saved.chunkZ(), levelSeed) && ((AbstractSpreadingStructurePlacement) ringworld$monumentPlacement).applyInteractionsWithOtherStructures((ChunkGeneratorStructureState) (Object) this, saved.chunkX(), saved.chunkZ()) && ringworld$validMonumentCandidate(new RingMonumentPlacement.Candidate(saved.chunkX(), saved.chunkZ()));
         return ringworld$monumentCompatible;
     }
 
@@ -181,9 +182,8 @@ public abstract class ChunkGeneratorStructureStateMixin implements RingStructure
         int anchorZ = candidate.chunkZ() * 16 + 8;
         int anchorY = floorHeight.applyAsInt(anchorX, anchorZ);
         int seaLevel = ringworld$monumentSeaLevel;
-        Holder<Biome> anchor = biomeSource.getNoiseBiome(Math.floorDiv(anchorX, 4), Math.floorDiv(anchorY, 4), Math.floorDiv(anchorZ, 4), climateSampler);
+        Holder<Biome> anchor = biomeSource.createResolver(ringworld$monumentClimateSampler).getNoiseBiome(Math.floorDiv(anchorX, 4), Math.floorDiv(anchorY, 4), Math.floorDiv(anchorZ, 4));
         if (!monument.biomes().contains(anchor)) return false;
-        return biomeSource.getBiomesWithin(candidate.chunkX() * 16 + 9, seaLevel, candidate.chunkZ() * 16 + 9, RingMonumentPlacement.SURROUNDING_BIOME_RADIUS_BLOCKS, climateSampler).stream().allMatch(biome -> biome.is(BiomeTags.REQUIRED_OCEAN_MONUMENT_SURROUNDING));
+        return biomeSource.createResolver(ringworld$monumentClimateSampler).getBiomesWithin(candidate.chunkX() * 16 + 9, seaLevel, candidate.chunkZ() * 16 + 9, RingMonumentPlacement.SURROUNDING_BIOME_RADIUS_BLOCKS).stream().allMatch(biome -> biome.is(BiomeTags.REQUIRED_OCEAN_MONUMENT_SURROUNDING));
     }
-
 }

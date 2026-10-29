@@ -1,11 +1,12 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <ringworld:render_uniforms.glsl>
-#moj_import <ringworld:projection.glsl>
-#moj_import <minecraft:projection.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:globals.glsl>
+#include <ringworld:render_uniforms.glsl>
+#include <ringworld:projection.glsl>
+#include <minecraft:projection.glsl>
 
 const int FLAG_MASK_DIR = 7;
 const int FLAG_INSIDE_FACE = 1 << 4;
@@ -20,23 +21,23 @@ layout(std140) uniform CloudInfo {
 
 uniform isamplerBuffer CloudFaces;
 
-out float vertexDistance;
-out vec4 vertexColor;
-out float ringIntrinsicWorldZ;
+layout(location = 0) out float vertexDistance;
+layout(location = 1) out vec4 vertexColor;
+layout(location = 2) out float ringIntrinsicWorldZ;
 
 const vec3[] vertices = vec3[](
-    vec3(1, 0, 0), vec3(1, 0, 1), vec3(0, 0, 1), vec3(0, 0, 0),
-    vec3(0, 1, 0), vec3(0, 1, 1), vec3(1, 1, 1), vec3(1, 1, 0),
-    vec3(0, 0, 0), vec3(0, 1, 0), vec3(1, 1, 0), vec3(1, 0, 0),
-    vec3(1, 0, 1), vec3(1, 1, 1), vec3(0, 1, 1), vec3(0, 0, 1),
-    vec3(0, 0, 1), vec3(0, 1, 1), vec3(0, 1, 0), vec3(0, 0, 0),
-    vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 1, 1), vec3(1, 0, 1)
+        vec3(1, 0, 0), vec3(1, 0, 1), vec3(0, 0, 1), vec3(0, 0, 0),
+        vec3(0, 1, 0), vec3(0, 1, 1), vec3(1, 1, 1), vec3(1, 1, 0),
+        vec3(0, 0, 0), vec3(0, 1, 0), vec3(1, 1, 0), vec3(1, 0, 0),
+        vec3(1, 0, 1), vec3(1, 1, 1), vec3(0, 1, 1), vec3(0, 0, 1),
+        vec3(0, 0, 1), vec3(0, 1, 1), vec3(0, 1, 0), vec3(0, 0, 0),
+        vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 1, 1), vec3(1, 0, 1)
 );
 
 const vec4[] faceColors = vec4[](
-    vec4(0.7, 0.7, 0.7, 1.0), vec4(1.0, 1.0, 1.0, 1.0),
-    vec4(0.8, 0.8, 0.8, 1.0), vec4(0.8, 0.8, 0.8, 1.0),
-    vec4(0.9, 0.9, 0.9, 1.0), vec4(0.9, 0.9, 0.9, 1.0)
+        vec4(0.7, 0.7, 0.7, 1.0), vec4(1.0, 1.0, 1.0, 1.0),
+        vec4(0.8, 0.8, 0.8, 1.0), vec4(0.8, 0.8, 0.8, 1.0),
+        vec4(0.9, 0.9, 0.9, 1.0), vec4(0.9, 0.9, 0.9, 1.0)
 );
 
 float ring_circumference() {
@@ -73,9 +74,9 @@ vec3 curve_cloud_position(vec3 pos) {
     if (delta < -circumference * 0.5) delta += circumference;
     float angle = 6.28318530717958647692 * delta / circumference;
     vec3 ringPosition = vec3(
-        vertexRadius * sin(angle),
-        cameraRadius - vertexRadius * cos(angle),
-        pos.z
+            vertexRadius * sin(angle),
+            cameraRadius - vertexRadius * cos(angle),
+            pos.z
     );
 
     // This is the same exact radial model as terrain. The cloud base stays
@@ -87,15 +88,15 @@ vec3 curve_cloud_position(vec3 pos) {
 float ring_cloud_visibility(vec3 flatPos) {
     float horizontalDistance = length(flatPos.xz);
     return 1.0 - smoothstep(
-        RingWorldAtmosphere.w,
-        RingWorldAtmosphere2.x,
-        horizontalDistance
+            RingWorldAtmosphere.w,
+            RingWorldAtmosphere2.x,
+            horizontalDistance
     );
 }
 
 void main() {
-    int quadVertex = gl_VertexID % 4;
-    int index = (gl_VertexID / 4) * 3;
+    int quadVertex = gl_VertexIndex % 4;
+    int index = (gl_VertexIndex / 4) * 3;
 
     int cellX = texelFetch(CloudFaces, index).r;
     int cellZ = texelFetch(CloudFaces, index + 1).r;
@@ -115,8 +116,8 @@ void main() {
     }
     vec3 flatPos = pos;
     ringIntrinsicWorldZ = ring_active()
-        ? (float(CameraBlockPos.z) - CameraOffset.z) + flatPos.z
-        : 0.0;
+    ? (float(CameraBlockPos.z) - CameraOffset.z) + flatPos.z
+    : 0.0;
     if (ring_active()) {
         pos = curve_cloud_position(pos);
     }

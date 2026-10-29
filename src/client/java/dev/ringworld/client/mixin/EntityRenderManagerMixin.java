@@ -34,6 +34,6 @@ public abstract class EntityRenderManagerMixin {
         // common translation. Rotating here makes those transforms operate in
         // the entity's own tangent frame while the local player remains at a
         // zero-angle frame and therefore keeps vanilla controls unchanged.
-        matrices.mulPose(Axis.ZP.rotation((float) transform.tangentAngleRadians()));
+        matrices.rotate(Axis.ZP.rotation((float) transform.tangentAngleRadians()));
     }
 }

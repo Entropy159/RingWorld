@@ -1,7 +1,7 @@
 package dev.ringworld.mixin;
 
 import dev.ringworld.world.RingSurfaceSamplingContext;
-import net.minecraft.world.level.levelgen.SurfaceSystem;
+import net.minecraft.world.level.levelgen.material.MaterialSystem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -11,39 +11,39 @@ import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 /**
  * Redirects vanilla surface-only noise/random coordinates through the saved ring mapping.
  */
-@Mixin(SurfaceSystem.class)
+@Mixin(MaterialSystem.class)
 public abstract class SurfaceSystemMixin {
-    @ModifyArgs(method = {"getSurfaceDepth", "getSurfaceSecondary", "getBand"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D"))
+    @ModifyArgs(method = {"getSurfaceDepth", "getSurfaceSecondary", "getBand"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F"))
     private void ringworld$mapUnitNoise(Args args) {
         mapNoise(args, 1.0);
     }
 
-    @ModifyArgs(method = "erodedBadlandsExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D", ordinal = 0))
+    @ModifyArgs(method = "erodedBadlandsExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F", ordinal = 0))
     private void ringworld$mapBadlandsSurface(Args args) {
         mapNoise(args, 1.0);
     }
 
-    @ModifyArgs(method = "erodedBadlandsExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D", ordinal = 1))
+    @ModifyArgs(method = "erodedBadlandsExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F", ordinal = 1))
     private void ringworld$mapBadlandsPillar(Args args) {
         mapNoise(args, 0.2);
     }
 
-    @ModifyArgs(method = "erodedBadlandsExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D", ordinal = 2))
+    @ModifyArgs(method = "erodedBadlandsExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F", ordinal = 2))
     private void ringworld$mapBadlandsRoof(Args args) {
         mapNoise(args, 0.75);
     }
 
-    @ModifyArgs(method = "frozenOceanExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D", ordinal = 0))
+    @ModifyArgs(method = "frozenOceanExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F", ordinal = 0))
     private void ringworld$mapIcebergSurface(Args args) {
         mapNoise(args, 1.0);
     }
 
-    @ModifyArgs(method = "frozenOceanExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D", ordinal = 1))
+    @ModifyArgs(method = "frozenOceanExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F", ordinal = 1))
     private void ringworld$mapIcebergPillar(Args args) {
         mapNoise(args, 1.28);
     }
 
-    @ModifyArgs(method = "frozenOceanExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D", ordinal = 2))
+    @ModifyArgs(method = "frozenOceanExtension", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F", ordinal = 2))
     private void ringworld$mapIcebergRoof(Args args) {
         mapNoise(args, 1.17);
     }

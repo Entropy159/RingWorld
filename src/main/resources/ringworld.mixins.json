@@ -32,7 +32,6 @@
     "MobFixtureGoalsAccessor",
     "MultiTickSchedulerMixin",
     "NoiseChunkGeneratorMixin",
-    "OceanMonumentStructureMixin",
     "PathfindToRaidGoalMixin",
     "PeriodicSurfaceSystemMixin",
     "PlayerInteractionDistanceMixin",

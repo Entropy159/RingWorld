@@ -7,11 +7,11 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.fog.FogRenderer;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.material.FogType;
+import org.joml.Vector3fc;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -32,8 +32,8 @@ public abstract class FogRendererMixin {
                 return;
             // Match both sky discs and the uncovered framebuffer at every
             // height; a cylinder has no privileged horizontal horizon.
-            int skyColor = camera.attributeProbe().getValue(EnvironmentAttributes.SKY_COLOR, tickCounter.getGameTimeDeltaPartialTick(false));
-            cir.getReturnValue().color.set(ARGB.redFloat(skyColor), ARGB.greenFloat(skyColor), ARGB.blueFloat(skyColor), 1.0F);
+            Vector3fc skyColor = camera.attributeProbe().getValue(EnvironmentAttributes.SKY_COLOR, tickCounter.getGameTimeDeltaPartialTick(false));
+            cir.getReturnValue().color.set(skyColor.x(), skyColor.y(), skyColor.z(), 1.0F);
         } else if (backdrop == RingSkyProfile.Backdrop.NIGHT) {
             cir.getReturnValue().color.set(5.0F / 255.0F, 8.0F / 255.0F, 16.0F / 255.0F, 1.0F);
         } else if (backdrop == RingSkyProfile.Backdrop.VOID) {

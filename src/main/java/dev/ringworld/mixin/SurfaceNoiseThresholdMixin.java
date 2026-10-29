@@ -9,9 +9,9 @@ import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 /**
  * Maps both cached 2D and 3D threshold-noise suppliers through ring space.
  */
-@Mixin(targets = {"net.minecraft.world.level.levelgen.SurfaceRules$Context$1", "net.minecraft.world.level.levelgen.SurfaceRules$Context$2"})
+@Mixin(targets = {"net.minecraft.world.level.levelgen.material.MaterialRuleContext$1", "net.minecraft.world.level.levelgen.material.MaterialRuleContext$2"})
 public abstract class SurfaceNoiseThresholdMixin {
-    @ModifyArgs(method = "getAsDouble", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/NormalNoise;getValue(DDD)D"))
+    @ModifyArgs(method = "getAsDouble", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/synth/Noise;get(DDD)F"))
     private void ringworld$mapThresholdNoise(Args args) {
         RingSurfaceSamplingContext.Coordinates mapped = RingSurfaceSamplingContext.mapScaled(args.get(0), args.get(2), 1.0);
         args.set(0, mapped.x());

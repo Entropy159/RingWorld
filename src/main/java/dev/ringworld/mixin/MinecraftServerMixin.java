@@ -10,8 +10,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.biome.Climate;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import org.spongepowered.asm.mixin.Final;
@@ -36,27 +38,14 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
         return storageSource.getDimensionPath(dimension);
     }
 
-    @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/biome/Climate$Sampler;findSpawnPosition()Lnet/minecraft/core/BlockPos;"))
-    private static BlockPos ringworld$constrainInitialSpawn(Climate.Sampler sampler, @Local(argsOnly = true, name = "level") ServerLevel level) {
-        BlockPos vanilla = sampler.findSpawnPosition();
+    @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/ChunkGenerator;getOrigin(Lnet/minecraft/world/level/levelgen/RandomState;)Lnet/minecraft/world/level/ChunkPos;"))
+    private static ChunkPos ringworld$constrainInitialSpawn(ChunkGenerator generator, RandomState state, @Local(argsOnly = true, name = "level") ServerLevel level) {
+        var vanilla = generator.getOrigin(state);
         RingWorldConfig config = RingWorldConfig.load(level.dimension());
         RingGeometry geometry = new RingGeometry(config.widthBlocks(), config.circumferenceBlocks());
-
-        // Preserve vanilla's preferred biome along the periodic axis. Across
-        // the finite width, fall back to the middle of the band whenever the
-        // noise sampler selected the exterior or the rim's immediate margin.
-        // The following vanilla spawn-locating spiral is then free to find a
-        // safe surface while staying well away from either edge.
-        int z = RingSpawnBounds.constrainInitialSpawnZ(vanilla.getZ(), geometry);
-        return new BlockPos(vanilla.getX(), vanilla.getY(), z);
+        return new ChunkPos(Math.floorMod(vanilla.x(), geometry.circumferenceBlocks()), Math.floorDiv(RingSpawnBounds.constrainInitialSpawnZ(vanilla.z() * 16 + 8, geometry), 16));
     }
 
-    /**
-     * Vanilla's 11-by-11 safe-spawn spiral runs after the sampler redirect and
-     * can cross either periodic edge. Canonicalize every final RespawnData
-     * value, not just the original sampler suggestion, before it reaches saved
-     * level data.
-     */
     @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/LevelData$RespawnData;of(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/core/BlockPos;FF)Lnet/minecraft/world/level/storage/LevelData$RespawnData;"), require = 3)
     private static LevelData.RespawnData ringworld$canonicalInitialRespawnData(ResourceKey<Level> dimension, BlockPos position, float yaw, float pitch, @Local(argsOnly = true, name = "level") ServerLevel level) {
         if (!RingWorldApi.isRingWorld(level)) {

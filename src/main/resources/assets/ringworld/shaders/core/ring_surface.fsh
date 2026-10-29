@@ -1,25 +1,26 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <ringworld:render_uniforms.glsl>
-#moj_import <ringworld:handoff.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:globals.glsl>
+#include <ringworld:render_uniforms.glsl>
+#include <ringworld:handoff.glsl>
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler1;
 uniform sampler2D Sampler2;
 uniform sampler2D Sampler3;
 
-in vec2 texCoord0;
-in vec4 vertexColor;
-in float intrinsicDistance;
-in float handoffDistance;
-in float intrinsicHeight;
-in float intrinsicWidth;
-flat in vec3 depthMapping;
+layout(location = 0) in vec2 texCoord0;
+layout(location = 1) in vec4 vertexColor;
+layout(location = 2) in float intrinsicDistance;
+layout(location = 6) in float handoffDistance;
+layout(location = 3) in float intrinsicHeight;
+layout(location = 4) in float intrinsicWidth;
+layout(location = 5) flat in vec3 depthMapping;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 float smootherstep(float edge0, float edge1, float value) {
     float t = clamp((value - edge0) / max(0.0001, edge1 - edge0), 0.0, 1.0);
@@ -30,7 +31,7 @@ float wallHash(vec3 block, float salt) {
     float metadata = floor(vertexColor.a * 255.0 + 0.5);
     float seed = mod(metadata, 32.0);
     return fract(sin(dot(block, vec3(12.9898, 78.233, 37.719))
-                     + salt + seed * 11.173) * 43758.5453);
+    + salt + seed * 11.173) * 43758.5453);
 }
 
 float wallRoll(float blockX, float blockY, float depth) {
@@ -38,7 +39,7 @@ float wallRoll(float blockX, float blockY, float depth) {
     float pattern = floor(metadata / 32.0);
     float fine = wallHash(vec3(blockX, blockY, depth), 0.0);
     float coarse = wallHash(vec3(floor(blockX / 7.0), floor(blockY / 5.0),
-                                     floor(depth / 2.0)), 19.0);
+            floor(depth / 2.0)), 19.0);
     // The revised Industrial option keeps the established panel layout.
     if (pattern > 5.5) pattern = 3.0;
     if (pattern < 0.5) {
@@ -55,7 +56,7 @@ float wallRoll(float blockX, float blockY, float depth) {
         float section = floor(blockX / 19.0);
         float wave = floor(wallHash(vec3(section, depth, 2.0), 61.0) * 9.0) - 4.0;
         float height = 3.0 + floor(wallHash(vec3(section, floor(blockY / 13.0),
-                                                   depth), 67.0) * 7.0);
+                depth), 67.0) * 7.0);
         float band = floor((blockY + wave) / height);
         return mix(fine, wallHash(vec3(floor(blockX / 11.0), band, depth), 71.0), 0.68);
     }
@@ -64,9 +65,9 @@ float wallRoll(float blockX, float blockY, float depth) {
                 vec3(floor(blockX / 67.0), depth, 3.0), 79.0) * 13.0);
         float panelX = mod(blockX, panelWidth);
         float course = 8.0 + floor(wallHash(vec3(floor(blockX / panelWidth), depth, 5.0),
-                                                83.0) * 11.0);
+                83.0) * 11.0);
         bool rib = panelX < 1.0 || panelX >= panelWidth - 1.0
-                   || mod(blockY, course) < 1.0;
+        || mod(blockY, course) < 1.0;
         return rib ? 0.92 : mix(fine, coarse, 0.70);
     }
     if (pattern < 4.5) {
@@ -75,7 +76,7 @@ float wallRoll(float blockX, float blockY, float depth) {
     }
     // Hybrid: broad weathered clusters broken by occasional structural ribs.
     float selector = wallHash(vec3(floor(blockX / 23.0), floor(blockY / 17.0), depth),
-                              97.0);
+            97.0);
     float clustered = mix(fine, coarse, 0.66);
     float rib = mod(blockX, 17.0) < 1.0 || mod(blockY, 13.0) < 1.0 ? 0.90 : clustered;
     return selector < 0.28 ? rib : mix(rib, clustered, 0.82);
@@ -90,7 +91,7 @@ vec3 wallPalette(float roll) {
 }
 
 // Clamp each mip to its own wall strip, including the one-row final mip.
-// Repeat U in the sampler: fract(U) before derivatives creates a seam spike.
+// Repeat U in the sampler: fract(U) before derivatives creates a seam LOD spike.
 vec4 wallMip(vec2 uv, float strip, float level) {
     float halfTexel = 0.5 / float(textureSize(Sampler3, int(level)).y);
     uv.y = clamp(uv.y, strip * 0.25 + halfTexel, (strip + 1.0) * 0.25 - halfTexel);
@@ -102,7 +103,7 @@ vec4 filteredWall(vec2 uv, float strip) {
     vec2 dx = dFdx(uv) * size;
     vec2 dy = dFdy(uv) * size;
     float level = clamp(0.5 * log2(max(1.0, max(dot(dx, dx), dot(dy, dy)))),
-                        0.0, log2(size.y * 0.25));
+            0.0, log2(size.y * 0.25));
     float low = floor(level);
     float high = ceil(level);
     return mix(wallMip(uv, strip, low), wallMip(uv, strip, high), fract(level));
@@ -137,26 +138,28 @@ void main() {
     // into a soft continuation and keeps nearby rim walls free of proxy
     // geometry.
     float proxyAlpha = smootherstep(
-        RingWorldHandoff.z,
-        RingWorldHandoff.w,
-        handoffDistance
+            RingWorldHandoff.z,
+            RingWorldHandoff.w,
+            handoffDistance
     );
     if (proxyAlpha <= 0.001) {
         discard;
     }
 
     // A nearly transparent proxy must not occlude fully visible live terrain.
-    // Recover native depth before the vertex clamp, then join its ordered tail.
+    // Reconstruct depth before the vertex clamp, including triangles that
+    // straddle its boundary. Join the native curve to an ordered infinite
+    // tail exactly where clamping starts: no plateau and no distance jump.
     float nativeDepth = depthMapping.x + depthMapping.y * gl_FragCoord.w;
     float tailOffset = depthMapping.z * gl_FragCoord.w;
     // Both backend NDC ranges map to [0,1] here; reversed depth has far=0.
-#ifdef RINGWORLD_REVERSED_DEPTH
+    #ifdef RINGWORLD_REVERSED_DEPTH
     float surfaceDepth = max(nativeDepth, tailOffset);
     gl_FragDepth = mix(0.0, surfaceDepth, proxyAlpha);
-#else
+    #else
     float surfaceDepth = min(nativeDepth, 1.0 + tailOffset);
     gl_FragDepth = mix(1.0, surfaceDepth, proxyAlpha);
-#endif
+    #endif
 
     // Match the final live chunks' atmosphere before their geometry fades.
     // ColorModulator.y carries the celestial rain fade (1 - rain).
@@ -165,7 +168,7 @@ void main() {
     float rain = 1.0 - clamp(ColorModulator.y, 0.0, 1.0);
     float rainDistance = smootherstep(RingWorldDetail.x, RingWorldDetail.y, intrinsicDistance);
     float reveal = ring_handoff_reveal(intrinsicDistance)
-                   * (1.0 - 0.35 * rain * rainDistance);
+    * (1.0 - 0.35 * rain * rainDistance);
 
     // ColorModulator.w is the incomplete-Atlas generation haze. It begins
     // dense, clears with authoritative coverage, and reaches exactly zero for
@@ -190,14 +193,14 @@ void main() {
     float authoredLight = clamp(sampled.a, 0.0, 1.0);
     bool gammaLightProfile = RingWorldAtlasLight.x > 0.5;
     float lightCore = gammaLightProfile
-        ? authoredLight
-        : smootherstep(0.24, 0.84, authoredLight);
+    ? authoredLight
+    : smootherstep(0.24, 0.84, authoredLight);
     float lightFalloff = gammaLightProfile ? RingWorldAtlasLight.y : 1.35;
     float artificialLight = pow(lightCore, lightFalloff) * nightVisibility;
     vec3 lampColor = vec3(1.00, 0.63, 0.28);
     float lightPeak = gammaLightProfile
-        ? RingWorldAtlasLight.z
-        : (0.42 + 0.24 * nightVisibility);
+    ? RingWorldAtlasLight.z
+    : (0.42 + 0.24 * nightVisibility);
     litTerrain += lampColor * artificialLight * lightPeak;
     // The incomplete texture is deliberately opaque: real generated colours
     // flavour nearby unknown cells, then each published revision cross-fades

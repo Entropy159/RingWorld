@@ -32,14 +32,14 @@ public abstract class CloudRendererMixin {
         throw new AssertionError();
     }
 
-    @Inject(method = "render(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V", at = @At("HEAD"))
+    @Inject(method = "prepare(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V", at = @At("HEAD"))
     private void ringworld$invalidateFacePolicy(CallbackInfo ci) {
         boolean curved = ClientRingState.geometry() != null;
         if (curved != ringworld$curvedFaces) markForRebuild();
         ringworld$curvedFaces = curved;
     }
 
-    @ModifyVariable(method = "render(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V", at = @At("HEAD"), argsOnly = true, name = "bottomY")
+    @ModifyVariable(method = "prepare(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V", at = @At("HEAD"), argsOnly = true, name = "bottomY")
     private float ringworld$dynamicCloudHeight(float vanillaHeight) {
         Minecraft client = Minecraft.getInstance();
         if (ClientRingState.geometry() == null || client.level == null) return vanillaHeight;
@@ -57,7 +57,7 @@ public abstract class CloudRendererMixin {
         else if (side.equals("ABOVE_CLOUDS")) encodeFace(faces, x, z, Direction.DOWN, 0);
     }
 
-    @ModifyVariable(method = "render", at = @At("STORE"), name = "relativeBottomY")
+    @ModifyVariable(method = "prepare(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V", at = @At("STORE"), name = "relativeBottomY")
     private float dontCull(float relativeBottomY) {
         return 0;
     }

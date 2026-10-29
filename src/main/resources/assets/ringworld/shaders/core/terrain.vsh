@@ -1,26 +1,36 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <ringworld:render_uniforms.glsl>
-#moj_import <ringworld:projection.glsl>
-#moj_import <minecraft:chunksection.glsl>
-#moj_import <minecraft:projection.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:globals.glsl>
+#include <ringworld:render_uniforms.glsl>
+#include <ringworld:projection.glsl>
+#include <minecraft:terrainglobals.glsl>
+#ifndef MULTIDRAW_TERRAIN
+#include <minecraft:chunksection.glsl>
+#else
+layout(location = 4) in ivec3 ChunkPosition;
+layout(location = 5) in float ChunkVisibility;
+#endif
+#include <minecraft:projection.glsl>
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
-in ivec2 UV2;
-in vec3 Normal;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec2 UV0;
+layout(location = 3) in ivec2 UV2;
 
+
+#ifndef OIT_ALPHA_ONLY
 uniform sampler2D Sampler2;
+#endif
 
-out float sphericalVertexDistance;
-out float cylindricalVertexDistance;
-out vec4 vertexColor;
-out vec2 texCoord0;
-out float ringIntrinsicDistance;
-out float ringHandoffDistance;
+layout(location = 0) out float sphericalVertexDistance;
+layout(location = 1) out float cylindricalVertexDistance;
+layout(location = 2) out vec4 vertexColor;
+layout(location = 3) out vec2 texCoord0;
+layout(location = 4) out float chunkVisibility;
+layout(location = 5) out float ringIntrinsicDistance;
+layout(location = 6) out float ringHandoffDistance;
 
 float ring_circumference() {
     return float(RingWorldLayout.y);
@@ -41,11 +51,16 @@ vec4 minecraft_sample_lightmap(sampler2D lightMap, ivec2 uv) {
 
 void main() {
     vec3 vanillaPos = Position + (ChunkPosition - CameraBlockPos) + CameraOffset;
+    chunkVisibility = mix(1.0, ChunkVisibility, clamp((length(vanillaPos) - 16.0) / 16.0, 0.0, 1.0));
     if (!ring_active()) {
         gl_Position = ProjMat * ModelViewMat * vec4(vanillaPos, 1.0);
         sphericalVertexDistance = fog_spherical_distance(vanillaPos);
         cylindricalVertexDistance = fog_cylindrical_distance(vanillaPos);
-        vertexColor = Color * minecraft_sample_lightmap(Sampler2, UV2);
+        #ifdef OIT_ALPHA_ONLY
+    vertexColor = Color;
+#else
+    vertexColor = Color * minecraft_sample_lightmap(Sampler2, UV2);
+#endif
         texCoord0 = UV0;
         ringIntrinsicDistance = -1.0;
         ringHandoffDistance = -1.0;
@@ -73,7 +88,11 @@ void main() {
         fog_cylindrical_distance(pos),
         fog_cylindrical_distance(vanillaPos)
     );
+    #ifdef OIT_ALPHA_ONLY
+    vertexColor = Color;
+#else
     vertexColor = Color * minecraft_sample_lightmap(Sampler2, UV2);
+#endif
     texCoord0 = UV0;
     // Horizontal intrinsic distance matches chunk loading and the textured
     // surface shader. The fragment shader uses it to reveal the already-drawn

@@ -2,22 +2,36 @@ package dev.ringworld.mixin;
 
 import dev.ringworld.world.RingWorldGeneratorAccess;
 import net.minecraft.world.level.biome.Climate;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureCheck;
+import org.objectweb.asm.Opcodes;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * Makes every structure's final anchor-biome check match generated RingWorld biomes.
+ * StructureCheck is constructed before RingWorld configures the density router.
  */
-@Mixin(Structure.class)
+@Mixin(StructureCheck.class)
 public abstract class StructureBiomeMixin {
-    @Redirect(method = "isValidBiome", require = 1, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/RandomState;sampler()Lnet/minecraft/world/level/biome/Climate$Sampler;"))
-    private static Climate.Sampler ringworld$periodicAnchorBiomeSampler(RandomState randomState, Structure.GenerationStub stub, Structure.GenerationContext context) {
-        if (context.chunkGenerator() instanceof RingWorldGeneratorAccess access && access.ringworld$getGeometry() != null) {
+    @Shadow
+    @Final
+    private ChunkGenerator chunkGenerator;
+    @Shadow
+    @Final
+    private RandomState randomState;
+    @Shadow
+    @Final
+    private Climate.Sampler climateSampler;
+
+    @Redirect(method = "canCreateStructure", require = 1, at = @At(value = "FIELD", opcode = Opcodes.GETFIELD, target = "Lnet/minecraft/world/level/levelgen/structure/StructureCheck;climateSampler:Lnet/minecraft/world/level/biome/Climate$Sampler;"))
+    private Climate.Sampler ringworld$periodicStructureCheckSampler(StructureCheck check) {
+        if (chunkGenerator instanceof RingWorldGeneratorAccess access && access.ringworld$getGeometry() != null) {
             return access.ringworld$getPeriodicClimateSampler(randomState);
         }
-        return randomState.sampler();
+        return climateSampler;
     }
 }

@@ -1,23 +1,29 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <ringworld:render_uniforms.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:oit.glsl>
+#include <minecraft:globals.glsl>
+#include <ringworld:render_uniforms.glsl>
 
-in float vertexDistance;
-in vec4 vertexColor;
-in float ringIntrinsicWorldZ;
+layout(location = 0) in float vertexDistance;
+layout(location = 1) in vec4 vertexColor;
+layout(location = 2) in float ringIntrinsicWorldZ;
 
-out vec4 fragColor;
+#ifndef OIT_ALPHA_ONLY
+layout(location = 0) out vec4 fragColor;
+#endif
 
 void main() {
     vec4 color = vertexColor;
     if (RingWorldLayout.x != 0
-            && (ringIntrinsicWorldZ < RingWorldAtmosphere2.z
-                || ringIntrinsicWorldZ > RingWorldAtmosphere2.w)) {
+        && (ringIntrinsicWorldZ < RingWorldAtmosphere2.z
+            || ringIntrinsicWorldZ > RingWorldAtmosphere2.w)) {
         discard;
     }
+    #ifndef OIT_DEPTH_BOUNDS
     color.a *= 1.0f - linear_fog_value(vertexDistance, 0, FogCloudsEnd);
+    #endif
     if (RingWorldLayout.x != 0) {
         float fadeDistance = RingWorldCloudFade;
         float edgeDistance = fadeDistance;
@@ -31,5 +37,12 @@ void main() {
             color.a *= linear_fog_value(fade, 0, 1);
         }
     }
+    #ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+    #else
+    #ifdef OIT_ACCUMULATE
+    color = sampleColorForAccumulation(color);
+    #endif
     fragColor = color;
+    #endif
 }

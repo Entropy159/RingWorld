@@ -27,6 +27,7 @@
     "CloudRendererMixin",
     "LivingEntitySleepingPositionMixin",
     "MinecraftMixin",
+    "PipelineCacheMixin",
     "PlayerPositionDebugHudEntryMixin",
     "SkyRenderingMixin",
     "SpriteContentsAccessor",

@@ -1,18 +1,20 @@
 package dev.ringworld.mixin;
 
-import dev.ringworld.world.RingGenerationBoundary;
-import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingIndustrialElementPlacement;
-import dev.ringworld.world.RingWorldGeneratorAccess;
+import dev.ringworld.world.*;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.BiomeResolver;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.blending.Blender;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -43,6 +45,22 @@ public abstract class ChunkGeneratorMixin {
             RingGenerationBoundary.installUnderside(chunk, geometry, access.ringworld$getWallStyle(), world.getSeed());
             RingIndustrialElementPlacement.install(chunk, geometry, access.ringworld$getWallHeight(), access.ringworld$getWallStyle(), world.getSeed(), (x, z) -> ((ChunkGenerator) (Object) this).getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, world, world.getLevel().getChunkSource().randomState()));
         }
+    }
+
+    @Redirect(method = "doCreateBiomes", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/ChunkAccess;fillBiomesFromNoise(Lnet/minecraft/world/level/biome/BiomeResolver;)V"))
+    private void ringworld$riverBiome(ChunkAccess chunk, BiomeResolver resolver, Blender blender, RandomState state, ChunkAccess originalChunk) {
+        RingWorldGeneratorAccess access = ringworld$access();
+        if (access == null || access.ringworld$getGeometry() == null || !access.ringworld$getGenerationSettings().continuousRiver()) {
+            chunk.fillBiomesFromNoise(resolver);
+            return;
+        }
+        var river = ((ChunkGenerator) (Object) this).getBiomeSource().possibleBiomes().stream().filter(holder -> holder.is(Biomes.RIVER)).findFirst().orElse(null);
+        if (river == null) {
+            chunk.fillBiomesFromNoise(resolver);
+            return;
+        }
+        var macro = new RingMacroTerrain(access.ringworld$getGeometry(), state.seed(), access.ringworld$getGenerationSettings());
+        chunk.fillBiomesFromNoise((x, y, z) -> macro.riverInfluence(x << 2, z << 2) >= 0.72 ? river : resolver.getNoiseBiome(x, y, z));
     }
 
     @Unique

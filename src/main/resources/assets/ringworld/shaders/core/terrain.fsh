@@ -1,24 +1,29 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <ringworld:render_uniforms.glsl>
-#moj_import <ringworld:handoff.glsl>
-#moj_import <ringworld:material.glsl>
-#moj_import <minecraft:chunksection.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:globals.glsl>
+#include <ringworld:render_uniforms.glsl>
+#include <ringworld:handoff.glsl>
+#include <ringworld:material.glsl>
+#include <minecraft:terrainglobals.glsl>
+#include <minecraft:oit.glsl>
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
-in vec4 vertexColor;
-in vec2 texCoord0;
-in float ringIntrinsicDistance;
-in float ringHandoffDistance;
+layout(location = 0) in float sphericalVertexDistance;
+layout(location = 1) in float cylindricalVertexDistance;
+layout(location = 2) in vec4 vertexColor;
+layout(location = 3) in vec2 texCoord0;
+layout(location = 4) in float chunkVisibility;
+layout(location = 5) in float ringIntrinsicDistance;
+layout(location = 6) in float ringHandoffDistance;
 
-out vec4 fragColor;
+#ifndef OIT_ALPHA_ONLY
+layout(location = 0) out vec4 fragColor;
+#endif
 
-vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
+vec4 sampleNearest(sampler2D sourceTexture, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
     vec2 uvTexelCoords = uv / pixelSize;
     vec2 texelCenter = round(uvTexelCoords) - 0.5f;
     vec2 texelOffset = uvTexelCoords - texelCenter;
@@ -27,7 +32,7 @@ vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv,
     texelOffset = clamp(texelOffset, 0.0f, 1.0f);
 
     uv = (texelCenter + texelOffset) * pixelSize;
-    return textureGrad(sampler, uv, du, dv);
+    return textureGrad(sourceTexture, uv, du, dv);
 }
 
 vec4 sampleNearest(sampler2D source, vec2 uv, vec2 pixelSize) {
@@ -95,7 +100,9 @@ void main() {
     vec4 color = (UseRgss == 1
             ? sampleRGSS(Sampler0, texCoord0, 1.0f / TextureSize)
             : sampleNearest(Sampler0, texCoord0, 1.0f / TextureSize)) * vertexColor;
-    color = mix(FogColor * vec4(1, 1, 1, color.a), color, ChunkVisibility);
+    #ifndef OIT_ALPHA_ONLY
+    color = mix(FogColor * vec4(1, 1, 1, color.a), color, chunkVisibility);
+#endif
 #ifdef ALPHA_CUTOUT
     if (color.a < ALPHA_CUTOUT) {
         discard;
@@ -105,13 +112,32 @@ void main() {
     color = ring_material_coverage(color, vertexColor, texCoord0,
             ringIntrinsicDistance, ringHandoffDistance);
 
+#ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+#else
     if (ring_active() && ringIntrinsicDistance >= 0.0) {
+        // One shared distance-haze curve from nearby blocks through the Atlas.
+        // Keep environmental fog (underwater, lava, effects), but do not first
+        // wash terrain toward vanilla distance fog and then undo that wash.
         color = ring_material_atmosphere(color, ringIntrinsicDistance, FogColor.rgb);
-        fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance,
+        color = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance,
             FogEnvironmentalStart, FogEnvironmentalEnd, 1.0e20, 1.0e21, FogColor);
+#ifdef OIT_ACCUMULATE
+        // Atmospheric colour must be applied before OIT premultiplication;
+        // adding unweighted fog afterwards brightens transparent water edges.
+        color = sampleColorForAccumulation(color);
+#endif
+        fragColor = color;
     } else {
+#ifdef OIT_ACCUMULATE
+        color = sampleColorForAccumulation(color);
+        vec4 ringFogColor = vec4(FogColor.rgb * color.a, FogColor.a);
+#else
+        vec4 ringFogColor = FogColor;
+#endif
         fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance,
             FogEnvironmentalStart, FogEnvironmentalEnd,
-            FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+            FogRenderDistanceStart, FogRenderDistanceEnd, ringFogColor);
     }
+#endif
 }

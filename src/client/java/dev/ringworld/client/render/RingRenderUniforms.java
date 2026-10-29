@@ -1,7 +1,7 @@
 package dev.ringworld.client.render;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.commands.RenderPass;
 
 /**
  * Render-thread-owned buffer shared by adapters; never changes vanilla Globals.

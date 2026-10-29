@@ -1,21 +1,35 @@
 package dev.ringworld.mixin;
 
-import dev.ringworld.world.RingNoiseSamplingContext;
-import net.minecraft.world.level.levelgen.NoiseChunk;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingNoiseRouter;
+import dev.ringworld.world.RingRandomStateAccess;
+import dev.ringworld.world.RingWorldGenerationSettings;
 import net.minecraft.world.level.levelgen.NoiseRouter;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * Installs the ring router in the sampler that owns final terrain density.
+ * 26.3 routes terrain, climate, aquifer, ore and material functions here.
  */
-@Mixin(NoiseChunk.class)
-public abstract class ChunkNoiseSamplerMixin {
-    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/RandomState;router()Lnet/minecraft/world/level/levelgen/NoiseRouter;"))
-    private NoiseRouter ringworld$usePeriodicRouter(RandomState noiseConfig) {
-        NoiseRouter override = RingNoiseSamplingContext.currentRouter();
-        return override != null ? override : noiseConfig.router();
+@Mixin(RandomState.class)
+abstract class ChunkNoiseSamplerMixin implements RingRandomStateAccess {
+    @Unique
+    private volatile RingNoiseRouter ringworld$mapper;
+
+    @Override
+    public synchronized void ringworld$configureNoise(RingGeometry geometry, int mapping, RingWorldGenerationSettings settings, long seed, int seaLevel, NoiseRouter router) {
+        if (ringworld$mapper != null && ringworld$mapper.matches(geometry, mapping, settings, seed, seaLevel, router))
+            return;
+        ringworld$mapper = new RingNoiseRouter(geometry, mapping, settings, seed, seaLevel, router);
+    }
+
+    @ModifyVariable(method = "getSampler", at = @At("HEAD"), argsOnly = true, name = "function")
+    private DensityFunction ringworld$periodicFunction(DensityFunction function) {
+        RingNoiseRouter mapper = ringworld$mapper;
+        return mapper == null ? function : mapper.rewrite(function);
     }
 }

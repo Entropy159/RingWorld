@@ -45,7 +45,7 @@ public abstract class LevelRendererMixin {
         RingObjectTransform transform = RingDistortionTuning.object(geometry, camera, x, y, z);
         Vec3 local = transform.cameraLocalPosition();
         poseStack.translate(local.x, local.y, local.z);
-        poseStack.mulPose(Axis.ZP.rotation((float) transform.tangentAngleRadians()));
+        poseStack.rotate(Axis.ZP.rotation((float) transform.tangentAngleRadians()));
         if (matchTerrainTangentScale) {
             poseStack.scale((float) transform.tangentScale(), 1.0f, 1.0f);
         }

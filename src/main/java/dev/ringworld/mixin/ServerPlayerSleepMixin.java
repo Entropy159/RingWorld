@@ -10,7 +10,6 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -28,9 +27,9 @@ public abstract class ServerPlayerSleepMixin {
     }
 
     @Inject(method = "startSleeping", at = @At("TAIL"))
-    private void ringworld$alignMovementAfterSleeping(BlockPos bedPos, CallbackInfo ci) {
+    private void ringworld$alignMovementAfterSleeping(BlockPos bedPos, CallbackInfoReturnable<Boolean> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
-        if (RingWorldApi.isRingWorld(player.level()) && player.connection instanceof RingPlayerMovementAccess access) {
+        if (cir.getReturnValue() && RingWorldApi.isRingWorld(player.level()) && player.connection instanceof RingPlayerMovementAccess access) {
             access.ringworld$resetPlayerMovementBaselines();
         }
     }

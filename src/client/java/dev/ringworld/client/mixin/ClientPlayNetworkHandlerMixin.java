@@ -6,6 +6,7 @@ import dev.ringworld.client.chunk.RingClientChunkMapAccess;
 import dev.ringworld.client.chunk.RingClientChunkMaps;
 import dev.ringworld.world.RingChunkCoordinates;
 import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingPositionPaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
@@ -95,11 +96,11 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (!client.isSameThread()) return packet;
         RingGeometry geometry = ClientRingState.geometry();
         if (geometry == null || client.level == null || client.player == null) return packet;
-        PositionMoveRotation values = packet.values();
-        double logicalX = geometry.nearestImageX(values.position().x, client.player.getX());
-        if (logicalX == values.position().x) return packet;
-        PositionMoveRotation logical = new PositionMoveRotation(new Vec3(logicalX, values.position().y, values.position().z), values.deltaMovement(), values.yRot(), values.xRot());
-        return new ClientboundEntityPositionSyncPacket(packet.id(), logical, packet.onGround());
+        var values = packet.position();
+        double logicalX = geometry.nearestImageX(values.endPosition().x, client.player.getX());
+        if (logicalX == values.endPosition().x) return packet;
+        var logical = RingPositionPaths.shift(values, logicalX - values.endPosition().x);
+        return new ClientboundEntityPositionSyncPacket(packet.id(), logical, packet.yRot(), packet.xRot(), packet.onGround());
     }
 
     @ModifyVariable(method = "handleTeleportEntity", at = @At("HEAD"), argsOnly = true, name = "packet")
@@ -125,10 +126,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (!client.isSameThread()) return packet;
         RingGeometry geometry = ClientRingState.geometry();
         if (geometry == null || client.player == null) return packet;
-        Vec3 position = packet.position();
+        Vec3 position = packet.movingTo().position();
         double logicalX = geometry.nearestImageX(position.x, client.player.getRootVehicle().getX());
         if (logicalX == position.x) return packet;
-        return new ClientboundMoveVehiclePacket(new Vec3(logicalX, position.y, position.z), packet.yRot(), packet.xRot());
+        return new ClientboundMoveVehiclePacket(net.minecraft.core.PositionAndRotation.of(new Vec3(logicalX, position.y, position.z), packet.movingTo().yRot(), packet.movingTo().xRot()));
     }
 
     /**
@@ -190,17 +191,17 @@ public abstract class ClientPlayNetworkHandlerMixin {
         return packet;
     }
 
-    @Redirect(method = "handleLevelChunkWithLight", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket;getX()I"))
+    @Redirect(method = "handleLevelChunkWithLight", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket;x()I"))
     private int ringworld$mapChunkDataX(ClientboundLevelChunkWithLightPacket packet) {
-        return mapChunkX(packet.getX());
+        return mapChunkX(packet.x());
     }
 
     /**
      * Incremental light packets arrive independently of full chunk data.
      */
-    @Redirect(method = "handleLightUpdatePacket", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundLightUpdatePacket;getX()I"))
+    @Redirect(method = "handleLightUpdatePacket", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundLightUpdatePacket;x()I"))
     private int ringworld$mapLightUpdateX(ClientboundLightUpdatePacket packet) {
-        return mapChunkX(packet.getX());
+        return mapChunkX(packet.x());
     }
 
     /**
@@ -241,13 +242,21 @@ public abstract class ClientPlayNetworkHandlerMixin {
             }
             double nearestX = geometry.nearestImageX(pos.getX(), client.player.getX());
             BlockPos mapped = new BlockPos((int) Math.floor(nearestX), pos.getY(), pos.getZ());
+            if (!System.getProperty("ringworld.multiplayerTestRole", "").isEmpty() && pos.getX() == 1 && pos.getY() == 119 && pos.getZ() == 0) {
+                RingWorldMod.LOGGER.info("[multiplayer:{}] seam block delta {} -> {} state={} playerX={}", System.getProperty("ringworld.multiplayerTestRole"), pos, mapped, state.getBlock(), client.player.getX());
+            }
             consumer.accept(mapped, state);
         });
     }
 
     @Redirect(method = "handleBlockUpdate", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundBlockUpdatePacket;getPos()Lnet/minecraft/core/BlockPos;"))
     private BlockPos ringworld$mapBlockUpdate(ClientboundBlockUpdatePacket packet) {
-        return mapBlockPos(packet.getPos());
+        BlockPos mapped = mapBlockPos(packet.getPos());
+        if (!System.getProperty("ringworld.multiplayerTestRole", "").isEmpty() && packet.getPos().equals(new BlockPos(1, 119, 0))) {
+            Minecraft client = Minecraft.getInstance();
+            RingWorldMod.LOGGER.info("[multiplayer:{}] seam block update {} -> {} state={} playerX={}", System.getProperty("ringworld.multiplayerTestRole"), packet.getPos(), mapped, packet.getBlockState().getBlock(), client.player == null ? Double.NaN : client.player.getX());
+        }
+        return mapped;
     }
 
     @Redirect(method = "handleBlockEntityData", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket;getPos()Lnet/minecraft/core/BlockPos;"))
@@ -258,9 +267,9 @@ public abstract class ClientPlayNetworkHandlerMixin {
     /**
      * The sign screen immediately resolves this position back to its block entity.
      */
-    @Redirect(method = "handleOpenSignEditor", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket;getPos()Lnet/minecraft/core/BlockPos;"))
+    @Redirect(method = "handleOpenSignEditor", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket;pos()Lnet/minecraft/core/BlockPos;"))
     private BlockPos ringworld$mapOpenSignEditor(ClientboundOpenSignEditorPacket packet) {
-        return mapBlockPos(packet.getPos());
+        return mapBlockPos(packet.pos());
     }
 
     @Redirect(method = "handleBlockDestruction", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundBlockDestructionPacket;getPos()Lnet/minecraft/core/BlockPos;"))
@@ -281,9 +290,9 @@ public abstract class ClientPlayNetworkHandlerMixin {
     @ModifyVariable(method = "handleParticleEvent", at = @At("HEAD"), argsOnly = true, name = "packet")
     private ClientboundLevelParticlesPacket ringworld$mapParticle(ClientboundLevelParticlesPacket packet) {
         if (!Minecraft.getInstance().isSameThread()) return packet;
-        double x = mapX(packet.getX());
-        if (x == packet.getX()) return packet;
-        return new ClientboundLevelParticlesPacket(packet.getParticle(), packet.isOverrideLimiter(), packet.alwaysShow(), x, packet.getY(), packet.getZ(), packet.getXDist(), packet.getYDist(), packet.getZDist(), packet.getMaxSpeed(), packet.getCount());
+        double x = mapX(packet.x());
+        if (x == packet.x()) return packet;
+        return new ClientboundLevelParticlesPacket(packet.particle(), packet.overrideLimiter(), packet.alwaysShow(), x, packet.y(), packet.z(), packet.xDist(), packet.yDist(), packet.zDist(), packet.xMaxSpeed(), packet.yMaxSpeed(), packet.zMaxSpeed(), packet.count(), packet.randomizationType());
     }
 
     @ModifyVariable(method = "handleExplosion", at = @At("HEAD"), argsOnly = true, name = "packet")
@@ -291,7 +300,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (!Minecraft.getInstance().isSameThread()) return packet;
         double x = mapX(packet.center().x);
         if (x == packet.center().x) return packet;
-        return new ClientboundExplodePacket(new Vec3(x, packet.center().y, packet.center().z), packet.radius(), packet.blockCount(), packet.playerKnockback(), packet.explosionParticle(), packet.explosionSound(), packet.blockParticles());
+        return new ClientboundExplodePacket(new Vec3(x, packet.center().y, packet.center().z), packet.radius(), packet.blockCount(), packet.playerKnockback(), packet.explosionParticle(), packet.explosionSound(), packet.blockParticles(), packet.playSound());
     }
 
     @ModifyVariable(method = "handleSoundEvent", at = @At("HEAD"), argsOnly = true, name = "packet")

@@ -7,6 +7,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.level.block.entity.SignTextSlot;
+import net.minecraft.world.level.block.entity.TestInstanceBlockEntity;
 import net.minecraft.world.level.block.state.properties.TestBlockMode;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -14,6 +17,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+
+import java.util.List;
 
 /**
  * Sends canonical ring coordinates while the client keeps logical ones.
@@ -27,16 +32,18 @@ public abstract class ClientConnectionMixin {
         if (packet instanceof ServerboundPlayerActionPacket action) {
             return new ServerboundPlayerActionPacket(action.getAction(), canonical(action.getPos(), geometry), action.getDirection(), action.getSequence());
         }
-        if (packet instanceof ServerboundUseItemOnPacket interaction) {
-            BlockHitResult hit = interaction.getHitResult();
+        if (packet instanceof ServerboundUseItemOnPacket(
+                InteractionHand hand, BlockHitResult hit, int sequence
+        )) {
             Vec3 hitPosition = hit.getLocation();
             RingInteractionCoordinates.CanonicalBlockHit canonical = RingInteractionCoordinates.canonicalizeBlockHit(geometry, hit.getBlockPos().getX(), hitPosition.x);
             BlockHitResult canonicalHit = new BlockHitResult(new Vec3(canonical.hitX(), hitPosition.y, hitPosition.z), hit.getDirection(), new BlockPos(canonical.blockX(), hit.getBlockPos().getY(), hit.getBlockPos().getZ()), hit.isInside(), hit.isWorldBorderHit());
-            return new ServerboundUseItemOnPacket(interaction.getHand(), canonicalHit, interaction.getSequence());
+            return new ServerboundUseItemOnPacket(hand, canonicalHit, sequence);
         }
-        if (packet instanceof ServerboundSignUpdatePacket sign) {
-            String[] lines = sign.getLines();
-            return new ServerboundSignUpdatePacket(canonical(sign.getPos(), geometry), sign.isFrontText(), lines[0], lines[1], lines[2], lines[3]);
+        if (packet instanceof ServerboundSignUpdatePacket(
+                BlockPos pos1, List<String> lines, SignTextSlot slot
+        )) {
+            return new ServerboundSignUpdatePacket(canonical(pos1, geometry), lines, slot);
         }
         if (packet instanceof ServerboundPickItemFromBlockPacket(BlockPos pos, boolean includeData)) {
             return new ServerboundPickItemFromBlockPacket(canonical(pos, geometry), includeData);
@@ -62,8 +69,7 @@ public abstract class ClientConnectionMixin {
             return new ServerboundSetTestBlockPacket(canonical(position, geometry), mode, message);
         }
         if (packet instanceof ServerboundTestInstanceBlockActionPacket(
-                BlockPos pos, ServerboundTestInstanceBlockActionPacket.Action action,
-                net.minecraft.world.level.block.entity.TestInstanceBlockEntity.Data data
+                BlockPos pos, ServerboundTestInstanceBlockActionPacket.Action action, TestInstanceBlockEntity.Data data
         )) {
             return new ServerboundTestInstanceBlockActionPacket(canonical(pos, geometry), action, data);
         }

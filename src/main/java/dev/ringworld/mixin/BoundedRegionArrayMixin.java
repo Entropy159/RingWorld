@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Lets a generation region address canonical holders through a local seam alias.
@@ -28,6 +29,12 @@ public abstract class BoundedRegionArrayMixin {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void ringworld$markPeriodicRegion(CallbackInfo ci) {
         ringworld$circumferenceChunks = RingRegionContext.activeCircumferenceChunks();
+    }
+
+    // 26.3 maps generation holders into a new cache after the loader scope ends.
+    @Inject(method = "map", at = @At("RETURN"))
+    private void ringworld$preservePeriodicityOnMappedCache(CallbackInfoReturnable<StaticCache2D<?>> cir) {
+        ((BoundedRegionArrayMixin) (Object) cir.getReturnValue()).ringworld$circumferenceChunks = ringworld$circumferenceChunks;
     }
 
     @ModifyVariable(method = {"get", "contains"}, at = @At("HEAD"), argsOnly = true, name = "x")

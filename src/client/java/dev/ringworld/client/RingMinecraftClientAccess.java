@@ -8,20 +8,21 @@ import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 
 /**
- * Minecraft 26.2 client accessors retained behind the shared client source ABI.
+ * Minecraft 26.3 client accessors retained behind the shared client source ABI.
  */
 public final class RingMinecraftClientAccess {
     /**
      * Create isolated preview noise state from the worker's immutable registry snapshot.
      */
     public static RandomState createPreviewRandomState(RegistryAccess.Frozen registries, Holder<NoiseGeneratorSettings> settings, ResourceKey<NoiseGeneratorSettings> settingsKey, long seed) {
-        return RandomState.create(registries, settingsKey, seed);
+        return RandomState.create(registries.lookupOrThrow(Registries.NOISE), seed, settings.value());
     }
 
     public static int maxTextureSize() {

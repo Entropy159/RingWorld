@@ -4,7 +4,7 @@ import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingPlayerMovementAccess;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.network.protocol.game.ServerboundMoveVehiclePacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,12 +43,13 @@ public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovemen
         lastGoodX = player.getX();
     }
 
-    @ModifyVariable(method = "handleMovePlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;hasClientLoaded()Z"), argsOnly = true, name = "packet")
-    private ServerboundMovePlayerPacket ringworld$projectPlayerMovement(ServerboundMovePlayerPacket packet) {
+    // Both ordinary movement and teleport acknowledgements reach this method
+    // in 26.3. Project before vanilla measures either against its baselines.
+    @ModifyVariable(method = "handlePlayerPositionChange", at = @At("HEAD"), argsOnly = true, name = "requestedX")
+    private double ringworld$projectPlayerMovement(double presentationX) {
         ServerLevel world = player.level();
-        if (!packet.hasPosition() || !RingWorldApi.isRingWorld(world)) return packet;
+        if (!RingWorldApi.isRingWorld(world)) return presentationX;
         RingGeometry geometry = RingWorldServer.geometryFor(world);
-        double presentationX = packet.getX(player.getX());
         double nearestX = geometry.nearestImageX(presentationX, player.getX());
         double canonicalTargetX = geometry.wrapX(nearestX);
 
@@ -79,12 +80,11 @@ public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovemen
             }
         }
 
-        if (canonicalTargetX == presentationX) return packet;
-        return new ServerboundMovePlayerPacket.PosRot(canonicalTargetX, packet.getY(player.getY()), packet.getZ(player.getZ()), packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()), packet.isOnGround(), packet.horizontalCollision());
+        return canonicalTargetX;
     }
 
-    @Inject(method = "handleMovePlayer", at = @At("TAIL"))
-    private void ringworld$foldPlayerAfterMovement(ServerboundMovePlayerPacket packet, CallbackInfo ci) {
+    @Inject(method = "handlePlayerPositionChange", at = @At("TAIL"))
+    private void ringworld$foldPlayerAfterMovement(CallbackInfo ci) {
         ServerLevel world = player.level();
         if (!RingWorldApi.isRingWorld(world)) return;
         double shift = RingWorldServer.canonicalizeEntityPosition(player, RingWorldServer.geometryFor(world));
@@ -101,10 +101,10 @@ public abstract class ServerPlayNetworkHandlerMixin implements RingPlayerMovemen
         Entity vehicle = player.getRootVehicle();
         if (!RingWorldApi.isRingWorld(world) || vehicle == player) return packet;
         RingGeometry geometry = RingWorldServer.geometryFor(world);
-        Vec3 position = packet.position();
+        Vec3 position = packet.movingTo().position();
         double nearestX = geometry.nearestImageX(position.x, vehicle.getX());
         if (nearestX == position.x) return packet;
-        return new ServerboundMoveVehiclePacket(new Vec3(nearestX, position.y, position.z), packet.yRot(), packet.xRot(), packet.onGround());
+        return new ServerboundMoveVehiclePacket(PositionAndRotation.of(new Vec3(nearestX, position.y, position.z), packet.movingTo().yRot(), packet.movingTo().xRot()), packet.onGround());
     }
 
     @Inject(method = "handleMoveVehicle", at = @At("TAIL"))

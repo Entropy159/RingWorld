@@ -5,6 +5,7 @@ import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingTopology;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Continuation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityTypeTest;
@@ -53,7 +54,7 @@ public abstract class WorldEntityLookupMixin {
         for (RingTopology.QueryWindow window : topology.canonicalWindows(box)) {
             getEntities().get(filter, window.canonicalBox(), entity -> {
                 if (seen.add(entity) && predicate.test(entity)) result.add(entity);
-                return result.size() >= limit ? net.minecraft.util.AbortableIterationConsumer.Continuation.ABORT : net.minecraft.util.AbortableIterationConsumer.Continuation.CONTINUE;
+                return result.size() >= limit ? Continuation.ABORT : Continuation.CONTINUE;
             });
             if (result.size() >= limit) break;
         }
