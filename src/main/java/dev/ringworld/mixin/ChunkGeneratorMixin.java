@@ -24,10 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ChunkGeneratorMixin {
     @Inject(method = "applyBiomeDecoration", at = @At("HEAD"), cancellable = true)
     private void ringworld$skipExteriorFeatures(WorldGenLevel world, ChunkAccess chunk, StructureManager structures, CallbackInfo ci) {
-        RingWorldGeneratorAccess access = ringworld$access();
-        if (access == null) return;
-        RingGeometry geometry = access.ringworld$getGeometry();
-        if (geometry == null || !RingGenerationBoundary.isExterior(chunk, geometry)) return;
+        if (!isExterior(chunk)) return;
         // An adjacent interior feature can spill a few blocks into this chunk
         // before its own feature stage. Clear those off-thread, then leave the
         // exterior empty without scheduling live chunk updates.
@@ -66,5 +63,13 @@ public abstract class ChunkGeneratorMixin {
     @Unique
     private RingWorldGeneratorAccess ringworld$access() {
         return (Object) this instanceof RingWorldGeneratorAccess access ? access : null;
+    }
+
+    @Unique
+    private boolean isExterior(ChunkAccess chunk) {
+        RingWorldGeneratorAccess access = ringworld$access();
+        if (access == null) return false;
+        RingGeometry geometry = access.ringworld$getGeometry();
+        return geometry != null && RingGenerationBoundary.isExterior(chunk, geometry);
     }
 }

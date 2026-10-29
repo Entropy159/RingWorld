@@ -1,5 +1,7 @@
 package dev.ringworld.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingChunkMaintenanceBudget;
 import dev.ringworld.server.RingChunkWorkContext;
@@ -11,7 +13,6 @@ import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Util;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -144,9 +145,9 @@ public abstract class ChunkMapMaintenanceMixin {
         return ringworld$saves < ringworld$budget.saves() && ringworld$tasks < ringworld$budget.tasks() && activeChunkWrites.get() < 128 && (ringworld$tasks == 0 || System.nanoTime() - ringworld$start < ringworld$budget.nanos());
     }
 
-    @Redirect(method = "processUnloads", at = @At(value = "INVOKE", target = "Ljava/util/Queue;size()I"))
-    private int ringworld$boundedMandatoryDrain(Queue<Runnable> queue) {
-        int size = queue.size();
+    @WrapOperation(method = "processUnloads", at = @At(value = "INVOKE", target = "Ljava/util/Queue;size()I"))
+    private int ringworld$boundedMandatoryDrain(Queue<Runnable> instance, Operation<Integer> original) {
+        int size = original.call(instance);
         return ringworld$ordinaryTick ? Math.min(size, 2000) : size;
     }
 

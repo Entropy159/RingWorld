@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.util.StaticCache2D;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStep;
 import net.minecraft.world.ticks.WorldGenTickAccess;
@@ -53,7 +52,7 @@ public abstract class ChunkRegionMixin {
 
     @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/StaticCache2D;map(Lnet/minecraft/util/StaticCache2D$MappingFunction;)Lnet/minecraft/util/StaticCache2D;"))
     private StaticCache2D<ChunkAccess> ringworld$mapPeriodicGenerationCache(StaticCache2D<GenerationChunkHolder> cache, StaticCache2D.MappingFunction<GenerationChunkHolder, ChunkAccess> mapping, ServerLevel world, StaticCache2D<GenerationChunkHolder> originalCache, ChunkStep step, ChunkAccess centralChunk) {
-        if (world.dimension() != Level.OVERWORLD) return cache.map(mapping);
+        if (!RingWorldApi.isRingWorld(world)) return cache.map(mapping);
         RingGeometry geometry = RingWorldServer.geometryFor(world);
         return cache.map((holder, x, z) -> mapping.apply(holder, RingChunkCoordinates.nearestImageChunkX(x, centralChunk.getPos().x(), geometry), z));
     }

@@ -3,6 +3,7 @@ package dev.ringworld.world;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -188,11 +189,11 @@ public final class RingGenerationBoundary {
         return true;
     }
 
-    public static boolean isRimMaterial(net.minecraft.world.level.block.state.BlockState state) {
+    public static boolean isRimMaterial(BlockState state) {
         return state.is(Blocks.COBBLESTONE) || state.is(Blocks.MOSSY_COBBLESTONE) || state.is(Blocks.STONE) || state.is(Blocks.ANDESITE) || state.is(Blocks.STONE_BRICKS) || state.is(Blocks.CRACKED_STONE_BRICKS) || state.is(Blocks.MOSSY_STONE_BRICKS) || state.is(Blocks.TUFF) || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.POLISHED_DIORITE) || state.is(Blocks.QUARTZ_BLOCK) || state.is(Blocks.PRISMARINE_BRICKS) || state.is(Blocks.DEEPSLATE_BRICKS) || state.is(Blocks.DEEPSLATE_TILES) || state.is(Blocks.POLISHED_BASALT) || state.is(Blocks.TUFF_BRICKS) || state.is(Blocks.RAW_COPPER_BLOCK) || state.is(Blocks.MOSS_BLOCK) || state.is(Blocks.SEA_LANTERN) || state.is(Blocks.CALCITE) || state.is(Blocks.POLISHED_ANDESITE) || state.is(Blocks.NETHER_BRICKS) || state.is(Blocks.RED_NETHER_BRICKS) || state.is(Blocks.BLACKSTONE) || state.is(Blocks.POLISHED_BLACKSTONE_BRICKS) || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.OBSIDIAN) || state.is(Blocks.CRYING_OBSIDIAN) || state.is(Blocks.GILDED_BLACKSTONE) || state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.OAK_LOG) || state.is(Blocks.SPRUCE_LOG) || state.is(Blocks.DARK_OAK_LOG) || state.is(Blocks.OAK_PLANKS) || state.is(Blocks.STRIPPED_SPRUCE_LOG);
     }
 
-    private static net.minecraft.world.level.block.state.BlockState texturedRimBlock(int x, int y, int z) {
+    private static BlockState texturedRimBlock(int x, int y, int z) {
         long hash = (long) x * 0x9E3779B97F4A7C15L ^ (long) y * 0xC2B2AE3D27D4EB4FL ^ (long) z * 0x165667B19E3779F9L;
         hash ^= hash >>> 30;
         hash *= 0xBF58476D1CE4E5B9L;
@@ -201,7 +202,7 @@ public final class RingGenerationBoundary {
         return Long.remainderUnsigned(hash, 10L) < 3L ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
     }
 
-    private static net.minecraft.world.level.block.state.BlockState texturedRimBlock(RingWallStyle style, int x, int y, int depth, int circumference, long worldSeed) {
+    private static BlockState texturedRimBlock(RingWallStyle style, int x, int y, int depth, int circumference, long worldSeed) {
         // One independently sampled block in a thousand. Keeping this outside
         // the 0-99 palette roll avoids the former minimum density of one percent.
         if (style.palette() == RingWallStyle.Palette.INDUSTRIAL && RingWallPattern.rareAccent(style, x, y, depth, circumference, worldSeed, 1)) {
@@ -215,7 +216,7 @@ public final class RingGenerationBoundary {
      * Single material-palette source shared by real wall generation and the
      * client Atlas-rim colour derivation.
      */
-    public static net.minecraft.world.level.block.state.BlockState styledRimBlockForRoll(RingWallStyle style, int roll) {
+    public static BlockState styledRimBlockForRoll(RingWallStyle style, int roll) {
         if (style == null) throw new IllegalArgumentException("wall style is required");
         if (roll < 0 || roll > 99) {
             throw new IllegalArgumentException("wall material roll must be in [0, 99]");

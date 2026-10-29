@@ -1,4 +1,4 @@
-package dev.ringworld.client.mixin.compat;
+package dev.ringworld.client.mixin.compat.sodium;
 
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingDistortionTuning;

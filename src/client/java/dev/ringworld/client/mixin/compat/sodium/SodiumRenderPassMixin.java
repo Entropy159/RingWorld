@@ -1,4 +1,4 @@
-package dev.ringworld.client.mixin.compat;
+package dev.ringworld.client.mixin.compat.sodium;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;

@@ -9,6 +9,12 @@ public final class RingOptionalRenderMixins implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (!mixinClassName.contains(".compat.")) return true;
         var loader = getClass().getClassLoader();
-        return loader.getResource("net/caffeinemc/mods/sodium/client/SodiumClientMod.class") != null && loader.getResource(targetClassName.replace('.', '/') + ".class") != null;
+        if (loader.getResource(targetClassName.replace('.', '/') + ".class") == null) {
+            return false;
+        }
+        if (mixinClassName.contains(".sodium.")) {
+            return loader.getResource("net/caffeinemc/mods/sodium/client/SodiumClientMod.class") != null;
+        }
+        return true;
     }
 }

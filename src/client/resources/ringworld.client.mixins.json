@@ -31,14 +31,14 @@
     "PlayerPositionDebugHudEntryMixin",
     "SkyRenderingMixin",
     "SpriteContentsAccessor",
-    "compat.SodiumSimpleFrustumAccessor",
-    "compat.SodiumViewportMixin",
-    "compat.SodiumOcclusionMixin",
-    "compat.SodiumFaceVisibilityMixin",
-    "compat.SodiumPipelineBindingsMixin",
-    "compat.SodiumRenderPassMixin",
-    "compat.SodiumEngineShaderMixin",
-    "compat.SodiumProjectionChangesMixin"
+    "compat.sodium.SodiumSimpleFrustumAccessor",
+    "compat.sodium.SodiumViewportMixin",
+    "compat.sodium.SodiumOcclusionMixin",
+    "compat.sodium.SodiumFaceVisibilityMixin",
+    "compat.sodium.SodiumPipelineBindingsMixin",
+    "compat.sodium.SodiumRenderPassMixin",
+    "compat.sodium.SodiumEngineShaderMixin",
+    "compat.sodium.SodiumProjectionChangesMixin"
   ],
   "injectors": {
     "defaultRequire": 1

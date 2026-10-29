@@ -1,4 +1,4 @@
-package dev.ringworld.client.mixin.compat;
+package dev.ringworld.client.mixin.compat.sodium;
 
 import org.joml.FrustumIntersection;
 import org.spongepowered.asm.mixin.Mixin;

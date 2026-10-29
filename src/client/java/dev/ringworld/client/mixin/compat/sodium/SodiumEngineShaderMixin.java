@@ -1,4 +1,4 @@
-package dev.ringworld.client.mixin.compat;
+package dev.ringworld.client.mixin.compat.sodium;
 
 import com.google.common.collect.ImmutableMap;
 import com.mojang.renderpearl.api.pipeline.ShaderType;

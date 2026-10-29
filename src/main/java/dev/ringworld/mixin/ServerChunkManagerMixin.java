@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -23,14 +24,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  */
 @Mixin(ServerChunkCache.class)
 public abstract class ServerChunkManagerMixin {
-    @ModifyVariable(method = "getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/ChunkAccess;", at = @At("HEAD"), argsOnly = true, name = "x")
+    @Shadow
+    public abstract Level getLevel();
+
+    @ModifyVariable(method = {"getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/ChunkAccess;", "getChunkFutureMainThread", "getChunkNow"}, at = @At("HEAD"), argsOnly = true, name = "x")
     private int ringworld$canonicalChunkX(int chunkX) {
-        Level world = ((ServerChunkCache) (Object) this).getLevel();
-        if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) {
-            return chunkX;
-        }
-        RingGeometry geometry = RingWorldServer.geometryFor(serverWorld);
-        return RingChunkCoordinates.wrapChunkX(chunkX, geometry);
+        return RingWorldApi.wrapChunkX(chunkX, getLevel());
     }
 
     /**
@@ -38,7 +37,7 @@ public abstract class ServerChunkManagerMixin {
      */
     @ModifyVariable(method = "getVisibleChunkIfPresent", at = @At("HEAD"), argsOnly = true, name = "key")
     private long ringworld$canonicalHolderLookup(long packedPos) {
-        Level world = ((ServerChunkCache) (Object) this).getLevel();
+        Level world = getLevel();
         if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) {
             return packedPos;
         }
@@ -52,7 +51,7 @@ public abstract class ServerChunkManagerMixin {
      */
     @ModifyVariable(method = {"addTicket(Lnet/minecraft/server/level/Ticket;Lnet/minecraft/world/level/ChunkPos;)V", "addTicketAndLoadWithRadius", "addTicketWithRadius(Lnet/minecraft/server/level/TicketType;Lnet/minecraft/world/level/ChunkPos;I)V", "removeTicketWithRadius", "updateChunkForced"}, at = @At("HEAD"), argsOnly = true, name = "pos")
     private ChunkPos ringworld$canonicalTicketPosition(ChunkPos pos) {
-        Level world = ((ServerChunkCache) (Object) this).getLevel();
+        Level world = getLevel();
         if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) {
             return pos;
         }
@@ -62,7 +61,7 @@ public abstract class ServerChunkManagerMixin {
 
     @Redirect(method = "runDistanceManagerUpdates", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/DistanceManager;runAllUpdates(Lnet/minecraft/server/level/ChunkMap;)Z"))
     private boolean ringworld$updatePeriodicChunkGraph(DistanceManager manager, ChunkMap loadingManager) {
-        Level world = ((ServerChunkCache) (Object) this).getLevel();
+        Level world = getLevel();
         if (!(world instanceof ServerLevel serverWorld) || !RingWorldApi.isRingWorld(serverWorld)) {
             return manager.runAllUpdates(loadingManager);
         }
