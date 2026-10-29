@@ -89,7 +89,7 @@ public final class RingAtlasPregenerationService {
         logLoad(storage.status(), path, legacyPath, atlas);
         WorldState state = new WorldState(atlas, path, storage.status() == RingTerrainAtlas.StorageStatus.INVALID_CURRENT || storage.status() == RingTerrainAtlas.StorageStatus.INVALID_LEGACY);
         WORLDS.put(world, state);
-        if (allowBackgroundAutostart && RingWorldConfig.load().pregenerateTerrainAtlas()) {
+        if (allowBackgroundAutostart && RingWorldConfig.load(world.dimension()).pregenerateTerrainAtlas()) {
             pregenerate(world, AtlasPregenerationOptions.backgroundDefaults(), NOOP_LISTENER);
         } else {
             // Config false deliberately leaves the same observable handle in

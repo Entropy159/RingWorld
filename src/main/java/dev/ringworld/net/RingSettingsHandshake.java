@@ -17,7 +17,7 @@ public final class RingSettingsHandshake {
     }
 
     public static RingSettingsPayload payloadFor(ResourceKey<Level> dimension, RingWorldSettings settings, RingSkyProfile skyProfile) {
-        return new RingSettingsPayload(dimension, settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(), settings.wallHeightBlocks(), settings.surfaceReferenceY(), settings.terrainNoiseMapping(), settings.wallStyle(), skyProfile, settings.generationSettings(), settings.formatVersion(), settings.layoutFingerprint());
+        return new RingSettingsPayload(dimension, settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(), settings.wallHeightBlocks(), settings.surfaceReferenceY(), settings.terrainNoiseMapping(), settings.wallStyle(), skyProfile, settings.generationSettings(), settings.sunAngleOffsetY(), settings.sunAngleOffsetZ(), settings.formatVersion(), settings.layoutFingerprint());
     }
 
     /**

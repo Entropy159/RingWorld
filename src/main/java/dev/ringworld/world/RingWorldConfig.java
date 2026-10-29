@@ -1,11 +1,11 @@
 package dev.ringworld.world;
 
-import com.google.gson.Gson;
 import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
-import net.minecraft.resources.Identifier;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import java.io.IOException;
@@ -13,11 +13,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 /**
  * Bootstrap settings used only while creating a world. Once a world has saved
@@ -25,30 +23,35 @@ import java.util.stream.Collectors;
  */
 public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, RingWallStyle wallStyle,
                               RingSkyProfile skyProfile, RingWorldGenerationSettings generationSettings,
-                              boolean pregenerateTerrainAtlas, boolean requestOceanMonument) {
-    private static final String FILE_NAME = "ringworld.properties";
-    private static Path configDirectory = Path.of("config");
-    private static RingWorldConfig loaded;
+                              boolean pregenerateTerrainAtlas, boolean requestOceanMonument, float sunAngleOffsetY,
+                              float sunAngleOffsetZ) {
+    private static final Path configDirectory = FabricLoader.getInstance().getConfigDir().toAbsolutePath().normalize().resolve(RingWorldMod.MOD_ID);
+    private static final Map<ResourceKey<Level>, RingWorldConfig> LOADED_CONFIGS = new HashMap<>();
 
-    /**
-     * Platform bootstrap must provide its authoritative configuration directory before loading.
-     */
-    public static synchronized void configureDirectory(Path directory) {
-        if (directory == null) throw new IllegalArgumentException("config directory is required");
-        Path normalized = directory.toAbsolutePath().normalize();
-        if (loaded != null && !configDirectory.toAbsolutePath().normalize().equals(normalized)) {
-            throw new IllegalStateException("RingWorld config was already loaded from " + configDirectory);
+    private static Path configPath(ResourceKey<Level> dimension) {
+        Path path = configDirectory.resolve(dimension.identifier().getNamespace()).resolve(dimension.identifier().getPath() + ".properties");
+        try {
+            Files.createDirectories(path.getParent());
+        } catch (IOException e) {
+            RingWorldMod.LOGGER.error("Error creating config directories! ", e);
         }
-        configDirectory = normalized;
+        if (!path.toFile().exists()) {
+            if (dimension != Level.OVERWORLD) {
+                try {
+                    Files.copy(configPath(Level.OVERWORLD), path);
+                } catch (IOException e) {
+                    RingWorldMod.LOGGER.error("Unable to copy ringworld properties for dimension " + dimension.identifier() + "! ", e);
+                }
+            }
+            path = FabricLoader.getInstance().getConfigDir().resolve("ringworld.properties"); //Fall back to default settings
+        }
+        return path;
     }
 
-    private static Path configPath() {
-        return configDirectory.resolve(FILE_NAME);
-    }
-
-    public static synchronized RingWorldConfig load() {
+    public static synchronized RingWorldConfig load(ResourceKey<Level> dimension) {
+        var loaded = LOADED_CONFIGS.get(dimension);
         if (loaded != null) return loaded;
-        Path path = configPath();
+        Path path = configPath(dimension);
         Properties properties = new Properties();
         if (Files.exists(path)) {
             try (Reader reader = Files.newBufferedReader(path)) {
@@ -72,6 +75,8 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
             properties.setProperty("moreStructures", "false");
             properties.setProperty("pregenerateTerrainAtlas", "true");
             properties.setProperty("requestOceanMonument", "false");
+            properties.setProperty("sunAngleOffsetY", "20");
+            properties.setProperty("sunAngleOffsetZ", "20");
             try {
                 Files.createDirectories(path.getParent());
                 try (Writer writer = Files.newBufferedWriter(path)) {
@@ -89,34 +94,20 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         RingWorldGenerationSettings generationSettings = generationSettings(properties);
         boolean pregenerateTerrainAtlas = Boolean.parseBoolean(properties.getProperty("pregenerateTerrainAtlas", "true"));
         boolean requestOceanMonument = Boolean.parseBoolean(properties.getProperty("requestOceanMonument", "false"));
+        float sunAngleOffsetY = decimal(properties, "sunAngleOffsetY", 20);
+        float sunAngleOffsetZ = decimal(properties, "sunAngleOffsetZ", 20);
         // Saved worlds ignore this bootstrap layout, so retain structural parsing
         // support for old configuration while first-world creation applies the
         // stricter new-world admission below.
         new RingGeometry(width, circumference);
         if (wallHeight < 32) throw new IllegalArgumentException("wallHeightBlocks must be at least 32");
-        loaded = new RingWorldConfig(width, circumference, wallHeight, wallStyle, skyProfile, generationSettings, pregenerateTerrainAtlas, requestOceanMonument);
-        RingWorldMod.LOGGER.info("RingWorld bootstrap settings: width={}, circumference={}, wallHeight={}, pregenerateTerrainAtlas={}, requestOceanMonument={}", width, circumference, wallHeight, pregenerateTerrainAtlas, requestOceanMonument);
+        loaded = new RingWorldConfig(width, circumference, wallHeight, wallStyle, skyProfile, generationSettings, pregenerateTerrainAtlas, requestOceanMonument, sunAngleOffsetY, sunAngleOffsetZ);
+        RingWorldMod.LOGGER.info("RingWorld bootstrap settings for {}: width={}, circumference={}, wallHeight={}, pregenerateTerrainAtlas={}, requestOceanMonument={}, sunAngleOffsetY={}, sunAngleOffsetZ={}", dimension.identifier(), width, circumference, wallHeight, pregenerateTerrainAtlas, requestOceanMonument, sunAngleOffsetY, sunAngleOffsetZ);
+        LOADED_CONFIGS.put(dimension, loaded);
         return loaded;
     }
 
-    /**
-     * Updates only the first-world layout fields. Operational test and atlas
-     * switches remain unchanged, and saved worlds continue to ignore this
-     * bootstrap state.
-     */
-    public static synchronized RingWorldConfig saveBootstrapLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, boolean requestOceanMonument) {
-        return saveBootstrapLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, load().wallStyle(), requestOceanMonument);
-    }
-
-    public static synchronized RingWorldConfig saveBootstrapLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, RingWallStyle wallStyle, boolean requestOceanMonument) {
-        return saveBootstrapLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle, load().skyProfile(), load().generationSettings(), requestOceanMonument);
-    }
-
-    public static synchronized RingWorldConfig saveBootstrapLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, RingWallStyle wallStyle, RingSkyProfile skyProfile, boolean requestOceanMonument) {
-        return saveBootstrapLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle, skyProfile, load().generationSettings(), requestOceanMonument);
-    }
-
-    public static synchronized RingWorldConfig saveBootstrapLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, RingWallStyle wallStyle, RingSkyProfile skyProfile, RingWorldGenerationSettings generationSettings, boolean requestOceanMonument) {
+    public static synchronized RingWorldConfig saveBootstrapLayout(ResourceKey<Level> dimension, int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, RingWallStyle wallStyle, RingSkyProfile skyProfile, RingWorldGenerationSettings generationSettings, boolean requestOceanMonument, float sunAngleOffsetY, float sunAngleOffsetZ) {
         if (wallStyle == null) throw new IllegalArgumentException("wall style is required");
         if (skyProfile == null) throw new IllegalArgumentException("sky profile is required");
         if (generationSettings == null) {
@@ -124,8 +115,8 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         }
         validateNewWorldLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle.thicknessBlocks(), RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
         boolean effectiveMonumentRequest = effectiveOceanMonumentRequest(new RingGeometry(widthBlocks, circumferenceBlocks), requestOceanMonument);
-        RingWorldConfig current = load();
-        RingWorldConfig replacement = new RingWorldConfig(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle, skyProfile, generationSettings, current.pregenerateTerrainAtlas(), effectiveMonumentRequest);
+        RingWorldConfig current = load(dimension);
+        RingWorldConfig replacement = new RingWorldConfig(widthBlocks, circumferenceBlocks, wallHeightBlocks, wallStyle, skyProfile, generationSettings, current.pregenerateTerrainAtlas(), effectiveMonumentRequest, sunAngleOffsetY, sunAngleOffsetZ);
         Properties properties = new Properties();
         properties.setProperty("widthBlocks", Integer.toString(widthBlocks));
         properties.setProperty("circumferenceBlocks", Integer.toString(circumferenceBlocks));
@@ -144,7 +135,9 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         properties.setProperty("moreStructures", Boolean.toString(generationSettings.moreStructures()));
         properties.setProperty("pregenerateTerrainAtlas", Boolean.toString(current.pregenerateTerrainAtlas()));
         properties.setProperty("requestOceanMonument", Boolean.toString(effectiveMonumentRequest));
-        Path path = configPath();
+        properties.setProperty("sunAngleOffsetY", Float.toString(sunAngleOffsetY));
+        properties.setProperty("sunAngleOffsetZ", Float.toString(sunAngleOffsetZ));
+        Path path = configPath(dimension);
         try {
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) {
@@ -153,23 +146,12 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
         } catch (IOException exception) {
             throw new IllegalStateException("Could not update " + path, exception);
         }
-        loaded = replacement;
+        LOADED_CONFIGS.put(dimension, replacement);
         if (requestOceanMonument && !effectiveMonumentRequest) {
             RingWorldMod.LOGGER.warn("Ignored ocean-monument request: width={} cannot fit its required margins", widthBlocks);
         }
         RingWorldMod.LOGGER.info("Updated first-world RingWorld layout: {}x{}, wallHeight={}, requestOceanMonument={}", circumferenceBlocks, widthBlocks, wallHeightBlocks, effectiveMonumentRequest);
         return replacement;
-    }
-
-    /**
-     * Bootstrap-only admission; saved legacy settings retain 1,024-block structural support.
-     */
-    static void validateNewWorldLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks) {
-        validateNewWorldLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, RingWallStyle.DEFAULT.thicknessBlocks(), RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
-    }
-
-    static void validateNewWorldLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, int rimThicknessBlocks) {
-        validateNewWorldLayout(widthBlocks, circumferenceBlocks, wallHeightBlocks, rimThicknessBlocks, RingTerrainAtlas.SAMPLE_STEP_BLOCKS);
     }
 
     static void validateNewWorldLayout(int widthBlocks, int circumferenceBlocks, int wallHeightBlocks, int rimThicknessBlocks, int atlasSampleStepBlocks) {
@@ -192,6 +174,14 @@ public record RingWorldConfig(int widthBlocks, int circumferenceBlocks, int wall
             return Integer.parseInt(properties.getProperty(key, Integer.toString(fallback)));
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException(key + " must be an integer", exception);
+        }
+    }
+
+    private static float decimal(Properties properties, String key, float fallback) {
+        try {
+            return Float.parseFloat(properties.getProperty(key, Float.toString(fallback)));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(key + " must be a decimal", e);
         }
     }
 

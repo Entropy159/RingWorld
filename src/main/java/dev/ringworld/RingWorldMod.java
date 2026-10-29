@@ -7,6 +7,7 @@ import dev.ringworld.world.RingWorldConfig;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,9 +17,8 @@ public final class RingWorldMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        RingWorldConfig.configureDirectory(FabricLoader.getInstance().getConfigDir());
         logLoadedConflicts();
-        RingWorldConfig.load();
+        RingWorldConfig.load(Level.OVERWORLD);
         RingWorldNetworking.registerPayloads();
         FabricRingWorldServer.register();
     }

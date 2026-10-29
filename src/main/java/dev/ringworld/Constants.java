@@ -33,8 +33,6 @@ public final class Constants {
     public static final int MIN_WIDTH = 128;
     public static final int MIN_CIRCUMFERENCE = 2048;
     public static final RingSkyProfile DEFAULT_SKY_PROFILE = new RingSkyProfile(RingSkyProfile.Backdrop.ATMOSPHERE, RingSkyProfile.LightSource.SMALL, RingSkyProfile.FORMAT_VERSION);
-    public static final float SUN_ANGLE_OFFSET_Y = 20;
-    public static final float SUN_ANGLE_OFFSET_Z = 20;
 
     public static final TagKey<DimensionType> RING_DIMENSION_TAG = TagKey.create(Registries.DIMENSION_TYPE, RingWorldMod.id("ring"));
 

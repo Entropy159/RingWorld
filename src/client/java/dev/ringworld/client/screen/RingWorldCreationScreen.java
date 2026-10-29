@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -57,7 +58,7 @@ public final class RingWorldCreationScreen extends Screen {
 
     @Override
     protected void init() {
-        RingWorldConfig config = RingWorldConfig.load();
+        RingWorldConfig config = RingWorldConfig.load(Level.OVERWORLD);
         String draftCircumference = circumferenceField == null ? Integer.toString(config.circumferenceBlocks()) : circumferenceField.getValue();
         String draftWidth = widthField == null ? Integer.toString(config.widthBlocks()) : widthField.getValue();
         String draftWallHeight = wallHeightField == null ? Integer.toString(config.wallHeightBlocks()) : wallHeightField.getValue();
@@ -138,7 +139,7 @@ public final class RingWorldCreationScreen extends Screen {
     }
 
     private void restoreSavedConfig() {
-        RingWorldConfig saved = RingWorldConfig.load();
+        RingWorldConfig saved = RingWorldConfig.load(Level.OVERWORLD);
         setPreset(saved.circumferenceBlocks(), saved.widthBlocks(), saved.wallHeightBlocks());
         requestOceanMonument = saved.requestOceanMonument() && report != null && report.isValid() && RingWorldCreationUiModel.monumentAvailable(report.geometry());
         wallStyle = saved.wallStyle();
@@ -241,7 +242,7 @@ public final class RingWorldCreationScreen extends Screen {
 
     private void persistLayout(RingDimensionReport confirmedReport) {
         try {
-            RingWorldConfig.saveBootstrapLayout(confirmedReport.geometry().widthBlocks(), confirmedReport.geometry().circumferenceBlocks(), confirmedReport.wallHeightBlocks(), wallStyle, skyProfile(), generationSettings, requestOceanMonument);
+            RingWorldConfig.saveBootstrapLayout(Level.OVERWORLD, confirmedReport.geometry().widthBlocks(), confirmedReport.geometry().circumferenceBlocks(), confirmedReport.wallHeightBlocks(), wallStyle, skyProfile(), generationSettings, requestOceanMonument, 20, 20);
             if (parent instanceof LayoutButtonOwner owner) {
                 owner.ringworld$refreshLayoutButton();
             }

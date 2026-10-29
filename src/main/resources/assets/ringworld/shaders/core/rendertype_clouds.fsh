@@ -22,7 +22,7 @@ void main() {
         float fadeDistance = RingWorldCloudFade;
         float edgeDistance = fadeDistance;
         if (ringIntrinsicWorldZ < 0) {
-            edgeDistance = RingWorldAtmosphere2.z - ringIntrinsicWorldZ;
+            edgeDistance = -RingWorldAtmosphere2.z + ringIntrinsicWorldZ;
         } else {
             edgeDistance = RingWorldAtmosphere2.w - ringIntrinsicWorldZ;
         }

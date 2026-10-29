@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationContext;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -34,7 +35,7 @@ public abstract class CreateWorldScreenMixin extends Screen implements RingWorld
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/layouts/HeaderAndFooterLayout;" + "addToFooter(Lnet/minecraft/client/gui/layouts/LayoutElement;)" + "Lnet/minecraft/client/gui/layouts/LayoutElement;"))
     private LayoutElement ringworld$addLayoutButton(HeaderAndFooterLayout layout, LayoutElement footerElement) {
-        RingWorldConfig config = RingWorldConfig.load();
+        RingWorldConfig config = RingWorldConfig.load(Level.OVERWORLD);
         LinearLayout footer = (LinearLayout) footerElement;
         ringworld$layoutButton = footer.addChild(Button.builder(ringworld$buttonLabel(config), button -> dev.ringworld.client.RingMinecraftClientAccess.setScreen(minecraft, new RingWorldEditorScreen(this))).width(120).build());
         ringworld$layoutButton.setTooltip(ringworld$buttonTooltip(config));
@@ -44,7 +45,7 @@ public abstract class CreateWorldScreenMixin extends Screen implements RingWorld
     @Override
     public void ringworld$refreshLayoutButton() {
         if (ringworld$layoutButton == null) return;
-        RingWorldConfig config = RingWorldConfig.load();
+        RingWorldConfig config = RingWorldConfig.load(Level.OVERWORLD);
         Component message = ringworld$buttonLabel(config);
         ringworld$layoutButton.setTooltip(ringworld$buttonTooltip(config));
         if (!ringworld$layoutButton.getMessage().equals(message)) {

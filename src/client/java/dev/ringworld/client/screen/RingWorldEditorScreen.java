@@ -10,6 +10,7 @@ import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.WorldOptions;
 
 import java.util.Arrays;
@@ -54,7 +55,7 @@ public final class RingWorldEditorScreen extends Screen {
         super(Component.literal("Create a RingWorld"));
         this.parent = Objects.requireNonNull(parent);
         this.owner = (RingWorldCreationScreen.LayoutButtonOwner) parent;
-        this.original = RingWorldConfig.load();
+        this.original = RingWorldConfig.load(Level.OVERWORLD);
         this.originalSeed = owner.ringworld$seedText();
         load(original);
         seed = originalSeed;
@@ -349,7 +350,7 @@ public final class RingWorldEditorScreen extends Screen {
         if (!monumentAvailable()) monument = false;
         try {
             RingDimensionReport report = v.report();
-            RingWorldConfig.saveBootstrapLayout(report.geometry().widthBlocks(), report.geometry().circumferenceBlocks(), report.wallHeightBlocks(), validWallStyle(), new RingSkyProfile(backdrop, sun, RingSkyProfile.FORMAT_VERSION), generation, monument);
+            RingWorldConfig.saveBootstrapLayout(Level.OVERWORLD, report.geometry().widthBlocks(), report.geometry().circumferenceBlocks(), report.wallHeightBlocks(), validWallStyle(), new RingSkyProfile(backdrop, sun, RingSkyProfile.FORMAT_VERSION), generation, monument, 20, 20);
             if (previewSeedUsed) owner.ringworld$setPreviewSeedText(selectedSeed);
             else owner.ringworld$setSeedText(selectedSeed);
             owner.ringworld$refreshLayoutButton();
@@ -369,7 +370,7 @@ public final class RingWorldEditorScreen extends Screen {
     private void confirmRestore() {
         RingMinecraftClientAccess.setScreen(minecraft, new ConfirmScreen(confirmed -> {
             if (confirmed) {
-                load(RingWorldConfig.load());
+                load(RingWorldConfig.load(Level.OVERWORLD));
                 seed = originalSeed;
                 selectedSeed = originalSeed;
                 previewSeedUsed = false;

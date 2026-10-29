@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 /**
  * Client copy of the immutable settings received during login.
@@ -34,6 +35,8 @@ public final class ClientRingState {
     private static volatile RingWorldGenerationSettings generationSettings = RingWorldGenerationSettings.DEFAULT;
     private static volatile long generatorSeed;
     private static volatile long layoutFingerprint;
+    private static volatile float sunAngleOffsetY;
+    private static volatile float sunAngleOffsetZ;
     @Nullable
     private static volatile RingPosition cameraPosition;
     private static volatile long cameraSeamCrossings;
@@ -66,31 +69,7 @@ public final class ClientRingState {
         cacheDirectory = directory.toAbsolutePath().normalize();
     }
 
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, long newLayoutFingerprint) {
-        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, dev.ringworld.world.RingTerrainNoiseMapping.CURRENT, newLayoutFingerprint);
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, long newLayoutFingerprint) {
-        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, RingWallStyle.LEGACY, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, long newLayoutFingerprint) {
-        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, Constants.DEFAULT_SKY_PROFILE, newLayoutFingerprint);
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newLayoutFingerprint) {
-        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, 0L, newLayoutFingerprint);
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newGeneratorSeed, long newLayoutFingerprint) {
-        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, newGeneratorSeed, RingWorldSettings.FORMAT_VERSION, newLayoutFingerprint);
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> dimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
-        set(newGeometry, dimension, newWallHeightBlocks, newSurfaceReferenceY, newTerrainNoiseMapping, newWallStyle, newSkyProfile, RingWorldGenerationSettings.DEFAULT, newGeneratorSeed, newSettingsFormatVersion, newLayoutFingerprint);
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> newDimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, RingWorldGenerationSettings newGenerationSettings, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
+    public static void set(RingGeometry newGeometry, ResourceKey<Level> newDimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, RingWorldGenerationSettings newGenerationSettings, float newSunAngleOffsetY, float newSunAngleOffsetZ, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
         geometry = newGeometry;
         dimension = newDimension;
         wallHeightBlocks = newWallHeightBlocks;
@@ -100,9 +79,11 @@ public final class ClientRingState {
             throw new IllegalArgumentException("Unsupported RingWorld settings format " + newSettingsFormatVersion);
         }
         settingsFormatVersion = newSettingsFormatVersion;
-        wallStyle = java.util.Objects.requireNonNull(newWallStyle, "wallStyle");
-        skyProfile = java.util.Objects.requireNonNull(newSkyProfile, "skyProfile");
-        generationSettings = java.util.Objects.requireNonNull(newGenerationSettings, "generationSettings");
+        wallStyle = Objects.requireNonNull(newWallStyle, "wallStyle");
+        skyProfile = Objects.requireNonNull(newSkyProfile, "skyProfile");
+        generationSettings = Objects.requireNonNull(newGenerationSettings, "generationSettings");
+        sunAngleOffsetY = newSunAngleOffsetY;
+        sunAngleOffsetZ = newSunAngleOffsetZ;
         generatorSeed = newGeneratorSeed;
         layoutFingerprint = newLayoutFingerprint;
         cameraPosition = null;
@@ -173,6 +154,14 @@ public final class ClientRingState {
 
     public static RingWorldGenerationSettings generationSettings() {
         return generationSettings;
+    }
+
+    public static float sunAngleOffsetY() {
+        return sunAngleOffsetY;
+    }
+
+    public static float sunAngleOffsetZ() {
+        return sunAngleOffsetZ;
     }
 
     public static long generatorSeed() {

@@ -19,22 +19,10 @@ import org.jspecify.annotations.NonNull;
  * Complete immutable layout sent before the client renders a ring world.
  */
 public record RingSettingsPayload(ResourceKey<Level> dimension, int width, int circumference, long seed, int wallHeight,
-                                  int surfaceReferenceY,
-                                  int terrainNoiseMapping, RingWallStyle wallStyle, RingSkyProfile skyProfile,
-                                  RingWorldGenerationSettings generationSettings, int formatVersion,
+                                  int surfaceReferenceY, int terrainNoiseMapping, RingWallStyle wallStyle,
+                                  RingSkyProfile skyProfile, RingWorldGenerationSettings generationSettings,
+                                  float sunAngleOffsetY, float sunAngleOffsetZ, int formatVersion,
                                   long fingerprint) implements CustomPacketPayload {
-    /**
-     * Source-compatible constructor for tests and pre-format-5 default layouts.
-     */
-    public RingSettingsPayload(ResourceKey<Level> dimension, int width, int circumference, long seed, int wallHeight, int surfaceReferenceY, int terrainNoiseMapping, RingWallStyle wallStyle, RingSkyProfile skyProfile, int formatVersion, long fingerprint) {
-        this(dimension, width, circumference, seed, wallHeight, surfaceReferenceY, terrainNoiseMapping, wallStyle, skyProfile, RingWorldGenerationSettings.DEFAULT, formatVersion, fingerprint);
-    }
-
-    /**
-     * The channel name is versioned whenever its byte layout changes. Reusing
-     * the old identifier makes an old codec consume its known prefix and then
-     * crash on the unread fields before either side can explain the mismatch.
-     */
     public static final Type<RingSettingsPayload> ID = new Type<>(RingWorldMod.id("settings_v7"));
     private static final StreamCodec<RegistryFriendlyByteBuf, RingWallStyle> WALL_STYLE_CODEC = StreamCodec.ofMember((style, buffer) -> {
         buffer.writeVarInt(style.thicknessBlocks());
@@ -55,7 +43,38 @@ public record RingSettingsPayload(ResourceKey<Level> dimension, int width, int c
         buffer.writeBoolean(settings.moreStructures());
         buffer.writeVarInt(settings.formatVersion());
     }, buffer -> new RingWorldGenerationSettings(RingAtlasFidelity.fromId(buffer.readVarInt()), RingWorldLayout.fromId(buffer.readVarInt()), buffer.readBoolean(), buffer.readBoolean(), buffer.readVarInt()));
-    public static final StreamCodec<RegistryFriendlyByteBuf, RingSettingsPayload> CODEC = StreamCodec.composite(ResourceKey.streamCodec(Registries.DIMENSION), RingSettingsPayload::dimension, ByteBufCodecs.VAR_INT, RingSettingsPayload::width, ByteBufCodecs.VAR_INT, RingSettingsPayload::circumference, ByteBufCodecs.LONG, RingSettingsPayload::seed, ByteBufCodecs.VAR_INT, RingSettingsPayload::wallHeight, ByteBufCodecs.VAR_INT, RingSettingsPayload::surfaceReferenceY, ByteBufCodecs.VAR_INT, RingSettingsPayload::terrainNoiseMapping, WALL_STYLE_CODEC, RingSettingsPayload::wallStyle, SKY_PROFILE_CODEC, RingSettingsPayload::skyProfile, GENERATION_SETTINGS_CODEC, RingSettingsPayload::generationSettings, ByteBufCodecs.VAR_INT, RingSettingsPayload::formatVersion, ByteBufCodecs.LONG, RingSettingsPayload::fingerprint, RingSettingsPayload::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, RingSettingsPayload> CODEC = StreamCodec.of((buf, val) -> {
+        ResourceKey.streamCodec(Registries.DIMENSION).encode(buf, val.dimension);
+        ByteBufCodecs.VAR_INT.encode(buf, val.width);
+        ByteBufCodecs.VAR_INT.encode(buf, val.circumference);
+        ByteBufCodecs.LONG.encode(buf, val.seed);
+        ByteBufCodecs.VAR_INT.encode(buf, val.wallHeight);
+        ByteBufCodecs.VAR_INT.encode(buf, val.surfaceReferenceY);
+        ByteBufCodecs.VAR_INT.encode(buf, val.terrainNoiseMapping);
+        WALL_STYLE_CODEC.encode(buf, val.wallStyle);
+        SKY_PROFILE_CODEC.encode(buf, val.skyProfile);
+        GENERATION_SETTINGS_CODEC.encode(buf, val.generationSettings);
+        ByteBufCodecs.FLOAT.encode(buf, val.sunAngleOffsetY);
+        ByteBufCodecs.FLOAT.encode(buf, val.sunAngleOffsetZ);
+        ByteBufCodecs.VAR_INT.encode(buf, val.formatVersion);
+        ByteBufCodecs.LONG.encode(buf, val.fingerprint);
+    }, buf -> {
+        var dimension = ResourceKey.streamCodec(Registries.DIMENSION).decode(buf);
+        var width = ByteBufCodecs.VAR_INT.decode(buf);
+        var circumference = ByteBufCodecs.VAR_INT.decode(buf);
+        var seed = ByteBufCodecs.LONG.decode(buf);
+        var wallheight = ByteBufCodecs.VAR_INT.decode(buf);
+        var surfaceReferenceY = ByteBufCodecs.VAR_INT.decode(buf);
+        var terrainNoiseMapping = ByteBufCodecs.VAR_INT.decode(buf);
+        var wallStyle = WALL_STYLE_CODEC.decode(buf);
+        var skyProfile = SKY_PROFILE_CODEC.decode(buf);
+        var generationSettings = GENERATION_SETTINGS_CODEC.decode(buf);
+        var sunAngleOffsetY = ByteBufCodecs.FLOAT.decode(buf);
+        var sunAngleOffsetZ = ByteBufCodecs.FLOAT.decode(buf);
+        var formatVersion = ByteBufCodecs.VAR_INT.decode(buf);
+        var fingerprint = ByteBufCodecs.LONG.decode(buf);
+        return new RingSettingsPayload(dimension, width, circumference, seed, wallheight, surfaceReferenceY, terrainNoiseMapping, wallStyle, skyProfile, generationSettings, sunAngleOffsetY, sunAngleOffsetZ, formatVersion, fingerprint);
+    });
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {

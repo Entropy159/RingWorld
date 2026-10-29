@@ -37,9 +37,9 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
     }
 
     @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/biome/Climate$Sampler;findSpawnPosition()Lnet/minecraft/core/BlockPos;"))
-    private static BlockPos ringworld$constrainInitialSpawn(Climate.Sampler sampler) {
+    private static BlockPos ringworld$constrainInitialSpawn(Climate.Sampler sampler, @Local(argsOnly = true, name = "level") ServerLevel level) {
         BlockPos vanilla = sampler.findSpawnPosition();
-        RingWorldConfig config = RingWorldConfig.load();
+        RingWorldConfig config = RingWorldConfig.load(level.dimension());
         RingGeometry geometry = new RingGeometry(config.widthBlocks(), config.circumferenceBlocks());
 
         // Preserve vanilla's preferred biome along the periodic axis. Across
@@ -62,7 +62,7 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
         if (!RingWorldApi.isRingWorld(level)) {
             return LevelData.RespawnData.of(dimension, position, yaw, pitch);
         }
-        RingWorldConfig config = RingWorldConfig.load();
+        RingWorldConfig config = RingWorldConfig.load(dimension);
         RingGeometry geometry = new RingGeometry(config.widthBlocks(), config.circumferenceBlocks());
         return LevelData.RespawnData.of(dimension, RingSpawnBounds.canonicalInitialSpawn(position, geometry), yaw, pitch);
     }

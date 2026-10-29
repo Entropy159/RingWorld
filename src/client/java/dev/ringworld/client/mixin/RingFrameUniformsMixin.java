@@ -8,7 +8,7 @@ import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingAtlasLightTuning;
 import dev.ringworld.client.RingClientLodTuning;
 import dev.ringworld.client.RingDistortionTuning;
-import dev.ringworld.client.render.RingShaderContract;
+import dev.ringworld.client.render.RingRenderUniforms;
 import dev.ringworld.client.render.RingSurfaceGpu;
 import dev.ringworld.world.RingCloudBounds;
 import dev.ringworld.world.RingGeometry;
@@ -56,12 +56,12 @@ public abstract class RingFrameUniformsMixin {
     @Inject(method = "<init>", at = @At("RETURN"))
     private void ringworld$allocateOwnUniforms(CallbackInfo ci) {
         ringworld$buffer = RenderSystem.getDevice().createBuffer(() -> "RingWorld render uniforms", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, RINGWORLD_GLOBALS_SIZE);
-        dev.ringworld.client.render.RingRenderUniforms.publish(ringworld$buffer);
+        RingRenderUniforms.publish(ringworld$buffer);
     }
 
     @Inject(method = "close", at = @At("HEAD"))
     private void ringworld$closeOwnUniforms(CallbackInfo ci) {
-        dev.ringworld.client.render.RingRenderUniforms.clear(ringworld$buffer);
+        RingRenderUniforms.clear(ringworld$buffer);
         if (ringworld$buffer != null) ringworld$buffer.close();
     }
 
