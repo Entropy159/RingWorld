@@ -1,14 +1,18 @@
 package dev.ringworld.client.compat;
 
+import dev.ringworld.RingWorldMod;
 import net.minecraft.resources.Identifier;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 /**
  * Format adapter only: all projection, water and handoff math stays in shared GLSL.
  */
 public final class SodiumTerrainShaders {
+    private static final int LAYOUT_INDEX = 6;
+
     public static String adapt(Identifier name, String source) {
         if (!name.getNamespace().equals("sodium")) return source;
         String path = name.getPath();
@@ -20,7 +24,7 @@ public final class SodiumTerrainShaders {
         boolean engine = source.contains("#moj_import") || source.contains("#include");
         boolean explicit = source.contains("layout(location = 0)");
         String direction = vertex ? "out" : "in";
-        String header = "\n// RingWorld terrain adapter\n" + include("render_uniforms") + (vertex ? include("projection") : include("handoff") + include("material")) + (explicit ? "layout(location = 4) " : "") + direction + " vec2 ringworldDistances;\n";
+        String header = "\n// RingWorld terrain adapter\n" + include("render_uniforms") + (vertex ? include("projection") : include("handoff") + include("material")) + (explicit ? "layout(location = " + LAYOUT_INDEX + ") " : "") + direction + " vec2 ringworldDistances;\n";
         if (vertex) {
             header += engine ? (explicit ? "#include" : "#moj_import") + " <minecraft:globals.glsl>\n" : "uniform float RingWorldCameraY;\n";
             String cameraY = engine ? "float(CameraBlockPos.y) - CameraOffset.y" : "RingWorldCameraY";
@@ -74,11 +78,11 @@ public final class SodiumTerrainShaders {
         }
         // Definitions must precede calculateFinalColor as well as main, while
         // the renderer's own includes retain their normal preprocessing order.
-        var imports = java.util.regex.Pattern.compile("(?m)^#(?:import|moj_import|include) .*\\R").matcher(source);
+        var imports = Pattern.compile("(?m)^#(?:import|moj_import|include) .*\\R").matcher(source);
         int end = -1;
         while (imports.find()) end = imports.end();
         if (end < 0) throw new IllegalStateException("Missing Sodium shader imports");
-        dev.ringworld.RingWorldMod.LOGGER.info("RingWorld shared terrain contract applied to Sodium shader {}", name);
+        RingWorldMod.LOGGER.info("RingWorld shared terrain contract applied to Sodium shader {}", name);
         return source.substring(0, end) + header + source.substring(end);
     }
 
