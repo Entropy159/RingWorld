@@ -11,8 +11,8 @@ import dev.ringworld.config.WallSettings;
 public final class RingLayoutFingerprint {
     private static final int FINGERPRINT_VERSION = 4;
 
-    public static long compute(RingWorldConfig settings) {
-        return compute(settings.width(), settings.circumference(), 0, settings.wallSettings().height(), settings.wallSettings());
+    public static long compute(RingWorldConfig settings, long seed) {
+        return compute(settings.width(), settings.circumference(), seed, settings.wallSettings().height(), settings.wallSettings());
     }
 
     public static long compute(int widthBlocks, int circumferenceBlocks, long generatorSeed, int wallHeightBlocks, WallSettings wallStyle) {

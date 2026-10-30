@@ -79,8 +79,8 @@ public final class RingTerrainAtlas {
         this.present = new boolean[cellCount];
     }
 
-    public static long worldHash(RingWorldConfig settings) {
-        long value = RingLayoutFingerprint.compute(settings);
+    public static long worldHash(RingWorldConfig settings, long seed) {
+        long value = RingLayoutFingerprint.compute(settings, seed);
         value = RingLayoutFingerprint.mix(value ^ ((long) FORMAT_VERSION << 32));
         return RingLayoutFingerprint.mix(value ^ SAMPLE_STEP_BLOCKS);
     }

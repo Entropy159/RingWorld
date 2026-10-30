@@ -76,7 +76,7 @@ public final class RingAtlasPregenerationService {
         requireServerThread(world);
         RingWorldConfig settings = RingWorldConfig.get(world);
         RingGeometry geometry = settings.geometry();
-        long hash = RingTerrainAtlas.worldHash(settings);
+        long hash = RingTerrainAtlas.worldHash(settings, world.getSeed());
         Path path = cachePath(world);
         if (WORLDS.values().stream().anyMatch(existing -> existing.path.equals(path))) {
             throw new IllegalStateException("Atlas state already owns " + path + "; finish unload before replacement");

@@ -114,7 +114,7 @@ public final class RingTerrainAtlasServer {
 
     public static void sendBuildingSettings(ServerPlayer player) {
         ServerLevel world = player.level().getLevel();
-        var payload = new RingBuildingSettingsPayload(RingWorldConfig.get(world).layoutFingerprint(), RingBuildingSettings.get(world).outsideBuilding());
+        var payload = new RingBuildingSettingsPayload(RingWorldConfig.get(world).layoutFingerprint(world.getSeed()), RingBuildingSettings.get(world).outsideBuilding());
         if (transport.canSend(player, RingBuildingSettingsPayload.ID)) transport.send(player, payload);
     }
 

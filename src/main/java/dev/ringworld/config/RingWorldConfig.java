@@ -22,7 +22,7 @@ public record RingWorldConfig(int width, int circumference, WallSettings wallSet
         return SavedConfig.get(world).getConfig();
     }
 
-    public long layoutFingerprint() {
-        return RingLayoutFingerprint.compute(this);
+    public long layoutFingerprint(long seed) {
+        return RingLayoutFingerprint.compute(this, seed);
     }
 }

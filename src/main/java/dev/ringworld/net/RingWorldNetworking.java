@@ -53,7 +53,7 @@ public final class RingWorldNetworking {
             return;
         }
         RingWorldConfig settings = RingWorldConfig.get(level);
-        ServerPlayNetworking.send(handler.player, RingSettingsPayload.from(level.dimension(), settings, level.getSeed(), settings.layoutFingerprint()));
+        ServerPlayNetworking.send(handler.player, RingSettingsPayload.from(level.dimension(), settings, level.getSeed(), settings.layoutFingerprint(level.getSeed())));
         RingTerrainAtlasServer.sendMetadata(handler.player);
         RingTerrainAtlasServer.sendBuildingSettings(handler.player);
     }

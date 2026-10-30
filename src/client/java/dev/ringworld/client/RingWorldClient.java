@@ -23,7 +23,7 @@ public final class RingWorldClient implements ClientModInitializer {
         registerAtlasLightCommand();
         RingClientPayloadTransport.configure(new FabricRingClientPayloadTransport());
         ClientPlayNetworking.registerGlobalReceiver(RingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> {
-            long fingerprint = RingLayoutFingerprint.compute(payload.getConfig());
+            long fingerprint = RingLayoutFingerprint.compute(payload.getConfig(), payload.seed());
             if (fingerprint != payload.fingerprint()) {
                 var handler = context.client().getConnection();
                 if (handler != null) {
