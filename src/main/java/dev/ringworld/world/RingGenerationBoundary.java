@@ -33,7 +33,10 @@ public final class RingGenerationBoundary {
     }
 
     public static boolean isExterior(ChunkAccess chunk, RingGeometry geometry) {
-        ChunkPos pos = chunk.getPos();
+        return isExterior(chunk.getPos(), geometry);
+    }
+
+    public static boolean isExterior(ChunkPos pos, RingGeometry geometry) {
         return pos.getMaxBlockZ() < geometry.minWidthZ() || pos.getMinBlockZ() > geometry.maxWidthZ();
     }
 

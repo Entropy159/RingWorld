@@ -8,7 +8,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
-import net.minecraft.world.level.storage.SavedDataStorage;
 
 /**
  * Immutable server-side structure guarantees, separate from the geometry wire format.
@@ -48,26 +47,6 @@ public final class RingStructurePolicy extends SavedData {
         this.guarantees = guarantees;
         this.formatVersion = formatVersion;
         this.oceanMonument = formatVersion == 1 ? RingMonumentResolution.disabled() : oceanMonument;
-    }
-
-    /**
-     * Called only in the same ownership path that creates first-world settings.
-     */
-    static RingStructurePolicy createForNewWorld(SavedDataStorage storage, boolean requestOceanMonument) {
-        return createForNewWorld(storage, requestOceanMonument, false);
-    }
-
-    /**
-     * Called only in the same ownership path that creates first-world settings.
-     */
-    static RingStructurePolicy createForNewWorld(SavedDataStorage storage, boolean requestOceanMonument, boolean increaseStructureDensity) {
-        RingStructurePolicy existing = storage.get(TYPE);
-        if (existing != null) return existing;
-        int guarantees = GUARANTEE_STRONGHOLD | (requestOceanMonument ? REQUEST_OCEAN_MONUMENT : 0) | (increaseStructureDensity ? INCREASE_STRUCTURE_DENSITY : 0);
-        RingStructurePolicy created = new RingStructurePolicy(guarantees, FORMAT_VERSION, requestOceanMonument ? RingMonumentResolution.pending() : RingMonumentResolution.disabled());
-        created.setDirty();
-        storage.set(TYPE, created);
-        return created;
     }
 
     /**
