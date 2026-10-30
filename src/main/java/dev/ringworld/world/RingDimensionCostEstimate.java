@@ -22,8 +22,8 @@ public record RingDimensionCostEstimate(long estimatedPregenerationSeconds, long
             throw new IllegalArgumentException("atlas sample step must divide one chunk");
         }
         long chunks = Math.multiplyExact((long) geometry.circumferenceChunks(), geometry.widthChunks());
-        long columns = divideCeil(geometry.circumferenceBlocks(), atlasSampleStepBlocks);
-        long rows = divideCeil(geometry.widthBlocks(), atlasSampleStepBlocks);
+        long columns = divideCeil(geometry.circumference(), atlasSampleStepBlocks);
+        long rows = divideCeil(geometry.width(), atlasSampleStepBlocks);
         long cells = Math.multiplyExact(columns, rows);
         long tileColumns = divideCeil(columns, RingTerrainAtlas.TILE_SIZE);
         long tileRows = divideCeil(rows, RingTerrainAtlas.TILE_SIZE);

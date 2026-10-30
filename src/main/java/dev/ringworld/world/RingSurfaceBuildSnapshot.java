@@ -64,11 +64,4 @@ public record RingSurfaceBuildSnapshot(RingTerrainAtlas atlas, int renderRevisio
     public boolean canPublish(RingGeometry geometry, long worldHash, int liveRevision, int displayedRevision) {
         return renderRevision <= liveRevision && renderRevision > displayedRevision && atlas.worldHash() == worldHash && atlas.geometry().equals(geometry);
     }
-
-    /**
-     * True only while this immutable content still represents the live client state.
-     */
-    public boolean matches(RingGeometry geometry, long worldHash, int revision) {
-        return renderRevision == revision && atlas.worldHash() == worldHash && atlas.geometry().equals(geometry);
-    }
 }

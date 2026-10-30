@@ -42,8 +42,9 @@ public abstract class CloudRendererMixin {
     @ModifyVariable(method = "prepare(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V", at = @At("HEAD"), argsOnly = true, name = "bottomY")
     private float ringworld$dynamicCloudHeight(float vanillaHeight) {
         Minecraft client = Minecraft.getInstance();
-        if (ClientRingState.geometry() == null || client.level == null) return vanillaHeight;
-        return RingCloudBounds.baseHeight(client.level.getMinY(), ClientRingState.wallHeightBlocks());
+        var config = ClientRingState.config();
+        if (config == null || ClientRingState.geometry() == null || client.level == null) return vanillaHeight;
+        return RingCloudBounds.baseHeight(client.level.getMinY(), config.wallSettings().height());
     }
 
     @Inject(method = "buildExtrudedCell", at = @At("HEAD"))

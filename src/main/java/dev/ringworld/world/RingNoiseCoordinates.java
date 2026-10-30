@@ -35,7 +35,7 @@ public final class RingNoiseCoordinates {
     }
 
     private RingNoiseCoordinates(RingGeometry geometry, int mappingVersion) {
-        circumference = geometry.circumferenceBlocks();
+        circumference = geometry.circumference();
         radius = geometry.radius();
         this.mappingVersion = mappingVersion;
         if (circumference <= MAX_PRECOMPUTED_CIRCUMFERENCE) {

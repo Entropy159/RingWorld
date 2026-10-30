@@ -1,9 +1,9 @@
 package dev.ringworld.server.atlas;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.net.*;
 import dev.ringworld.server.atlas.pregen.RingAtlasCommandPolicy;
 import dev.ringworld.server.atlas.pregen.RingAtlasPregenerationService;
@@ -65,11 +65,31 @@ public final class RingTerrainAtlasServer {
         for (int rate : new int[]{1, 2, 4, 8}) {
             generationRate.then(Commands.literal(Integer.toString(rate)).executes(context -> chunkGenerationRate(context.getSource(), rate)));
         }
-        dispatcher.register(Commands.literal("ringworld").requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS))).then(generationRate).then(Commands.literal("building").then(Commands.literal("outside").then(Commands.literal("on").executes(c -> outsideBuilding(c.getSource(), true))).then(Commands.literal("off").executes(c -> outsideBuilding(c.getSource(), false))).then(Commands.literal("show").executes(c -> outsideBuilding(c.getSource(), null))))).then(Commands.literal("atlas").then(Commands.literal("status").executes(context -> {
-            ServerLevel world = context.getSource().getLevel();
-            context.getSource().sendSuccess(() -> Component.literal("RingWorld atlas: " + RingAtlasPregenerationService.status(world)), false);
-            return 1;
-        })).then(Commands.literal("start").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.START, context.getSource()))).then(Commands.literal("pause").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.PAUSE, context.getSource()))).then(Commands.literal("resume").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.RESUME, context.getSource())))).then(Commands.literal("sky").then(Commands.argument("backdrop", StringArgumentType.word()).executes(context -> setSkyBackdrop(context.getSource(), StringArgumentType.getString(context, "backdrop"))))).then(Commands.literal("sun").then(Commands.argument("style", StringArgumentType.word()).executes(context -> setSunStyle(context.getSource(), StringArgumentType.getString(context, "style"))))));
+        dispatcher.register(
+                Commands.literal("ringworld")
+                        .requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)))
+                        .then(generationRate)
+                        .then(Commands.literal("building")
+                                .then(Commands.literal("outside")
+                                        .then(Commands.literal("on")
+                                                .executes(c -> outsideBuilding(c.getSource(), true)))
+                                        .then(Commands.literal("off")
+                                                .executes(c -> outsideBuilding(c.getSource(), false)))
+                                        .then(Commands.literal("show")
+                                                .executes(c -> outsideBuilding(c.getSource(), null)))))
+                        .then(Commands.literal("atlas")
+                                .then(Commands.literal("status")
+                                        .executes(context -> {
+                                            ServerLevel world = context.getSource().getLevel();
+                                            context.getSource().sendSuccess(() -> Component.literal("RingWorld atlas: " + RingAtlasPregenerationService.status(world)), false);
+                                            return 1;
+                                        }))
+                                .then(Commands.literal("start")
+                                        .executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.START, context.getSource())))
+                                .then(Commands.literal("pause")
+                                        .executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.PAUSE, context.getSource())))
+                                .then(Commands.literal("resume")
+                                        .executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.RESUME, context.getSource())))));
     }
 
     private static int chunkGenerationRate(CommandSourceStack source, Integer rate) {
@@ -94,70 +114,8 @@ public final class RingTerrainAtlasServer {
 
     public static void sendBuildingSettings(ServerPlayer player) {
         ServerLevel world = player.level().getLevel();
-        var payload = new RingBuildingSettingsPayload(RingWorldSettings.get(world).layoutFingerprint(), dev.ringworld.world.RingBuildingSettings.get(world).outsideBuilding(), canControl(player));
+        var payload = new RingBuildingSettingsPayload(RingWorldConfig.get(world).layoutFingerprint(), RingBuildingSettings.get(world).outsideBuilding());
         if (transport.canSend(player, RingBuildingSettingsPayload.ID)) transport.send(player, payload);
-    }
-
-    public static void controlBuilding(ServerPlayer player, long fingerprint, boolean enabled) {
-        ServerLevel world = player.level().getLevel();
-        if (!RingWorldApi.isRingWorld(player.level())) return;
-        if (RingWorldSettings.get(world).layoutFingerprint() != fingerprint || !canControl(player)) {
-            sendBuildingSettings(player);
-            return;
-        }
-        RingBuildingSettings.get(world).setOutsideBuilding(enabled);
-        for (ServerPlayer viewer : world.getServer().getPlayerList().getPlayers()) sendBuildingSettings(viewer);
-    }
-
-    private static int setSkyBackdrop(CommandSourceStack source, String name) {
-        ServerLevel world = source.getLevel();
-        RingSkyProfile.Backdrop backdrop;
-        try {
-            backdrop = switch (name.toLowerCase(java.util.Locale.ROOT)) {
-                case "atmosphere" -> RingSkyProfile.Backdrop.ATMOSPHERE;
-                case "night" -> RingSkyProfile.Backdrop.NIGHT;
-                case "void" -> RingSkyProfile.Backdrop.VOID;
-                default -> RingSkyProfile.Backdrop.valueOf(name.toUpperCase(java.util.Locale.ROOT));
-            };
-        } catch (IllegalArgumentException exception) {
-            source.sendFailure(Component.literal("Unknown sky. Use atmosphere, night, or void."));
-            return 0;
-        }
-        RingSkyProfile profile = RingSkySettings.get(world).profile().withBackdrop(backdrop);
-        publishSkyProfile(source, world, profile);
-        source.sendSuccess(() -> Component.literal("RingWorld sky changed to " + backdrop.label() + "."), true);
-        return 1;
-    }
-
-    private static int setSunStyle(CommandSourceStack source, String name) {
-        ServerLevel world = source.getLevel();
-        RingSkyProfile.LightSource sunStyle;
-        try {
-            sunStyle = RingSkyProfile.LightSource.valueOf(name.toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            source.sendFailure(Component.literal("Unknown sun style. Use small, large, or none."));
-            return 0;
-        }
-        RingSkyProfile profile = RingSkySettings.get(world).profile().withLightSource(sunStyle);
-        publishSkyProfile(source, world, profile);
-        source.sendSuccess(() -> Component.literal("RingWorld sun changed to " + sunStyle.label() + "."), true);
-        return 1;
-    }
-
-    private static void publishSkyProfile(CommandSourceStack source, ServerLevel world, RingSkyProfile profile) {
-        RingSkySettings.setProfile(world, profile);
-        RingSkyProfilePayload payload = RingSkyProfilePayload.from(profile);
-        for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-            if (transport.canSend(player, RingSkyProfilePayload.ID)) transport.send(player, payload);
-        }
-    }
-
-    public static void load(ServerLevel world) {
-        RingAtlasPregenerationService.load(world);
-    }
-
-    public static void load(ServerLevel world, boolean allowBackgroundAutostart) {
-        RingAtlasPregenerationService.load(world, allowBackgroundAutostart);
     }
 
     public static void unload(ServerLevel world) {
@@ -421,7 +379,6 @@ public final class RingTerrainAtlasServer {
     }
 
     private static void sendPregenerationStatus(ServerPlayer player, ServerLevel world, Optional<String> message) {
-        if (!transport.canSend(player, RingAtlasPregenerationStatusPayload.ID)) return;
         RingTerrainAtlas atlas;
         try {
             atlas = RingAtlasPregenerationService.atlas(world);
@@ -430,8 +387,6 @@ public final class RingTerrainAtlasServer {
         }
         long chunks = RingAtlasPregenerationCursor.checkedTotalChunks(atlas.geometry().circumferenceChunks(), atlas.geometry().widthChunks());
         AtlasPregenerationProgress progress = RingAtlasPregenerationService.active(world).map(AtlasPregenerationHandle::progress).orElseGet(() -> AtlasPregenerationProgress.snapshot(AtlasPregenerationState.IDLE, 0, chunks, atlas.presentCount(), atlas.presentCount(), atlas.cellCount(), java.time.Duration.ZERO, Optional.empty()));
-        AtlasPregenerationStatus status = new AtlasPregenerationStatus(atlas.worldHash(), atlas.geometry().circumferenceBlocks(), atlas.geometry().widthBlocks(), RingTerrainAtlas.FORMAT_VERSION, atlas.sampleStep(), chunks, atlas.presentChunkCount(), progress, canControl(player), message);
-        transport.send(player, new RingAtlasPregenerationStatusPayload(status));
         ProgressObserver observer = PROGRESS_OBSERVERS.get(player.getUUID());
         if (observer != null && observer.world == world) {
             observer.lastSentTick = world.getGameTime();

@@ -69,7 +69,7 @@ public final class RingTopology {
      * once, preventing duplicate entity results.
      */
     public List<QueryWindow> canonicalWindows(AABB chartBox) {
-        double circumference = geometry.circumferenceBlocks();
+        double circumference = geometry.circumference();
         if (chartBox.getXsize() >= circumference) {
             return List.of(new QueryWindow(new AABB(0.0, chartBox.minY, chartBox.minZ, circumference, chartBox.maxY, chartBox.maxZ), Math.floor(chartBox.minX / circumference) * circumference));
         }
@@ -100,7 +100,7 @@ public final class RingTopology {
      * Moves a small chart-space box onto the single canonical storage plane.
      */
     public AABB canonicalBox(AABB chartBox) {
-        if (chartBox.getXsize() >= geometry.circumferenceBlocks()) return chartBox;
+        if (chartBox.getXsize() >= geometry.circumference()) return chartBox;
         double centerX = (chartBox.minX + chartBox.maxX) * 0.5;
         double canonicalCenter = canonicalX(centerX);
         return chartBox.move(canonicalCenter - centerX, 0.0, 0.0);

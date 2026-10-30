@@ -1,5 +1,6 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
@@ -39,15 +40,13 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     @Unique
     private @Nullable RingGeometry ringworld$geometry;
     @Unique
-    private int ringworld$terrainNoiseMapping = RingTerrainNoiseMapping.CURRENT;
+    private final int ringworld$terrainNoiseMapping = RingTerrainNoiseMapping.CURRENT;
     @Unique
     private int ringworld$wallHeight;
     @Unique
-    private RingWallStyle ringworld$wallStyle = RingWallStyle.LEGACY;
+    private WallSettings ringworld$wallStyle = WallSettings.DEFAULT;
     @Unique
     private volatile boolean ringworld$guaranteeStronghold;
-    @Unique
-    private RingWorldGenerationSettings ringworld$generationSettings = RingWorldGenerationSettings.DEFAULT;
     @Unique
     private long ringworld$generatorSeed;
 
@@ -59,13 +58,6 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     @Override
     public @Nullable RingGeometry ringworld$getGeometry() {
         return ringworld$geometry;
-    }
-
-    @Override
-    public void ringworld$setTerrainNoiseMapping(int mappingVersion) {
-        int supported = RingTerrainNoiseMapping.requireSupported(mappingVersion);
-        if (ringworld$terrainNoiseMapping == supported) return;
-        ringworld$terrainNoiseMapping = supported;
     }
 
     @Override
@@ -84,12 +76,12 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     }
 
     @Override
-    public void ringworld$setWallStyle(RingWallStyle wallStyle) {
+    public void ringworld$setWallStyle(WallSettings wallStyle) {
         this.ringworld$wallStyle = Objects.requireNonNull(wallStyle, "wallStyle");
     }
 
     @Override
-    public RingWallStyle ringworld$getWallStyle() {
+    public WallSettings ringworld$getWallStyle() {
         return ringworld$wallStyle;
     }
 
@@ -104,21 +96,9 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     }
 
     @Override
-    public void ringworld$setGenerationSettings(RingWorldGenerationSettings settings, long generatorSeed) {
-        if (this.ringworld$generationSettings.equals(settings) && this.ringworld$generatorSeed == generatorSeed) return;
-        this.ringworld$generationSettings = Objects.requireNonNull(settings, "settings");
-        this.ringworld$generatorSeed = generatorSeed;
-    }
-
-    @Override
-    public RingWorldGenerationSettings ringworld$getGenerationSettings() {
-        return ringworld$generationSettings;
-    }
-
-    @Override
     public synchronized Climate.Sampler ringworld$getPeriodicClimateSampler(RandomState state) {
         if (ringworld$geometry != null)
-            ((RingRandomStateAccess) (Object) state).ringworld$configureNoise(ringworld$geometry, ringworld$terrainNoiseMapping, ringworld$generationSettings, ringworld$generatorSeed, settings.value().seaLevel(), settings.value().noiseRouter());
+            ((RingRandomStateAccess) (Object) state).ringworld$configureNoise(ringworld$geometry, ringworld$terrainNoiseMapping, ringworld$generatorSeed, settings.value().seaLevel(), settings.value().noiseRouter());
         return RingClimateSampler.create(state);
     }
 

@@ -38,8 +38,8 @@ public final class RingTerrainPreviewSampler {
         var sampler = access.ringworld$getPeriodicClimateSampler(randomState);
         var resolver = biomeSource.createResolver(sampler);
         int seaLevel = generator.getSeaLevel();
-        int columns = Math.min(geometry.circumferenceBlocks(), stage.colorColumns());
-        int rows = Math.min(geometry.widthBlocks(), stage.colorRows());
+        int columns = Math.min(geometry.circumference(), stage.colorColumns());
+        int rows = Math.min(geometry.width(), stage.colorRows());
         int terrainColumns = Math.min(columns, stage.terrainColumns());
         int terrainRows = Math.min(rows, stage.terrainRows());
         int[] terrainHeights = sampleTerrainHeights(generator, randomState, heightAccessor, geometry, terrainColumns, terrainRows);
@@ -48,9 +48,9 @@ public final class RingTerrainPreviewSampler {
         short[] heights = new short[cells];
         for (int row = 0; row < rows; row++) {
             checkCancelled();
-            int z = geometry.minWidthZ() + (int) (((long) row * 2L + 1L) * geometry.widthBlocks() / (rows * 2L));
+            int z = geometry.minWidthZ() + (int) (((long) row * 2L + 1L) * geometry.width() / (rows * 2L));
             for (int column = 0; column < columns; column++) {
-                int x = (int) (((long) column * 2L + 1L) * geometry.circumferenceBlocks() / (columns * 2L));
+                int x = (int) (((long) column * 2L + 1L) * geometry.circumference() / (columns * 2L));
                 int terrainHeight = terrainHeights[sampleIndex(row, rows, terrainRows) * terrainColumns + sampleIndex(column, columns, terrainColumns)];
                 Holder<Biome> holder = resolver.getNoiseBiome(Math.floorDiv(x, 4), Math.floorDiv(Math.max(terrainHeight, seaLevel), 4), Math.floorDiv(z, 4));
                 PreviewSample sample = sample(holder, x, z, terrainHeight, seaLevel);
@@ -66,9 +66,9 @@ public final class RingTerrainPreviewSampler {
         int[] heights = new int[Math.multiplyExact(columns, rows)];
         for (int row = 0; row < rows; row++) {
             checkCancelled();
-            int z = geometry.minWidthZ() + (int) (((long) row * 2L + 1L) * geometry.widthBlocks() / (rows * 2L));
+            int z = geometry.minWidthZ() + (int) (((long) row * 2L + 1L) * geometry.width() / (rows * 2L));
             for (int column = 0; column < columns; column++) {
-                int x = (int) (((long) column * 2L + 1L) * geometry.circumferenceBlocks() / (columns * 2L));
+                int x = (int) (((long) column * 2L + 1L) * geometry.circumference() / (columns * 2L));
                 heights[row * columns + column] = generator.getFirstOccupiedHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, heightAccessor, randomState);
             }
         }

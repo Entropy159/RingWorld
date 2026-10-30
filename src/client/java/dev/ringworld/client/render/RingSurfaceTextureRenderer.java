@@ -12,7 +12,9 @@ import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingClientLodTuning;
+import dev.ringworld.client.RingDistortionTuning;
 import dev.ringworld.client.RingMinecraftClientAccess;
+import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 import net.minecraft.client.Minecraft;
@@ -23,6 +25,7 @@ import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -91,7 +94,7 @@ public final class RingSurfaceTextureRenderer {
         float textureMorph = updateTextureMorph(System.nanoTime());
         float visibleCompletion = previousSurfaceTextureView == null ? surfaceCompletion : previousSurfaceCompletion + (surfaceCompletion - previousSurfaceCompletion) * textureMorph;
         float generationFog = RingSurfaceGenerationFog.amount(visibleCompletion, ClientRingState.terrainPreview() != null);
-        double cameraAngle = Math.PI * 2.0 * geometry.wrapX(camera.x) / geometry.circumferenceBlocks();
+        double cameraAngle = Math.PI * 2.0 * geometry.wrapX(camera.x) / geometry.circumference();
         double cameraRadius = geometry.physicalRadiusAt(camera.y);
         if (projectionDiagnosticWorldHash != atlas.worldHash()) {
             projectionDiagnosticWorldHash = atlas.worldHash();
@@ -107,11 +110,11 @@ public final class RingSurfaceTextureRenderer {
         // Model vertices use global ring coordinates. Rotate the entire static
         // object into the camera's tangent frame, then move its centre to the
         // same local point used by curved real chunk vertices.
-        if (!dev.ringworld.client.RingDistortionTuning.enabled()) {
+        if (!RingDistortionTuning.enabled()) {
             modelView.translate(0.0F, (float) cameraRadius, (float) -camera.z);
             modelView.rotateZ((float) -cameraAngle);
         }
-        GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(modelView, new Vector4f(ClientRingState.skyProfile().backdrop().id(), alpha, textureMorph, generationFog), new Vector3f((float) cameraAngle, (float) camera.z, RingSurfaceGpu.farBackgroundDepth()), wallPaletteMatrix);
+        GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(modelView, new Vector4f(ClientRingState.config().skySettings().skyType().ordinal(), alpha, textureMorph, generationFog), new Vector3f((float) cameraAngle, (float) camera.z, RingSurfaceGpu.farBackgroundDepth()), wallPaletteMatrix);
 
         RingSurfaceGpu.draw(client, vertexBuffer, vertexCount, surfaceTextureView, previousSurfaceTextureView == null ? surfaceTextureView : previousSurfaceTextureView, wallTextureView, transforms);
         modelView.popMatrix();
@@ -214,7 +217,9 @@ public final class RingSurfaceTextureRenderer {
         long generation = textureBuildGeneration;
         Minecraft client = Minecraft.getInstance();
         int worldBottomY = client.level == null ? Constants.DEFAULT_MIN_Y : client.level.getMinY();
-        MeshInputs meshInputs = new MeshInputs(ClientRingState.surfaceReferenceY(), worldBottomY + ClientRingState.wallHeightBlocks(), ClientRingState.wallHeightBlocks(), RingWallShaderStyle.encode(ClientRingState.wallStyle(), ClientRingState.generatorSeed(), client.level), geometry.equals(bufferedGeometry) && atlas.worldHash() == bufferedWorldHash, vertexBuffer != null, bufferedMeshDetailed, bufferedMeshHeightFingerprint, ClientRingState.wallStyle(), ClientRingState.generatorSeed(), worldBottomY, RingWallShaderStyle.paletteColors(ClientRingState.wallStyle(), client.level), wallTextureView == null ? null : wallTextureKey);
+        var config = ClientRingState.config();
+        if (config == null) return null;
+        MeshInputs meshInputs = new MeshInputs(RingGeometry.SURFACE_Y, worldBottomY + config.wallSettings().height(), config.wallSettings().height(), RingWallShaderStyle.encode(config.wallSettings(), ClientRingState.generatorSeed(), client.level), geometry.equals(bufferedGeometry) && atlas.worldHash() == bufferedWorldHash, vertexBuffer != null, bufferedMeshDetailed, bufferedMeshHeightFingerprint, config.wallSettings(), ClientRingState.generatorSeed(), worldBottomY, RingWallShaderStyle.paletteColors(config.wallSettings(), client.level), wallTextureView == null ? null : wallTextureKey);
         RingTerrainPreview preview = ClientRingState.terrainPreview();
         pendingTextureBuild = CompletableFuture.supplyAsync(() -> buildTexture(buildSnapshot, generation, profile, quality, meshInputs, preview), BUILD_WORKER);
         return null;
@@ -223,13 +228,12 @@ public final class RingSurfaceTextureRenderer {
     /**
      * Runs entirely on the existing texture worker, including the complete-only hash scan.
      */
-    private static TextureBuild buildTexture(RingSurfaceBuildSnapshot sourceSnapshot, long generation, RingRenderProfile profile, dev.ringworld.world.RingLodQuality quality, MeshInputs inputs, RingTerrainPreview preview) {
+    private static TextureBuild buildTexture(RingSurfaceBuildSnapshot sourceSnapshot, long generation, RingRenderProfile profile, RingLodQuality quality, MeshInputs inputs, RingTerrainPreview preview) {
         if (generation != textureBuildGeneration)
-            throw new java.util.concurrent.CancellationException("obsolete surface job");
+            throw new CancellationException("obsolete surface job");
         RingSurfaceBuildSnapshot displaySnapshot = quality == null || !sourceSnapshot.atlas().isComplete() || quality.sampleStep() <= sourceSnapshot.atlas().sampleStep() ? sourceSnapshot : new RingSurfaceBuildSnapshot(quality.displaySnapshot(sourceSnapshot.atlas()), sourceSnapshot.renderRevision());
         RingSurfaceBuildSnapshot preparedSnapshot = displaySnapshot.resolveDetailedHeightFingerprint();
         RingTerrainAtlas atlas = preparedSnapshot.atlas();
-        long meshStarted = System.nanoTime();
         RingSurfaceGpu.PackedMesh packed = null;
         NativeImage[] wallImages = null;
         RingWallTexture.ContentKey nextWallTextureKey = null;
@@ -243,11 +247,8 @@ public final class RingSurfaceTextureRenderer {
                     wallImages = RingWallTexture.buildMipmapped(atlas, inputs.savedStyle(), inputs.seed(), inputs.bottomY(), inputs.wallTopY(), wallColumns, inputs.palette(), () -> generation != textureBuildGeneration);
                 }
             }
-            if (Boolean.getBoolean("ringworld.profileSurfaceBuilds") && packed != null) {
-                RingWorldMod.LOGGER.info("RingWorld surface worker: mesh construction/packing took {} ms ({} vertices)", (System.nanoTime() - meshStarted) / 1000000.0, packed.vertexCount());
-            }
             if (generation != textureBuildGeneration)
-                throw new java.util.concurrent.CancellationException("obsolete surface job");
+                throw new CancellationException("obsolete surface job");
             return new TextureBuild(preparedSnapshot, buildTexturePixels(atlas, generation, profile, preview), packed, inputs.wallStyle(), wallImages, nextWallTextureKey);
         } catch (RuntimeException | Error exception) {
             if (packed != null) packed.close();
@@ -279,8 +280,8 @@ public final class RingSurfaceTextureRenderer {
             pixels = placeholder.argb();
             heights = placeholder.heights();
         }
-        double spacingX = (double) geometry.circumferenceBlocks() / targetColumns;
-        double spacingZ = (double) geometry.widthBlocks() / targetRows;
+        double spacingX = (double) geometry.circumference() / targetColumns;
+        double spacingZ = (double) geometry.width() / targetRows;
         if (atlas.isComplete()) {
             for (int row = 0; row < targetRows; row++) {
                 double z = geometry.minWidthZ() + (row + 0.5) * spacingZ;
@@ -433,7 +434,7 @@ public final class RingSurfaceTextureRenderer {
 
     private record MeshInputs(int referenceY, int wallTopY, int wallHeightBlocks, RingWallShaderStyle.Encoded wallStyle,
                               boolean sameAtlas, boolean hasMesh, boolean detailed, long fingerprint,
-                              dev.ringworld.world.RingWallStyle savedStyle, long seed, int bottomY, int[] palette,
+                              WallSettings savedStyle, long seed, int bottomY, int[] palette,
                               RingWallTexture.ContentKey wallTextureKey) {
     }
 
@@ -468,20 +469,6 @@ public final class RingSurfaceTextureRenderer {
         return levels;
     }
 
-    /**
-     * A complete published scene, including the preceding side of its cross-fade.
-     * Newer complete revisions may still be building; they do not invalidate
-     * the coherent complete scene already displayed. Client-thread only.
-     */
-    public static boolean captureReady() {
-        var atlas = ClientRingState.terrainAtlas();
-        return atlas != null && atlas.isComplete() && vertexBuffer != null && vertexCount > 0 && surfaceTexture != null && bufferedMeshDetailed && bufferedWorldHash == atlas.worldHash() && bufferedGeometry != null && bufferedGeometry.equals(ClientRingState.geometry()) && surfaceCompletion >= 1.0F && (previousSurfaceTextureView == null || previousSurfaceCompletion >= 1.0F);
-    }
-
-    public static boolean displayReady() {
-        return vertexBuffer != null && surfaceTexture != null && pendingTextureBuild == null && bufferedAtlasRevision == ClientRingState.terrainAtlasRevision();
-    }
-
     public static void clear() {
         textureBuildGeneration++;
         wallPaletteMatrix = new Matrix4f();
@@ -493,18 +480,11 @@ public final class RingSurfaceTextureRenderer {
         vertexCount = 0;
         destroySurfaceTexture();
         bufferedGeometry = null;
-        bufferedWorldHash = 0L;
+        bufferedWorldHash = 0;
         bufferedAtlasRevision = -1;
         bufferedMeshDetailed = false;
         bufferedMeshHeightFingerprint = RingSurfaceBuildSnapshot.NO_DETAILED_HEIGHT_FINGERPRINT;
         projectionDiagnosticWorldHash = Long.MIN_VALUE;
-    }
-
-    /**
-     * Testable raw teardown state, independent of whether a client level is open.
-     */
-    public static boolean sessionCleared() {
-        return vertexBuffer == null && vertexCount == 0 && surfaceTexture == null && surfaceTextureView == null && previousSurfaceTexture == null && previousSurfaceTextureView == null && bufferedGeometry == null && bufferedWorldHash == 0L && pendingTextureBuild == null;
     }
 
     private static void destroySurfaceTexture() {

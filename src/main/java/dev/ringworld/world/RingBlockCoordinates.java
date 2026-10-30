@@ -19,7 +19,7 @@ public final class RingBlockCoordinates {
         if (!Double.isFinite(referenceChartX)) {
             throw new IllegalArgumentException("reference chart X must be finite");
         }
-        int circumference = geometry.circumferenceBlocks();
+        int circumference = geometry.circumference();
         int wrapped = canonicalBlockX(canonicalOrChartBlockX, geometry);
         double imageIndex = Math.rint((referenceChartX - wrapped) / circumference);
         double result = wrapped + imageIndex * circumference;

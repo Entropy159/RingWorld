@@ -54,7 +54,7 @@ public final class RingBlockEntityLoadContext {
         int rawX = tag.getIntOr("x", 0);
         int rawY = tag.getIntOr("y", 0);
         int rawZ = tag.getIntOr("z", 0);
-        if (rawX >= 0 && rawX < geometry.circumferenceBlocks()) return vanillaPosition;
+        if (rawX >= 0 && rawX < geometry.circumference()) return vanillaPosition;
         if (SectionPos.blockToSectionCoord(rawZ) != ownerChunkZ) return vanillaPosition;
         if (rawY != vanillaPosition.getY() || rawZ != vanillaPosition.getZ()) return vanillaPosition;
         if (geometry.wrapBlockX(rawX) != vanillaPosition.getX()) return vanillaPosition;

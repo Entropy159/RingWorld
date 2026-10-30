@@ -12,11 +12,11 @@ public record RingPosition(double canonicalX, long chartIndex) {
 
     public static RingPosition fromPresentationX(double presentationX, RingGeometry geometry) {
         if (!Double.isFinite(presentationX)) throw new IllegalArgumentException("presentationX must be finite");
-        long chartIndex = (long) Math.floor(presentationX / geometry.circumferenceBlocks());
+        long chartIndex = (long) Math.floor(presentationX / geometry.circumference());
         return new RingPosition(geometry.wrapX(presentationX), chartIndex);
     }
 
     public double presentationX(RingGeometry geometry) {
-        return canonicalX + chartIndex * (double) geometry.circumferenceBlocks();
+        return canonicalX + chartIndex * (double) geometry.circumference();
     }
 }

@@ -68,13 +68,14 @@ public abstract class RingFrameUniformsMixin {
     @Inject(method = "render", at = @At("HEAD"))
     private void ringworld$publishLayout(CallbackInfo ci) {
         RingGeometry geometry = ClientRingState.geometry();
+        var config = ClientRingState.config();
         Minecraft client = Minecraft.getInstance();
         int active = geometry == null ? 0 : 1;
-        int circumference = geometry == null ? 0 : geometry.circumferenceBlocks();
-        int ringWidth = geometry == null ? 0 : geometry.widthBlocks();
-        int wallHeight = geometry == null ? 0 : ClientRingState.wallHeightBlocks();
+        int circumference = geometry == null ? 0 : geometry.circumference();
+        int ringWidth = geometry == null ? 0 : geometry.width();
+        int wallHeight = config == null ? 0 : config.wallSettings().height();
 
-        float surfaceReferenceY = geometry == null ? 0.0F : ClientRingState.surfaceReferenceY();
+        float surfaceReferenceY = RingGeometry.SURFACE_Y;
         int worldBottomY = active == 1 && client.level != null ? client.level.getMinY() : Constants.DEFAULT_MIN_Y;
         float wallTopY = active == 1 ? worldBottomY + wallHeight : 0.0F;
         float cloudBaseY = active == 1 ? RingCloudBounds.baseHeight(worldBottomY, wallHeight) : 0.0F;
@@ -82,10 +83,10 @@ public abstract class RingFrameUniformsMixin {
 
         float minWidthZ = geometry == null ? 0.0F : geometry.minWidthZ();
         float maxWidthZExclusive = geometry == null ? 0.0F : geometry.maxWidthZ() + 1.0F;
-        float halfCircumference = geometry == null ? 0.0F : geometry.circumferenceBlocks() * 0.5F;
+        float halfCircumference = geometry == null ? 0.0F : geometry.circumference() * 0.5F;
         float viewDistanceBlocks = active == 1 ? client.options.getEffectiveRenderDistance() * 16.0F : 0.0F;
         RingRenderProfile profile = geometry == null ? null : RingClientLodTuning.profile(geometry, viewDistanceBlocks);
-        RingCloudBounds cloudBounds = geometry == null ? null : RingCloudBounds.betweenInnerRimFaces(geometry, ClientRingState.wallStyle().thicknessBlocks());
+        RingCloudBounds cloudBounds = geometry == null || config == null ? null : RingCloudBounds.betweenInnerRimFaces(geometry, config.wallSettings().thickness());
         var atlasLight = RingAtlasLightTuning.profile();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -105,7 +106,7 @@ public abstract class RingFrameUniformsMixin {
                     // cloud fade end, visual policy version, inner Z face planes
                     .putVec4(profile == null ? 0.0F : (float) profile.cloudFadeEndBlocks(), profile == null ? 0.0F : profile.visualProfileVersion() + 1, cloudBounds == null ? 0.0F : (float) cloudBounds.minimumZ(), cloudBounds == null ? 0.0F : (float) cloudBounds.maximumZ()) //RingWorldAtmosphere2
                     // process-local Atlas-light debug profile; never persisted
-                    .putVec4(atlasLight.shaderMode(), atlasLight.falloffExponent(), atlasLight.peakStrength(), ClientRingState.skyProfile().backdrop().id()); //RingWorldAtlasLight
+                    .putVec4(atlasLight.shaderMode(), atlasLight.falloffExponent(), atlasLight.peakStrength(), config == null ? 0 : config.skySettings().skyType().ordinal()); //RingWorldAtlasLight
             ringworld$waterBounds(builder, client, RINGWORLD_WATER_STILL, active == 1 && client.level != null); //RingWorldWaterStill
             ringworld$waterBounds(builder, client, RINGWORLD_WATER_FLOW, active == 1 && client.level != null); //RingWorldWaterFlow
             // Uploaded correction parameters are independent of camera Y.

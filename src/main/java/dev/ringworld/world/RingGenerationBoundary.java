@@ -1,5 +1,6 @@
 package dev.ringworld.world;
 
+import dev.ringworld.config.WallSettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
@@ -70,16 +71,9 @@ public final class RingGenerationBoundary {
     }
 
     /**
-     * Installs the finite, breakable rim after features have finished.
-     */
-    public static void installRim(ChunkAccess chunk, RingGeometry geometry, int wallHeightBlocks) {
-        installRim(chunk, geometry, wallHeightBlocks, RingWallStyle.LEGACY, 0L);
-    }
-
-    /**
      * Installs the saved deterministic wall style after features have finished.
      */
-    public static void installRim(ChunkAccess chunk, RingGeometry geometry, int wallHeightBlocks, RingWallStyle style, long worldSeed) {
+    public static void installRim(ChunkAccess chunk, RingGeometry geometry, int wallHeightBlocks, WallSettings style, long worldSeed) {
         if (wallHeightBlocks <= 0) return;
         ChunkPos pos = chunk.getPos();
         int firstZ = Math.max(pos.getMinBlockZ(), geometry.minWidthZ());
@@ -101,8 +95,8 @@ public final class RingGenerationBoundary {
                     if (depth < 0) continue;
                     mutable.set(x, y, z);
                     chunk.removeBlockEntity(mutable);
-                    if (RingWallPattern.blockPresent(style, x, y, depth, wallTopExclusive, geometry.circumferenceBlocks(), worldSeed)) {
-                        chunk.setBlockState(mutable, texturedRimBlock(style, x, y, depth, geometry.circumferenceBlocks(), worldSeed), 0);
+                    if (RingWallPattern.blockPresent(style, x, y, depth, wallTopExclusive, geometry.circumference(), worldSeed)) {
+                        chunk.setBlockState(mutable, texturedRimBlock(style, x, y, depth, geometry.circumference(), worldSeed), 0);
                     } else {
                         chunk.setBlockState(mutable, Blocks.AIR.defaultBlockState(), 0);
                     }
@@ -114,7 +108,7 @@ public final class RingGenerationBoundary {
     /**
      * Replace only natural bedrock in the lowest layer; do not refill mined blocks.
      */
-    public static void installUnderside(ChunkAccess chunk, RingGeometry geometry, RingWallStyle style, long seed) {
+    public static void installUnderside(ChunkAccess chunk, RingGeometry geometry, WallSettings style, long seed) {
         var cp = chunk.getPos();
         int y = chunk.getMinY();
         var pos = new BlockPos.MutableBlockPos();
@@ -124,7 +118,7 @@ public final class RingGenerationBoundary {
                 if (!chunk.getBlockState(pos).is(Blocks.BEDROCK)) continue;
                 // Fold the wall's vertical pattern across the underside from each rim.
                 int patternY = y + Math.min(z - geometry.minWidthZ(), geometry.maxWidthZ() - z);
-                chunk.setBlockState(pos, texturedRimBlock(style, x, patternY, 0, geometry.circumferenceBlocks(), seed), 0);
+                chunk.setBlockState(pos, texturedRimBlock(style, x, patternY, 0, geometry.circumference(), seed), 0);
             }
         }
     }
@@ -132,11 +126,11 @@ public final class RingGenerationBoundary {
     /**
      * Returns inward rim depth for a band Z, or -1 when it is playable interior.
      */
-    public static int rimDepthAtZ(RingGeometry geometry, RingWallStyle style, int z) {
+    public static int rimDepthAtZ(RingGeometry geometry, WallSettings style, int z) {
         int lowDepth = z - geometry.minWidthZ();
-        if (lowDepth >= 0 && lowDepth < style.thicknessBlocks()) return lowDepth;
+        if (lowDepth >= 0 && lowDepth < style.thickness()) return lowDepth;
         int highDepth = geometry.maxWidthZ() - z;
-        return highDepth >= 0 && highDepth < style.thicknessBlocks() ? highDepth : -1;
+        return highDepth >= 0 && highDepth < style.thickness() ? highDepth : -1;
     }
 
     /**
@@ -202,47 +196,22 @@ public final class RingGenerationBoundary {
         return Long.remainderUnsigned(hash, 10L) < 3L ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
     }
 
-    private static BlockState texturedRimBlock(RingWallStyle style, int x, int y, int depth, int circumference, long worldSeed) {
+    private static BlockState texturedRimBlock(WallSettings style, int x, int y, int depth, int circumference, long worldSeed) {
         // One independently sampled block in a thousand. Keeping this outside
         // the 0-99 palette roll avoids the former minimum density of one percent.
-        if (style.palette() == RingWallStyle.Palette.INDUSTRIAL && RingWallPattern.rareAccent(style, x, y, depth, circumference, worldSeed, 1)) {
+        if (style.palette() == WallSettings.Palette.INDUSTRIAL && RingWallPattern.rareAccent(style, x, y, depth, circumference, worldSeed, 1)) {
             return Blocks.SEA_LANTERN.defaultBlockState();
         }
         int roll = RingWallPattern.materialRoll(style, x, y, depth, circumference, worldSeed);
         return styledRimBlockForRoll(style, roll);
     }
 
-    /**
-     * Single material-palette source shared by real wall generation and the
-     * client Atlas-rim colour derivation.
-     */
-    public static BlockState styledRimBlockForRoll(RingWallStyle style, int roll) {
+    public static BlockState styledRimBlockForRoll(WallSettings style, int roll) {
         if (style == null) throw new IllegalArgumentException("wall style is required");
         if (roll < 0 || roll > 99) {
             throw new IllegalArgumentException("wall material roll must be in [0, 99]");
         }
-        return switch (style.palette()) {
-            case WEATHERED ->
-                    roll < 55 ? Blocks.COBBLESTONE.defaultBlockState() : roll < 80 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : roll < 95 ? Blocks.STONE.defaultBlockState() : Blocks.ANDESITE.defaultBlockState();
-            case ANCIENT ->
-                    roll < 50 ? Blocks.STONE_BRICKS.defaultBlockState() : roll < 72 ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState() : roll < 94 ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
-            case NATURAL ->
-                    roll < 45 ? Blocks.STONE.defaultBlockState() : roll < 70 ? Blocks.TUFF.defaultBlockState() : roll < 90 ? Blocks.ANDESITE.defaultBlockState() : roll < 98 ? Blocks.COBBLESTONE.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState();
-            case ALLOY ->
-                    roll < 40 ? Blocks.SMOOTH_STONE.defaultBlockState() : roll < 70 ? Blocks.POLISHED_DIORITE.defaultBlockState() : roll < 95 ? Blocks.QUARTZ_BLOCK.defaultBlockState() : Blocks.PRISMARINE_BRICKS.defaultBlockState();
-            case INDUSTRIAL ->
-                    roll < 40 ? Blocks.DEEPSLATE_BRICKS.defaultBlockState() : roll < 68 ? Blocks.DEEPSLATE_TILES.defaultBlockState() : roll < 86 ? Blocks.POLISHED_BASALT.defaultBlockState() : roll < 97 ? Blocks.TUFF_BRICKS.defaultBlockState() : Blocks.RAW_COPPER_BLOCK.defaultBlockState();
-            case OVERGROWN ->
-                    roll < 38 ? Blocks.STONE_BRICKS.defaultBlockState() : roll < 60 ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState() : roll < 78 ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState() : roll < 92 ? Blocks.COBBLESTONE.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState();
-            case MONOLITH ->
-                    roll < 55 ? Blocks.SMOOTH_STONE.defaultBlockState() : roll < 82 ? Blocks.CALCITE.defaultBlockState() : Blocks.POLISHED_ANDESITE.defaultBlockState();
-            case NETHER ->
-                    roll < 42 ? Blocks.NETHER_BRICKS.defaultBlockState() : roll < 60 ? Blocks.RED_NETHER_BRICKS.defaultBlockState() : roll < 78 ? Blocks.BLACKSTONE.defaultBlockState() : roll < 96 ? Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState() : Blocks.MAGMA_BLOCK.defaultBlockState();
-            case OBSIDIAN ->
-                    roll < 55 ? Blocks.OBSIDIAN.defaultBlockState() : roll < 72 ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : roll < 90 ? Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState() : roll < 97 ? Blocks.GILDED_BLACKSTONE.defaultBlockState() : Blocks.AMETHYST_BLOCK.defaultBlockState();
-            case WOOD ->
-                    roll < 30 ? Blocks.OAK_LOG.defaultBlockState() : roll < 54 ? Blocks.SPRUCE_LOG.defaultBlockState() : roll < 72 ? Blocks.DARK_OAK_LOG.defaultBlockState() : roll < 90 ? Blocks.OAK_PLANKS.defaultBlockState() : Blocks.STRIPPED_SPRUCE_LOG.defaultBlockState();
-        };
+        return style.palette().get(roll);
     }
 
 }

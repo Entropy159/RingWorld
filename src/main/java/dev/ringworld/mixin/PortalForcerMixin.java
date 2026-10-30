@@ -1,10 +1,10 @@
 package dev.ringworld.mixin;
 
 import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingPortalDestinationBounds;
-import dev.ringworld.world.RingWorldSettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.village.poi.PoiManager;
@@ -44,7 +44,7 @@ public abstract class PortalForcerMixin {
     private void ringworld$findPeriodicPortal(BlockPos approximateExitPos, boolean toNether, WorldBorder worldBorder, CallbackInfoReturnable<Optional<BlockPos>> cir) {
         if (!RingWorldApi.isRingWorld(level)) return;
         RingGeometry geometry = RingWorldServer.geometryFor(level);
-        int rimThickness = RingWorldSettings.get(level).wallStyle().thicknessBlocks();
+        int rimThickness = RingWorldConfig.get(level).wallSettings().thickness();
         BlockPos anchor = RingPortalDestinationBounds.normalizeSearchAnchor(geometry, approximateExitPos, rimThickness);
         int radius = toNether ? 16 : 128;
         PoiManager pois = level.getPoiManager();
@@ -64,6 +64,6 @@ public abstract class PortalForcerMixin {
     @ModifyVariable(method = "createPortal", at = @At("HEAD"), argsOnly = true, name = "origin")
     private BlockPos ringworld$normalizePortalCreationAnchor(BlockPos origin) {
         if (!RingWorldApi.isRingWorld(level)) return origin;
-        return RingPortalDestinationBounds.normalizeSearchAnchor(RingWorldServer.geometryFor(level), origin, RingWorldSettings.get(level).wallStyle().thicknessBlocks());
+        return RingPortalDestinationBounds.normalizeSearchAnchor(RingWorldServer.geometryFor(level), origin, RingWorldConfig.get(level).wallSettings().thickness());
     }
 }

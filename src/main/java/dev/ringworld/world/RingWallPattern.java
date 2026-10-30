@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.config.WallSettings;
+
 /**
  * Pure deterministic sampling for periodic rim materials and top-edge decay.
  */
@@ -14,31 +16,31 @@ public final class RingWallPattern {
     /**
      * Returns a stable value in [0, 99] interpreted by the selected palette.
      */
-    public static int materialRoll(RingWallStyle style, int x, int y, int depth, int circumference, long worldSeed) {
+    public static int materialRoll(WallSettings style, int x, int y, int depth, int circumference, long worldSeed) {
         requireCircumference(circumference);
-        if (style.pattern() == RingWallStyle.Pattern.ENGINEERED) {
+        if (style.pattern() == WallSettings.Pattern.ENGINEERED) {
             return RingEngineeredWallPattern.materialRoll(style, x, y, depth, circumference, worldSeed);
         }
         int canonicalX = Math.floorMod(x, circumference);
-        int fine = materialNoise(worldSeed, MATERIAL_FINE_SALT, canonicalX, y, depth, style.palette().id());
-        int coarse = materialNoise(worldSeed, MATERIAL_COARSE_SALT, Math.floorDiv(canonicalX, 7), Math.floorDiv(y, 5), Math.floorDiv(depth, 2), style.palette().id());
+        int fine = materialNoise(worldSeed, MATERIAL_FINE_SALT, canonicalX, y, depth, style.palette().ordinal());
+        int coarse = materialNoise(worldSeed, MATERIAL_COARSE_SALT, Math.floorDiv(canonicalX, 7), Math.floorDiv(y, 5), Math.floorDiv(depth, 2), style.palette().ordinal());
 
         return switch (style.pattern()) {
             case CLUSTERED -> blend(coarse, fine, 72);
             case MASONRY -> {
                 int course = Math.floorDiv(y, 2);
-                int brickWidth = 3 + materialNoise(worldSeed, MATERIAL_SALT, course, depth, 0, style.palette().id()) % 4;
-                int offset = materialNoise(worldSeed, MATERIAL_COARSE_SALT, course, depth, 1, style.palette().id()) % brickWidth;
+                int brickWidth = 3 + materialNoise(worldSeed, MATERIAL_SALT, course, depth, 0, style.palette().ordinal()) % 4;
+                int offset = materialNoise(worldSeed, MATERIAL_COARSE_SALT, course, depth, 1, style.palette().ordinal()) % brickWidth;
                 int brick = Math.floorDiv(canonicalX + offset, brickWidth);
-                int body = materialNoise(worldSeed, MATERIAL_SALT, brick, course, depth, style.palette().id());
+                int body = materialNoise(worldSeed, MATERIAL_SALT, brick, course, depth, style.palette().ordinal());
                 yield blend(body, fine, 76);
             }
             case STRATA -> {
                 int section = Math.floorDiv(canonicalX, 19);
-                int wave = materialNoise(worldSeed, MATERIAL_COARSE_SALT, section, depth, 2, style.palette().id()) % 9 - 4;
-                int bandHeight = 3 + materialNoise(worldSeed, MATERIAL_SALT, section, Math.floorDiv(y, 13), depth, style.palette().id()) % 7;
+                int wave = materialNoise(worldSeed, MATERIAL_COARSE_SALT, section, depth, 2, style.palette().ordinal()) % 9 - 4;
+                int bandHeight = 3 + materialNoise(worldSeed, MATERIAL_SALT, section, Math.floorDiv(y, 13), depth, style.palette().ordinal()) % 7;
                 int band = Math.floorDiv(y + wave, bandHeight);
-                int body = materialNoise(worldSeed, MATERIAL_SALT, Math.floorDiv(canonicalX, 11), band, depth, style.palette().id());
+                int body = materialNoise(worldSeed, MATERIAL_SALT, Math.floorDiv(canonicalX, 11), band, depth, style.palette().ordinal());
                 yield blend(body, fine, 68);
             }
             case ENGINEERED -> throw new AssertionError("handled before legacy sampling");
@@ -53,7 +55,7 @@ public final class RingWallPattern {
             case HYBRID -> {
                 int clustered = blend(coarse, fine, 66);
                 int panel = panelRoll(style, canonicalX, y, depth, worldSeed, fine);
-                int selector = materialNoise(worldSeed, MATERIAL_SALT, Math.floorDiv(canonicalX, 23), Math.floorDiv(y, 17), depth, style.palette().id());
+                int selector = materialNoise(worldSeed, MATERIAL_SALT, Math.floorDiv(canonicalX, 23), Math.floorDiv(y, 17), depth, style.palette().ordinal());
                 yield selector < 28 ? panel : blend(clustered, panel, 82);
             }
         };
@@ -64,7 +66,7 @@ public final class RingWallPattern {
      * separate from the 100-value palette roll so genuinely sparse details do
      * not have to occupy a full one percent of a wall.
      */
-    public static boolean rareAccent(RingWallStyle style, int x, int y, int depth, int circumference, long worldSeed, int frequencyPerThousand) {
+    public static boolean rareAccent(WallSettings style, int x, int y, int depth, int circumference, long worldSeed, int frequencyPerThousand) {
         requireCircumference(circumference);
         if (style == null) throw new IllegalArgumentException("wall style is required");
         if (depth < 0) throw new IllegalArgumentException("wall depth must be non-negative");
@@ -73,14 +75,14 @@ public final class RingWallPattern {
         }
         if (frequencyPerThousand == 0) return false;
         int canonicalX = Math.floorMod(x, circumference);
-        long value = worldSeed ^ ACCENT_SALT ^ (long) canonicalX * 0x9E3779B97F4A7C15L ^ (long) y * 0xC2B2AE3D27D4EB4FL ^ (long) depth * 0x165667B19E3779F9L ^ (long) style.palette().id() << 41;
+        long value = worldSeed ^ ACCENT_SALT ^ (long) canonicalX * 0x9E3779B97F4A7C15L ^ (long) y * 0xC2B2AE3D27D4EB4FL ^ (long) depth * 0x165667B19E3779F9L ^ (long) style.palette().ordinal() << 41;
         return unsignedMod(mix(value), 1000) < frequencyPerThousand;
     }
 
     /**
      * Number of blocks removed downward from the wall top at this longitude.
      */
-    public static int topCollapseDepth(RingWallStyle style, int x, int circumference, long worldSeed) {
+    public static int topCollapseDepth(WallSettings style, int x, int circumference, long worldSeed) {
         return topCollapseDepth(style, x, 0, circumference, worldSeed);
     }
 
@@ -89,35 +91,35 @@ public final class RingWallPattern {
      * Depth is measured inward from the outer face, allowing the broken edge
      * to vary across a thick rim instead of cutting identical slots through it.
      */
-    public static int topCollapseDepth(RingWallStyle style, int x, int depth, int circumference, long worldSeed) {
+    public static int topCollapseDepth(WallSettings style, int x, int depth, int circumference, long worldSeed) {
         requireCircumference(circumference);
         if (depth < 0) throw new IllegalArgumentException("wall depth must be non-negative");
-        if (style.pattern() == RingWallStyle.Pattern.ENGINEERED) {
+        if (style.pattern() == WallSettings.Pattern.ENGINEERED) {
             return RingEngineeredWallPattern.collapseDepth(style, x, depth, circumference, worldSeed);
         }
-        if (style.decayPercent() == 0) return 0;
+        if (style.decay() == 0) return 0;
         int canonicalX = Math.floorMod(x, circumference);
         // Collapse follows correlated structural weakness, not independent block
         // rolls: broad failed bays contain smaller fractures and chipped edges.
         double coarse = smoothNoise2d(worldSeed ^ 0x434F415253455F44L, canonicalX, depth, 32, 8, circumference);
         double medium = smoothNoise2d(worldSeed ^ 0x4D454449554D5F44L, canonicalX, depth, 8, 3, circumference);
         double fracture = smoothNoise2d(worldSeed, canonicalX, depth, 4, 2, circumference);
-        double exposedFace = style.thicknessBlocks() == 1 ? 1.0 : Math.abs(depth * 2.0 / (style.thicknessBlocks() - 1) - 1.0);
+        double exposedFace = style.thickness() == 1 ? 1.0 : Math.abs(depth * 2.0 / (style.thickness() - 1) - 1.0);
         double noise = Math.min(1.0, coarse * 0.48 + medium * 0.34 + fracture * 0.18 + exposedFace * 0.07);
-        double threshold = 1.0 - style.decayPercent() / 100.0 * 0.88;
+        double threshold = 1.0 - style.decay() / 100.0 * 0.88;
         if (noise <= threshold) return 0;
-        int maximum = Math.max(1, 2 + style.decayPercent() * 30 / 100);
+        int maximum = Math.max(1, 2 + style.decay() * 30 / 100);
         double severity = (noise - threshold) / Math.max(0.01, 1.0 - threshold);
         double depthNoise = smoothNoise2d(worldSeed ^ DECAY_DEPTH_SALT, canonicalX, depth, 16, 4, circumference);
         int collapse = 1 + (int) Math.floor(Math.pow(severity, 0.72) * (0.42 + depthNoise * 0.58) * maximum);
         return Math.min(maximum, collapse);
     }
 
-    public static boolean blockPresent(RingWallStyle style, int x, int y, int wallTopExclusive, int circumference, long worldSeed) {
+    public static boolean blockPresent(WallSettings style, int x, int y, int wallTopExclusive, int circumference, long worldSeed) {
         return blockPresent(style, x, y, 0, wallTopExclusive, circumference, worldSeed);
     }
 
-    public static boolean blockPresent(RingWallStyle style, int x, int y, int depth, int wallTopExclusive, int circumference, long worldSeed) {
+    public static boolean blockPresent(WallSettings style, int x, int y, int depth, int wallTopExclusive, int circumference, long worldSeed) {
         return y < wallTopExclusive - topCollapseDepth(style, x, depth, circumference, worldSeed);
     }
 
@@ -163,27 +165,27 @@ public final class RingWallPattern {
     /**
      * The established panel sampler, also used by the weathered Industrial variant.
      */
-    static int originalPanelRoll(RingWallStyle style, int x, int y, int depth, int circumference, long seed) {
+    static int originalPanelRoll(WallSettings style, int x, int y, int depth, int circumference, long seed) {
         requireCircumference(circumference);
         int canonicalX = Math.floorMod(x, circumference);
-        int fine = materialNoise(seed, MATERIAL_FINE_SALT, canonicalX, y, depth, style.palette().id());
+        int fine = materialNoise(seed, MATERIAL_FINE_SALT, canonicalX, y, depth, style.palette().ordinal());
         return panelRoll(style, canonicalX, y, depth, seed, fine);
     }
 
-    private static int panelRoll(RingWallStyle style, int canonicalX, int y, int depth, long worldSeed, int fine) {
+    private static int panelRoll(WallSettings style, int canonicalX, int y, int depth, long worldSeed, int fine) {
         int region = Math.floorDiv(canonicalX, 67);
-        int panelWidth = 11 + materialNoise(worldSeed, MATERIAL_COARSE_SALT, region, depth, 3, style.palette().id()) % 13;
-        int xOffset = materialNoise(worldSeed, MATERIAL_SALT, region, depth, 4, style.palette().id()) % panelWidth;
+        int panelWidth = 11 + materialNoise(worldSeed, MATERIAL_COARSE_SALT, region, depth, 3, style.palette().ordinal()) % 13;
+        int xOffset = materialNoise(worldSeed, MATERIAL_SALT, region, depth, 4, style.palette().ordinal()) % panelWidth;
         int panelX = Math.floorMod(canonicalX + xOffset, panelWidth);
         int panel = Math.floorDiv(canonicalX + xOffset, panelWidth);
-        int courseHeight = 8 + materialNoise(worldSeed, MATERIAL_COARSE_SALT, panel, depth, 5, style.palette().id()) % 11;
-        int yOffset = materialNoise(worldSeed, MATERIAL_SALT, panel, depth, 6, style.palette().id()) % courseHeight;
-        boolean rib = panelX == 0 || (panelX == panelWidth - 1 && materialNoise(worldSeed, MATERIAL_FINE_SALT, panel, Math.floorDiv(y, 5), depth, style.palette().id()) < 74) || Math.floorMod(y + yOffset, courseHeight) == 0;
+        int courseHeight = 8 + materialNoise(worldSeed, MATERIAL_COARSE_SALT, panel, depth, 5, style.palette().ordinal()) % 11;
+        int yOffset = materialNoise(worldSeed, MATERIAL_SALT, panel, depth, 6, style.palette().ordinal()) % courseHeight;
+        boolean rib = panelX == 0 || (panelX == panelWidth - 1 && materialNoise(worldSeed, MATERIAL_FINE_SALT, panel, Math.floorDiv(y, 5), depth, style.palette().ordinal()) < 74) || Math.floorMod(y + yOffset, courseHeight) == 0;
         if (rib) {
-            int wear = materialNoise(worldSeed, MATERIAL_FINE_SALT, canonicalX, y, depth + 17, style.palette().id());
+            int wear = materialNoise(worldSeed, MATERIAL_FINE_SALT, canonicalX, y, depth + 17, style.palette().ordinal());
             return clamp(76 + wear / 4);
         }
-        int body = materialNoise(worldSeed, MATERIAL_SALT, panel, Math.floorDiv(y + yOffset, courseHeight), depth, style.palette().id());
+        int body = materialNoise(worldSeed, MATERIAL_SALT, panel, Math.floorDiv(y + yOffset, courseHeight), depth, style.palette().ordinal());
         return blend(body, fine, 70);
     }
 

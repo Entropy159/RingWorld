@@ -1,6 +1,5 @@
 package dev.ringworld.client;
 
-import dev.ringworld.Constants;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingLodQuality;
@@ -10,14 +9,14 @@ import dev.ringworld.world.RingRenderProfile;
  * Client-thread-owned, session-local LOD choice. No server or saved settings are mutated.
  */
 public final class RingClientLodTuning {
-    private static RingLodQuality quality = Constants.DEFAULT_LOD_QUALITY;
+    private static RingLodQuality quality = RingLodQuality.HIGH;
 
     public static RingLodQuality quality() {
         return quality;
     }
 
     public static String select(RingLodQuality value) {
-        if (value == null) value = Constants.DEFAULT_LOD_QUALITY; // /ringworld lod reset
+        if (value == null) value = RingLodQuality.HIGH; // /ringworld lod reset
         if (quality == value) return summary();
         quality = value;
         RingSurfaceTextureRenderer.clear();
@@ -25,7 +24,7 @@ public final class RingClientLodTuning {
     }
 
     public static void clearSession() {
-        quality = Constants.DEFAULT_LOD_QUALITY;
+        quality = RingLodQuality.HIGH;
     }
 
     public static RingRenderProfile profile(RingGeometry geometry, double distance) {

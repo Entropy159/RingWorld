@@ -1,11 +1,11 @@
 package dev.ringworld.api;
 
 import dev.ringworld.Constants;
+import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingBuildingSettings;
 import dev.ringworld.world.RingChunkCoordinates;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingWorldSettings;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -13,20 +13,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
 
 public final class RingWorldApi {
     public static boolean isRingWorld(Level world) {
         return world.dimensionTypeRegistration().is(Constants.RING_DIMENSION_TAG);
     }
 
-    @Nullable
-    public static RingWorldSettings settings(ServerLevel world) {
-        return isRingWorld(world) ? RingWorldSettings.get(world) : null;
-    }
-
     public static RingGeometry geometry(ServerLevel world) {
-        RingWorldSettings settings = settings(world);
+        var settings = RingWorldConfig.get(world);
         if (settings == null) {
             throw new IllegalArgumentException("World is not a RingWorld dimension");
         }

@@ -60,7 +60,7 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
         if (!Double.isFinite(viewDistanceBlocks) || viewDistanceBlocks <= 0.0) {
             throw new IllegalArgumentException("view distance must be finite and positive");
         }
-        double half = geometry.circumferenceBlocks() * 0.5;
+        double half = geometry.circumference() * 0.5;
         double effective = Math.clamp(viewDistanceBlocks, 16.0, half);
         double liveStart = effective * LIVE_FADE_START_FACTOR;
         double liveEnd = Math.clamp(liveStart + 8.0, effective * LIVE_FADE_END_FACTOR, half);
@@ -69,13 +69,13 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
         double detailStart = effective * DETAIL_START_FACTOR;
         double detailEnd = Math.clamp(detailStart + 16.0, effective * DETAIL_END_FACTOR, half);
 
-        int textureColumns = Math.min(geometry.circumferenceBlocks(), maxColumns);
-        int textureRows = Math.min(geometry.widthBlocks(), maxRows);
-        int circumferenceSegments = Math.clamp(maxColumns / 2, MAX_CIRCUMFERENCE_SEGMENTS, divideCeil(geometry.circumferenceBlocks(), meshStep));
-        int widthBands = Math.min(divideCeil(geometry.widthBlocks(), meshStep), MAX_WIDTH_BANDS);
+        int textureColumns = Math.min(geometry.circumference(), maxColumns);
+        int textureRows = Math.min(geometry.width(), maxRows);
+        int circumferenceSegments = Math.clamp(maxColumns / 2, MAX_CIRCUMFERENCE_SEGMENTS, divideCeil(geometry.circumference(), meshStep));
+        int widthBands = Math.min(divideCeil(geometry.width(), meshStep), MAX_WIDTH_BANDS);
         long vertices = Math.multiplyExact(Math.multiplyExact((long) circumferenceSegments, widthBands), 6L);
 
-        return new RingRenderProfile(VISUAL_PROFILE_VERSION, viewDistanceBlocks, effective, half, liveStart, liveEnd, proxyStart, proxyEnd, detailStart, detailEnd, REVEAL_NEAR, REVEAL_FAR, HAZE_NEAR, HAZE_FAR, HAZE_EXPONENT, half, half, textureColumns, textureRows, circumferenceSegments, widthBands, vertices, (double) geometry.circumferenceBlocks() / textureColumns, (double) geometry.widthBlocks() / textureRows);
+        return new RingRenderProfile(VISUAL_PROFILE_VERSION, viewDistanceBlocks, effective, half, liveStart, liveEnd, proxyStart, proxyEnd, detailStart, detailEnd, REVEAL_NEAR, REVEAL_FAR, HAZE_NEAR, HAZE_FAR, HAZE_EXPONENT, half, half, textureColumns, textureRows, circumferenceSegments, widthBands, vertices, (double) geometry.circumference() / textureColumns, (double) geometry.width() / textureRows);
     }
 
     private static int divideCeil(int value, int divisor) {

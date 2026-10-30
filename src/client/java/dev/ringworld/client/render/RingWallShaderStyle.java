@@ -1,7 +1,7 @@
 package dev.ringworld.client.render;
 
+import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.RingGenerationBoundary;
-import dev.ringworld.world.RingWallStyle;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Matrix4f;
@@ -16,8 +16,8 @@ import java.util.List;
 final class RingWallShaderStyle {
     private static final int MAX_SHADER_MATERIALS = 5;
 
-    static Encoded encode(RingWallStyle style, long worldSeed, Level world) {
-        List<Run> runs = runs(style, world);
+    static Encoded encode(WallSettings settings, long worldSeed, Level world) {
+        List<Run> runs = runs(settings, world);
         while (runs.size() > MAX_SHADER_MATERIALS) mergeSmallestAdjacentRun(runs);
         while (runs.size() < MAX_SHADER_MATERIALS) {
             Run last = runs.getLast();
@@ -31,19 +31,19 @@ final class RingWallShaderStyle {
         }
         Run fifth = runs.get(4);
         int seedBits = (int) ((worldSeed ^ worldSeed >>> 32) & 31L);
-        int metadata = style.pattern().id() * 32 + seedBits;
+        int metadata = settings.pattern().ordinal() * 32 + seedBits;
         int vertexArgb = metadata << 24 | fifth.rgb();
         return new Encoded(palette, vertexArgb);
     }
 
-    static int[] paletteColors(RingWallStyle style, Level world) {
+    static int[] paletteColors(WallSettings style, Level world) {
         int[] colors = new int[100];
         for (int roll = 0; roll < 100; roll++)
             colors[roll] = materialRgb(RingGenerationBoundary.styledRimBlockForRoll(style, roll), world);
         return colors;
     }
 
-    private static List<Run> runs(RingWallStyle style, Level world) {
+    private static List<Run> runs(WallSettings style, Level world) {
         List<Run> result = new ArrayList<>();
         int start = 0;
         BlockState previous = RingGenerationBoundary.styledRimBlockForRoll(style, 0);

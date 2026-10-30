@@ -2,7 +2,10 @@ package dev.ringworld.server.atlas.pregen;
 
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
-import dev.ringworld.world.*;
+import dev.ringworld.config.RingWorldConfig;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingSurfaceLod;
+import dev.ringworld.world.RingWorldStorageAccess;
 import dev.ringworld.world.atlas.RingAtlasPregenerationCursor;
 import dev.ringworld.world.atlas.RingAtlasSurfaceInvalidation;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
@@ -63,19 +66,15 @@ public final class RingAtlasPregenerationService {
         private static final TicketType INSTANCE = new TicketType(TicketType.NO_TIMEOUT, TicketType.FLAG_LOADING);
     }
 
-    public static void load(ServerLevel world) {
-        load(world, true);
-    }
-
     /**
      * Loads the one authoritative atlas state. The Fabric headless adapter
      * passes {@code false} so it can attach the stop-on-complete intent before
      * a normal background writer is allowed to start.
      */
-    public static void load(ServerLevel world, boolean allowBackgroundAutostart) {
+    public static void load(ServerLevel world) {
         if (!RingWorldApi.isRingWorld(world)) return;
         requireServerThread(world);
-        RingWorldSettings settings = RingWorldSettings.get(world);
+        RingWorldConfig settings = RingWorldConfig.get(world);
         RingGeometry geometry = settings.geometry();
         long hash = RingTerrainAtlas.worldHash(settings);
         Path path = cachePath(world);
@@ -89,7 +88,7 @@ public final class RingAtlasPregenerationService {
         logLoad(storage.status(), path, legacyPath, atlas);
         WorldState state = new WorldState(atlas, path, storage.status() == RingTerrainAtlas.StorageStatus.INVALID_CURRENT || storage.status() == RingTerrainAtlas.StorageStatus.INVALID_LEGACY);
         WORLDS.put(world, state);
-        if (allowBackgroundAutostart && RingWorldConfig.load(world.dimension()).pregenerateTerrainAtlas()) {
+        if (settings.pregenAtlas()) {
             pregenerate(world, AtlasPregenerationOptions.backgroundDefaults(), NOOP_LISTENER);
         } else {
             // Config false deliberately leaves the same observable handle in
@@ -381,7 +380,7 @@ public final class RingAtlasPregenerationService {
                 ready.selection.captured();
                 job.lastError = Optional.empty();
                 if (job.completedChunks % 100 == 0 || state.atlas.isComplete()) {
-                    RingWorldMod.LOGGER.info("RingWorld {} terrain atlas progress: {}", world.dimensionTypeRegistration().unwrapKey().orElse(null), status(world));
+                    RingWorldMod.LOGGER.info("RingWorld {} terrain atlas progress: {}", world.dimension().identifier(), status(world));
                 }
             } catch (RuntimeException failure) {
                 job.recordFailure(ready, failure);
@@ -398,19 +397,6 @@ public final class RingAtlasPregenerationService {
             }
         }
         return captured;
-    }
-
-    private static void logCaptureTimings(ServerLevel world, WorldState state) {
-        long[] times = world.getServer().getTickTimesNanos();
-        int previous = Math.floorMod(world.getServer().getTickCount() - 1, times.length);
-        state.maxObservedTickNanos = Math.max(state.maxObservedTickNanos, times[previous]);
-        if (times[previous] >= 100000000L)
-            RingWorldMod.LOGGER.info("RingWorld slow server tick tick={} durationMs={} pendingLoadedChunks={}", world.getServer().getTickCount() - 1, times[previous] / 1e6, state.loadedChunks.size());
-        if (state.ticks % 200 != 0) return;
-        RingWorldMod.LOGGER.info("RingWorld Atlas capture window chunks={} ownerTotalMs={} ownerMaxMs={} observedTickMaxMs={} target={} maxChunksPerTick={} pendingLoadedChunks={}", state.captureChunks, state.captureNanos / 1e6, state.maxCaptureNanos / 1e6, state.maxObservedTickNanos / 1e6, state.job == null ? 0 : state.job.requestLimit(), state.maxCaptureChunks, state.loadedChunks.size());
-        state.captureChunks = 0;
-        state.maxCaptureChunks = 0;
-        state.captureNanos = state.maxCaptureNanos = state.maxObservedTickNanos = 0;
     }
 
     /**
@@ -430,16 +416,6 @@ public final class RingAtlasPregenerationService {
         };
         if (server.isSameThread()) update.run();
         else server.execute(update);
-    }
-
-    static int inFlightChunks(ServerLevel world) {
-        Job job = requireState(world).job;
-        return job == null ? 0 : job.requests.inFlight();
-    }
-
-    static int maxInFlightChunks(ServerLevel world) {
-        Job job = requireState(world).job;
-        return job == null ? 0 : job.requestLimit();
     }
 
     private static CaptureResult captureChunk(ServerLevel world, LevelChunk chunk, WorldState state) {
@@ -634,26 +610,6 @@ public final class RingAtlasPregenerationService {
         WorldState state = WORLDS.get(world);
         if (state == null) throw new IllegalStateException("RingWorld terrain atlas is unavailable");
         return state;
-    }
-
-    /**
-     * Checkpoints an interrupted headless run without waiting on its future.
-     */
-    public static void interruptForServerStop(ServerLevel world) {
-        requireServerThread(world);
-        WorldState state = WORLDS.get(world);
-        if (state == null) return;
-        // NeoForge may deliver further CHUNK_LOAD callbacks while Minecraft
-        // drains its final save. Freeze captures before checkpoint/report so
-        // their durable cell counts cannot change underneath the stop result.
-        state.stopping = true;
-        drainLoadedCaptures(world, state);
-        if (state.job == null) return;
-        // Shutdown is not a normal completed-request consumption tick. The
-        // chunk source may already be tearing down, so discard the lease and
-        // checkpoint only cells captured from still-resident authoritative chunks.
-        // The still-selected cursor chunk is therefore retried after resume.
-        state.job.cancelForUnload();
     }
 
     private static String percent(double completion) {

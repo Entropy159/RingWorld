@@ -1,28 +1,28 @@
 package dev.ringworld.world;
 
-import dev.ringworld.Constants;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * Pure coordinate mathematics shared by client, server, and compatibility
- * integrations. Canonical X is the periodic circumference; canonical Z is
- * the finite width. Canonical Y points towards the ring centre (local up).
- */
-public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
-    public static final double SURFACE_Y = 64.0;
+public record RingGeometry(int width, int circumference) {
+    public static final int SURFACE_Y = 64;
+    private static final int MIN_WIDTH = 128;
+    private static final int MIN_CIRCUMFERENCE = 2048;
+    private static final long MAX_BLOCKS = 16777216 * 16;
 
     public RingGeometry {
-        if (widthBlocks < Constants.MIN_WIDTH || widthBlocks % 16 != 0) {
-            throw new IllegalArgumentException("width must be a positive 16-block multiple");
+        if (width < MIN_WIDTH || width % 16 != 0) {
+            throw new IllegalArgumentException("Width must be a positive 16-block multiple, got " + width);
         }
-        if (circumferenceBlocks < Constants.MIN_CIRCUMFERENCE || circumferenceBlocks % 16 != 0) {
-            throw new IllegalArgumentException("circumference must be a safe 16-block multiple");
+        if (circumference < MIN_CIRCUMFERENCE || circumference % 16 != 0) {
+            throw new IllegalArgumentException("Circumference must be a safe 16-block multiple, got " + circumference);
+        }
+        if ((long) width * circumference > MAX_BLOCKS) {
+            throw new IllegalArgumentException("Too many blocks, reduce the width or circumference. Found " + (long) width * circumference + ", max " + MAX_BLOCKS);
         }
     }
 
     public double radius() {
-        return circumferenceBlocks / (2.0 * Math.PI);
+        return circumference / (2.0 * Math.PI);
     }
 
     /**
@@ -40,11 +40,11 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
     }
 
     public int circumferenceChunks() {
-        return circumferenceBlocks / 16;
+        return circumference / 16;
     }
 
     public int widthChunks() {
-        return widthBlocks / 16;
+        return width / 16;
     }
 
     /**
@@ -78,16 +78,16 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
     }
 
     public double angleAt(double canonicalX) {
-        return Math.PI * 2.0 * wrapX(canonicalX) / circumferenceBlocks;
+        return Math.PI * 2.0 * wrapX(canonicalX) / circumference;
     }
 
     public double wrapX(double canonicalX) {
-        double result = canonicalX % circumferenceBlocks;
-        return result < 0.0 ? result + circumferenceBlocks : result;
+        double result = canonicalX % circumference;
+        return result < 0.0 ? result + circumference : result;
     }
 
     public int wrapBlockX(int canonicalX) {
-        return Math.floorMod(canonicalX, circumferenceBlocks);
+        return Math.floorMod(canonicalX, circumference);
     }
 
     /**
@@ -95,8 +95,8 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
      */
     public double nearestImageX(double canonicalX, double referenceX) {
         double wrapped = wrapX(canonicalX);
-        double imageIndex = Math.rint((referenceX - wrapped) / circumferenceBlocks);
-        return wrapped + imageIndex * circumferenceBlocks;
+        double imageIndex = Math.rint((referenceX - wrapped) / circumference);
+        return wrapped + imageIndex * circumference;
     }
 
     /**
@@ -106,14 +106,14 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
         if (!Double.isFinite(presentationX)) {
             throw new IllegalArgumentException("presentation X must be finite");
         }
-        return (Math.floor(presentationX / circumferenceBlocks) + 1.0) * circumferenceBlocks;
+        return (Math.floor(presentationX / circumference) + 1.0) * circumference;
     }
 
     /**
      * True only when a position has left the server's canonical storage range.
      */
     public boolean needsCanonicalWrap(double x) {
-        return x < 0.0 || x >= circumferenceBlocks;
+        return x < 0.0 || x >= circumference;
     }
 
     public boolean isInsideWidth(double canonicalZ) {
@@ -124,11 +124,11 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
      * Centres the finite band on vanilla's usual world-spawn region at Z=0.
      */
     public int minWidthZ() {
-        return -widthBlocks / 2;
+        return -width / 2;
     }
 
     public int maxWidthZ() {
-        return minWidthZ() + widthBlocks - 1;
+        return minWidthZ() + width - 1;
     }
 
     public int minChunkZ() {
@@ -191,7 +191,7 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
      */
     public AABB toCameraLocalBounds(AABB canonicalBounds, Vec3 cameraCanonicalPosition) {
         double startAngle = tangentFrameAngle(cameraCanonicalPosition.x, canonicalBounds.minX);
-        double endAngle = startAngle + Math.PI * 2.0 * (canonicalBounds.maxX - canonicalBounds.minX) / circumferenceBlocks;
+        double endAngle = startAngle + Math.PI * 2.0 * (canonicalBounds.maxX - canonicalBounds.minX) / circumference;
         double minAngle = Math.min(startAngle, endAngle);
         double maxAngle = Math.max(startAngle, endAngle);
         double cameraRadius = physicalRadiusAt(cameraCanonicalPosition.y);
@@ -228,7 +228,7 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
      * keeps the value numerically stable after arbitrarily many seam crossings.
      */
     public double tangentFrameAngle(double cameraX, double positionX) {
-        return Math.PI * 2.0 * shortestCircumferenceDelta(cameraX, positionX) / circumferenceBlocks;
+        return Math.PI * 2.0 * shortestCircumferenceDelta(cameraX, positionX) / circumference;
     }
 
     /**
@@ -242,8 +242,8 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
 
     public double shortestCircumferenceDelta(double fromX, double toX) {
         double delta = wrapX(toX) - wrapX(fromX);
-        if (delta > circumferenceBlocks / 2.0) delta -= circumferenceBlocks;
-        if (delta < -circumferenceBlocks / 2.0) delta += circumferenceBlocks;
+        if (delta > circumference / 2.0) delta -= circumference;
+        if (delta < -circumference / 2.0) delta += circumference;
         return delta;
     }
 
@@ -278,7 +278,7 @@ public record RingGeometry(int widthBlocks, int circumferenceBlocks) {
      */
     public double pitchDegreesToIntrinsic(double observerY, double targetY, double circumferenceDelta, double widthDelta) {
         double delta = shortestCircumferenceDelta(0.0, circumferenceDelta);
-        double angle = Math.PI * 2.0 * delta / circumferenceBlocks;
+        double angle = Math.PI * 2.0 * delta / circumference;
         double observerRadius = physicalRadiusAt(observerY);
         double targetRadius = physicalRadiusAt(targetY);
         double tangent = targetRadius * Math.sin(angle);

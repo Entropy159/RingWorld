@@ -17,7 +17,7 @@ public final class RingSpawnBounds {
      * either rim.
      */
     public static int constrainInitialSpawnZ(int vanillaZ, RingGeometry geometry) {
-        int safeMargin = Math.clamp(geometry.widthBlocks() / 4, 1, 32);
+        int safeMargin = Math.clamp(geometry.width() / 4, 1, 32);
         int minSafeZ = geometry.minWidthZ() + safeMargin;
         int maxSafeZ = geometry.maxWidthZ() - safeMargin;
         return vanillaZ >= minSafeZ && vanillaZ <= maxSafeZ ? vanillaZ : 0;

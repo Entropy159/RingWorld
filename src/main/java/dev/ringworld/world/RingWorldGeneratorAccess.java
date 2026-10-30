@@ -1,17 +1,17 @@
 package dev.ringworld.world;
 
+import dev.ringworld.config.WallSettings;
 import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.levelgen.RandomState;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Implemented by the vanilla noise generator mixin once it belongs to a ring Overworld.
  */
 public interface RingWorldGeneratorAccess {
-    void ringworld$setGeometry(@org.jetbrains.annotations.Nullable RingGeometry geometry);
+    void ringworld$setGeometry(@Nullable RingGeometry geometry);
 
     RingGeometry ringworld$getGeometry();
-
-    void ringworld$setTerrainNoiseMapping(int mappingVersion);
 
     int ringworld$getTerrainNoiseMapping();
 
@@ -19,17 +19,13 @@ public interface RingWorldGeneratorAccess {
 
     int ringworld$getWallHeight();
 
-    void ringworld$setWallStyle(RingWallStyle wallStyle);
+    void ringworld$setWallStyle(WallSettings wallStyle);
 
-    RingWallStyle ringworld$getWallStyle();
+    WallSettings ringworld$getWallStyle();
 
     void ringworld$setGuaranteeStronghold(boolean guaranteeStronghold);
 
     boolean ringworld$guaranteesStronghold();
-
-    void ringworld$setGenerationSettings(RingWorldGenerationSettings settings, long generatorSeed);
-
-    RingWorldGenerationSettings ringworld$getGenerationSettings();
 
     Climate.Sampler ringworld$getPeriodicClimateSampler(RandomState randomState);
 }

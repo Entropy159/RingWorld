@@ -1,5 +1,7 @@
 package dev.ringworld.world;
 
+import dev.ringworld.config.WallSettings;
+
 /**
  * Deterministic, bounded geometry for the Industrial wall elements.
  */
@@ -16,8 +18,8 @@ public final class RingIndustrialElements {
     public record Feature(int kind, int centerX, int offsetX) {
     }
 
-    public static boolean enabled(RingWallStyle style) {
-        return style.palette() == RingWallStyle.Palette.INDUSTRIAL && style.pattern() == RingWallStyle.Pattern.ENGINEERED;
+    public static boolean enabled(WallSettings style) {
+        return style.palette() == WallSettings.Palette.INDUSTRIAL && style.pattern() == WallSettings.Pattern.ENGINEERED;
     }
 
     private static long mix(long value) {

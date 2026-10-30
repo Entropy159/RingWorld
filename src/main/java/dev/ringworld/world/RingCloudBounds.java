@@ -21,7 +21,7 @@ public record RingCloudBounds(double minimumZ, double maximumZ) {
      * not an included block coordinate.
      */
     public static RingCloudBounds betweenInnerRimFaces(RingGeometry geometry, int rimThicknessBlocks) {
-        if (rimThicknessBlocks <= 0 || rimThicknessBlocks * 2 >= geometry.widthBlocks()) {
+        if (rimThicknessBlocks <= 0 || rimThicknessBlocks * 2 >= geometry.width()) {
             throw new IllegalArgumentException("rim thickness leaves no cloud interior");
         }
         return new RingCloudBounds(geometry.minWidthZ() + rimThicknessBlocks, geometry.maxWidthZ() + 1.0 - rimThicknessBlocks);

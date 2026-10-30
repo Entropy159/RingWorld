@@ -3,7 +3,7 @@ package dev.ringworld.client;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.net.*;
-import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingLayoutFingerprint;
 import dev.ringworld.world.RingLodCommandSuggestions;
 import dev.ringworld.world.atlas.RingAtlasLightProfile;
 import net.fabricmc.api.ClientModInitializer;
@@ -12,63 +12,29 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 
-/**
- * Client entrypoint. Rendering and pose mixins consume ClientRingState.
- */
 public final class RingWorldClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         RenderPipelines.register(RingSurfaceTextureRenderer.pipeline());
         registerAtlasLightCommand();
         RingClientPayloadTransport.configure(new FabricRingClientPayloadTransport());
-        ClientRingState.configureCacheDirectory(FabricLoader.getInstance().getGameDir().resolve("ringworld-cache"));
         ClientPlayNetworking.registerGlobalReceiver(RingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> {
-            if (payload.formatVersion() != dev.ringworld.world.RingWorldSettings.FORMAT_VERSION) {
-                var handler = context.client().getConnection();
-                if (handler != null) {
-                    handler.getConnection().disconnect(Component.literal("Incompatible RingWorld format: server=" + payload.formatVersion() + ", client=" + dev.ringworld.world.RingWorldSettings.FORMAT_VERSION));
-                }
-                return;
-            }
-            // A SkyRenderer instance survives the trip back through
-            // the menus. Destroy the previous world's static GPU ring
-            // before installing another session, even when both worlds
-            // happen to use identical dimensions.
-            if (!RingSettingsHandshake.hasMatchingPayloadFingerprint(payload)) {
+            long fingerprint = RingLayoutFingerprint.compute(payload.getConfig());
+            if (fingerprint != payload.fingerprint()) {
                 var handler = context.client().getConnection();
                 if (handler != null) {
                     handler.getConnection().disconnect(Component.literal("RingWorld layout fingerprint mismatch."));
                 }
                 return;
             }
-            long fingerprint = RingSettingsHandshake.fingerprintFor(payload);
-            if (!RingClientPayloadTransport.canSend(RingSettingsAckPayload.ID) || !RingClientPayloadTransport.canSend(RingTerrainAtlasRequestPayload.ID) || !RingClientPayloadTransport.canSend(RingAtlasPregenerationStatusRequestPayload.ID) || !RingClientPayloadTransport.canSend(RingAtlasPregenerationControlPayload.ID) || !RingClientPayloadTransport.canSend(dev.ringworld.net.RingBuildingControlPayload.ID)) {
-                var handler = context.client().getConnection();
-                if (handler != null) {
-                    handler.getConnection().disconnect(Component.literal("Server RingWorld feature channels are missing or out of date."));
-                }
-                return;
-            }
             clearRingSession();
-            ClientRingState.set(new RingGeometry(payload.width(), payload.circumference()), payload.dimension(), payload.wallHeight(), payload.surfaceReferenceY(), payload.terrainNoiseMapping(), payload.wallStyle(), payload.skyProfile(), payload.generationSettings(), payload.sunAngleOffsetY(), payload.sunAngleOffsetZ(), payload.seed(), payload.formatVersion(), fingerprint);
-            RingClientPayloadTransport.send(RingSettingsHandshake.acknowledgementFor(payload));
+            ClientRingState.set(payload.dimension(), payload.getConfig(), payload.seed(), fingerprint);
         }));
-        ClientPlayNetworking.registerGlobalReceiver(dev.ringworld.net.RingBuildingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.setBuildingSettings(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(RingSkyProfilePayload.ID, (payload, context) -> context.client().execute(() -> {
-            try {
-                ClientRingState.setSkyProfile(payload.profile());
-            } catch (IllegalArgumentException exception) {
-                var handler = context.client().getConnection();
-                if (handler != null) {
-                    handler.getConnection().disconnect(Component.literal("Invalid RingWorld sky profile from server."));
-                }
-            }
-        }));
+        ClientPlayNetworking.registerGlobalReceiver(RingBuildingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.setBuildingSettings(payload)));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.ID, (payload, context) -> context.client().execute(() -> {
             boolean cacheComplete = ClientRingState.installTerrainAtlas(payload);
             if (!RingClientPayloadTransport.canSend(RingTerrainAtlasRequestPayload.ID)) {
@@ -83,13 +49,7 @@ public final class RingWorldClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data())));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.commitTerrainAtlasRevision(payload.worldHash(), payload.revision())));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainPreviewPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.installTerrainPreview(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(RingAtlasPregenerationStatusPayload.ID, (payload, context) -> context.client().execute(() -> AtlasPregenerationClientState.install(context.client(), payload)));
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
-                // Fabric may fire this callback on Netty's local I/O thread.
-                // Cache saves and GPU teardown must stay on the client thread;
-                // otherwise disconnect can race the normal teardown mixin's
-                // final atlas save over the same temporary file.
-                client.execute(RingWorldClient::clearRingSession));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(RingWorldClient::clearRingSession));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             RingAtlasPerformanceFeedback.tick(client);
             if (client.getConnection() != null && ClientCommands.getActiveDispatcher() != null) {
@@ -183,6 +143,9 @@ public final class RingWorldClient implements ClientModInitializer {
      * the play-connection disconnect event before the next world is opened.
      */
     public static void clearRingSession() {
-        RingWorldClientSession.clear();
+        RingSurfaceTextureRenderer.clear();
+        RingClientLodTuning.clearSession();
+        RingDistortionTuning.clearSession();
+        ClientRingState.clear();
     }
 }

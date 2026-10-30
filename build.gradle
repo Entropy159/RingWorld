@@ -43,7 +43,6 @@ dependencies {
 
 	implementation "net.caffeinemc:sodium-fabric:${sodium_version}+mc${minecraft_version}"
 	localRuntime "maven.modrinth:mc-worlds:${worlds_version}+${minecraft_version}"
-	implementation "maven.modrinth:c2me-fabric:${c2me_version}+${minecraft_version}"
 }
 
 processResources {

@@ -43,7 +43,7 @@ public final class RingPresentationBounds {
     }
 
     private static boolean isCompactFiniteBox(AABB box, RingGeometry geometry) {
-        return isFiniteBox(box) && Double.isFinite(box.getXsize()) && box.getXsize() < geometry.circumferenceBlocks() * 0.5;
+        return isFiniteBox(box) && Double.isFinite(box.getXsize()) && box.getXsize() < geometry.circumference() * 0.5;
     }
 
     private static boolean isFiniteBox(AABB box) {

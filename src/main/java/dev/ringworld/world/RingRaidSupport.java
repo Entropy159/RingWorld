@@ -71,7 +71,7 @@ public final class RingRaidSupport {
      */
     public static List<Integer> periodicQueryXs(RingGeometry geometry, int originX) {
         int canonical = geometry.wrapBlockX(originX);
-        int circumference = geometry.circumferenceBlocks();
+        int circumference = geometry.circumference();
         return List.of(canonical, canonical - circumference, canonical + circumference);
     }
 
@@ -101,7 +101,7 @@ public final class RingRaidSupport {
     public static List<XWindow> canonicalBlockWindows(RingGeometry geometry, int minBlockX, int maxBlockX) {
         if (minBlockX > maxBlockX) throw new IllegalArgumentException("window minimum must not exceed maximum");
         long width = (long) maxBlockX - minBlockX + 1L;
-        int circumference = geometry.circumferenceBlocks();
+        int circumference = geometry.circumference();
         if (width >= circumference) return List.of(new XWindow(0, circumference - 1));
 
         int start = geometry.wrapBlockX(minBlockX);

@@ -43,7 +43,7 @@ public final class RingStrongholdPlacement {
      * graph inside the one canonical circumference and finite width.
      */
     public static BlockShift fitShift(int minX, int maxX, int minZ, int maxZ, RingGeometry geometry) {
-        return new BlockShift(fitAxis(minX, maxX, 0, geometry.circumferenceBlocks() - 1), fitAxis(minZ, maxZ, geometry.minWidthZ(), geometry.maxWidthZ()));
+        return new BlockShift(fitAxis(minX, maxX, 0, geometry.circumference() - 1), fitAxis(minZ, maxZ, geometry.minWidthZ(), geometry.maxWidthZ()));
     }
 
     /**
@@ -52,7 +52,7 @@ public final class RingStrongholdPlacement {
      * generation merely because optional stronghold branches cross a rim.
      */
     public static FitPlan fitRequiredPiece(int graphMinX, int graphMaxX, int graphMinZ, int graphMaxZ, int requiredMinX, int requiredMaxX, int requiredMinZ, int requiredMaxZ, RingGeometry geometry) {
-        AxisFit x = fitGraphOrRequired(graphMinX, graphMaxX, requiredMinX, requiredMaxX, 0, geometry.circumferenceBlocks() - 1);
+        AxisFit x = fitGraphOrRequired(graphMinX, graphMaxX, requiredMinX, requiredMaxX, 0, geometry.circumference() - 1);
         AxisFit z = fitGraphOrRequired(graphMinZ, graphMaxZ, requiredMinZ, requiredMaxZ, geometry.minWidthZ(), geometry.maxWidthZ());
         return new FitPlan(new BlockShift(x.shift(), z.shift()), x.graphExceedsBounds(), z.graphExceedsBounds());
     }

@@ -2,9 +2,9 @@ package dev.ringworld.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingSpawnBounds;
-import dev.ringworld.world.RingWorldConfig;
 import dev.ringworld.world.RingWorldStorageAccess;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -41,9 +41,9 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
     @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/ChunkGenerator;getOrigin(Lnet/minecraft/world/level/levelgen/RandomState;)Lnet/minecraft/world/level/ChunkPos;"))
     private static ChunkPos ringworld$constrainInitialSpawn(ChunkGenerator generator, RandomState state, @Local(argsOnly = true, name = "level") ServerLevel level) {
         var vanilla = generator.getOrigin(state);
-        RingWorldConfig config = RingWorldConfig.load(level.dimension());
-        RingGeometry geometry = new RingGeometry(config.widthBlocks(), config.circumferenceBlocks());
-        return new ChunkPos(Math.floorMod(vanilla.x(), geometry.circumferenceBlocks()), Math.floorDiv(RingSpawnBounds.constrainInitialSpawnZ(vanilla.z() * 16 + 8, geometry), 16));
+        RingWorldConfig config = RingWorldConfig.get(level);
+        RingGeometry geometry = new RingGeometry(config.width(), config.circumference());
+        return new ChunkPos(Math.floorMod(vanilla.x(), geometry.circumference()), Math.floorDiv(RingSpawnBounds.constrainInitialSpawnZ(vanilla.z() * 16 + 8, geometry), 16));
     }
 
     @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/LevelData$RespawnData;of(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/core/BlockPos;FF)Lnet/minecraft/world/level/storage/LevelData$RespawnData;"), require = 3)
@@ -51,8 +51,8 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
         if (!RingWorldApi.isRingWorld(level)) {
             return LevelData.RespawnData.of(dimension, position, yaw, pitch);
         }
-        RingWorldConfig config = RingWorldConfig.load(dimension);
-        RingGeometry geometry = new RingGeometry(config.widthBlocks(), config.circumferenceBlocks());
+        RingWorldConfig config = RingWorldConfig.get(level);
+        RingGeometry geometry = new RingGeometry(config.width(), config.circumference());
         return LevelData.RespawnData.of(dimension, RingSpawnBounds.canonicalInitialSpawn(position, geometry), yaw, pitch);
     }
 }

@@ -65,7 +65,7 @@ public abstract class WorldEntityLookupMixin {
     private RingTopology topologyFor(AABB box) {
         if (!((Object) this instanceof ServerLevel world) || !RingWorldApi.isRingWorld(world)) return null;
         var geometry = RingWorldServer.geometryFor(world);
-        if (box.minX >= 0.0 && box.maxX <= geometry.circumferenceBlocks()) return null;
+        if (box.minX >= 0.0 && box.maxX <= geometry.circumference()) return null;
         return new RingTopology(geometry);
     }
 }

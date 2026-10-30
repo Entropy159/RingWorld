@@ -8,7 +8,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public record RingNearbyProjection(RingGeometry geometry, double referenceRadius, double cameraY, double coreBlocks) {
     public static RingNearbyProjection create(RingGeometry geometry, double cameraY, double worldTopY, int chunks) {
-        double core = Math.min(chunks * 16.0, geometry.circumferenceBlocks() / 8.0);
+        double core = Math.min(chunks * 16.0, geometry.circumference() / 8.0);
         double radius = Math.max(geometry.radius(), worldTopY - geometry.surfaceReferenceY() + core * 2.0);
         return new RingNearbyProjection(geometry, radius, cameraY, core);
     }
@@ -32,7 +32,7 @@ public record RingNearbyProjection(RingGeometry geometry, double referenceRadius
 
     private double farSlope(double y) {
         double midpoint = (coreBlocks + blendEnd()) * 0.5;
-        return (Math.PI - nearSlope(y) * midpoint) / (geometry.circumferenceBlocks() * 0.5 - midpoint);
+        return (Math.PI - nearSlope(y) * midpoint) / (geometry.circumference() * 0.5 - midpoint);
     }
 
     /**
@@ -43,7 +43,7 @@ public record RingNearbyProjection(RingGeometry geometry, double referenceRadius
     }
 
     public double angle(double delta, double vertexY) {
-        double circumference = geometry.circumferenceBlocks();
+        double circumference = geometry.circumference();
         double turns = Math.floor((delta + circumference * 0.5) / circumference);
         double wrapped = delta - turns * circumference;
         double u = Math.abs(wrapped), near = nearSlope(vertexY), far = farSlope(vertexY);

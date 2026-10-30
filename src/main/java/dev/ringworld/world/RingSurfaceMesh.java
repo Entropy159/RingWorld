@@ -1,6 +1,7 @@
 package dev.ringworld.world;
 
 import dev.ringworld.Constants;
+import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 
@@ -41,13 +42,13 @@ public final class RingSurfaceMesh {
     }
 
     public static Mesh build(RingGeometry geometry, RingTerrainAtlas atlas, boolean detailed, double referenceHeight, double wallTopHeight, int rimThicknessBlocks, RingRenderProfile profile) {
-        return build(geometry, atlas, detailed, referenceHeight, wallTopHeight, wallTopHeight > referenceHeight ? (int) Math.ceil(wallTopHeight - Constants.DEFAULT_MIN_Y) : 0, RingWallStyle.custom(rimThicknessBlocks, RingWallStyle.LEGACY.palette(), RingWallStyle.LEGACY.pattern(), 0), 0L, profile);
+        return build(geometry, atlas, detailed, referenceHeight, wallTopHeight, wallTopHeight > referenceHeight ? (int) Math.ceil(wallTopHeight - Constants.DEFAULT_MIN_Y) : 0, new WallSettings((int) wallTopHeight, rimThicknessBlocks, WallSettings.DEFAULT.palette(), WallSettings.DEFAULT.pattern(), 0), 0L, profile);
     }
 
     /**
      * All wall inputs are captured with the Atlas snapshot before worker submission.
      */
-    public static Mesh build(RingGeometry geometry, RingTerrainAtlas atlas, boolean detailed, double referenceHeight, double wallTopHeight, int wallHeightBlocks, RingWallStyle style, long seed, RingRenderProfile profile) {
+    public static Mesh build(RingGeometry geometry, RingTerrainAtlas atlas, boolean detailed, double referenceHeight, double wallTopHeight, int wallHeightBlocks, WallSettings style, long seed, RingRenderProfile profile) {
         Objects.requireNonNull(geometry, "geometry");
         Objects.requireNonNull(atlas, "atlas");
         if (!geometry.equals(atlas.geometry())) {
@@ -60,7 +61,7 @@ public final class RingSurfaceMesh {
             throw new IllegalArgumentException("wall top height must be finite");
         }
         if (wallHeightBlocks < 0) throw new IllegalArgumentException("wall height must be non-negative");
-        RingCloudBounds innerFaces = RingCloudBounds.betweenInnerRimFaces(geometry, style.thicknessBlocks());
+        RingCloudBounds innerFaces = RingCloudBounds.betweenInnerRimFaces(geometry, style.thickness());
 
         int segments = Math.min(atlas.columns(), profile.circumferenceSegments());
         int bands = Math.min(atlas.rows(), profile.widthBands());
@@ -108,7 +109,7 @@ public final class RingSurfaceMesh {
         private final float outerMinimumZ;
         private final float outerMaximumZ;
 
-        private Mesh(RingGeometry geometry, RingTerrainAtlas atlas, boolean detailed, double referenceHeight, double wallTopHeight, RingCloudBounds innerFaces, int segments, int bands, int wallHeightBlocks, RingWallStyle style, long seed) {
+        private Mesh(RingGeometry geometry, RingTerrainAtlas atlas, boolean detailed, double referenceHeight, double wallTopHeight, RingCloudBounds innerFaces, int segments, int bands, int wallHeightBlocks, WallSettings style, long seed) {
             this.geometry = geometry;
             this.segments = segments;
             this.bands = bands;
@@ -125,13 +126,13 @@ public final class RingSurfaceMesh {
             this.wallBottomY = (float) (wallTopHeight - wallHeightBlocks);
             // A bounded cross-depth height field closes the broken crest. Decay
             // belongs to geometry rather than transparent holes in flat curtains.
-            capBands = Math.min(4, style.thicknessBlocks());
+            capBands = Math.min(4, style.thickness());
             wallTops = new float[capBands + 1][segments + 1];
             for (int depthBand = 0; depthBand <= capBands; depthBand++) {
-                int depth = Math.min(style.thicknessBlocks() - 1, depthBand * style.thicknessBlocks() / capBands);
+                int depth = Math.min(style.thickness() - 1, depthBand * style.thickness() / capBands);
                 for (int segment = 0; segment <= segments; segment++) {
-                    int x = segment == segments ? 0 : (int) ((long) segment * geometry.circumferenceBlocks() / segments);
-                    wallTops[depthBand][segment] = Math.max(wallBottomY, (float) wallTopHeight - RingWallPattern.topCollapseDepth(style, x, depth, geometry.circumferenceBlocks(), seed));
+                    int x = segment == segments ? 0 : (int) ((long) segment * geometry.circumference() / segments);
+                    wallTops[depthBand][segment] = Math.max(wallBottomY, (float) wallTopHeight - RingWallPattern.topCollapseDepth(style, x, depth, geometry.circumference(), seed));
                 }
             }
             bridgeMinimumZ = (float) innerFaces.minimumZ();
@@ -152,16 +153,16 @@ public final class RingSurfaceMesh {
             this.upperSideColor = new int[vertices];
             this.edgeColors = new int[vertices];
             java.util.Arrays.fill(upperSideColor, -1);
-            this.steepHeightThreshold = Math.max(3.0, Math.max((double) geometry.circumferenceBlocks() / segments, (innerFaces.maximumZ() - innerFaces.minimumZ()) / bands));
+            this.steepHeightThreshold = Math.max(3.0, Math.max((double) geometry.circumference() / segments, (innerFaces.maximumZ() - innerFaces.minimumZ()) / bands));
 
             for (int segment = 0; segment <= segments; segment++) {
-                double canonicalX = (double) segment * geometry.circumferenceBlocks() / segments;
+                double canonicalX = (double) segment * geometry.circumference() / segments;
                 // The final U remains one at the periodic seam, but its
                 // physical position must be bit-identical to X=0. sin(2*pi)
                 // is only approximately zero and used to leave a microscopic
                 // open edge after float conversion.
-                double angle = segment == segments ? 0.0 : Math.PI * 2.0 * canonicalX / geometry.circumferenceBlocks();
-                float u = (float) (canonicalX / geometry.circumferenceBlocks());
+                double angle = segment == segments ? 0.0 : Math.PI * 2.0 * canonicalX / geometry.circumference();
+                float u = (float) (canonicalX / geometry.circumference());
                 for (int band = 0; band <= bands; band++) {
                     double surfaceMinimumZ = bridgeRims ? innerFaces.minimumZ() - RIM_SURFACE_OVERLAP_BLOCKS : geometry.minWidthZ();
                     double surfaceMaximumZ = bridgeRims ? innerFaces.maximumZ() + RIM_SURFACE_OVERLAP_BLOCKS : geometry.maxWidthZ();
@@ -182,7 +183,7 @@ public final class RingSurfaceMesh {
                     positionsY[index] = (float) (-radius * Math.cos(angle));
                     positionsZ[index] = (float) z;
                     textureU[index] = u;
-                    textureV[index] = (float) ((sampleZ - geometry.minWidthZ()) / geometry.widthBlocks());
+                    textureV[index] = (float) ((sampleZ - geometry.minWidthZ()) / geometry.width());
                     heights[index] = (float) surfaceHeight;
                     edgeColors[index] = atlas.sample(canonicalX, sampleZ).color();
                     upperU[index] = u;
@@ -310,8 +311,8 @@ public final class RingSurfaceMesh {
         }
 
         private void emitBridgeVertex(VertexConsumer consumer, int segment, float y, float z, float u, float v) {
-            double canonicalX = (double) segment * geometry.circumferenceBlocks() / segments;
-            double angle = segment == segments ? 0.0 : Math.PI * 2.0 * canonicalX / geometry.circumferenceBlocks();
+            double canonicalX = (double) segment * geometry.circumference() / segments;
+            double angle = segment == segments ? 0.0 : Math.PI * 2.0 * canonicalX / geometry.circumference();
             double radius = geometry.physicalRadiusAt(y);
             consumer.vertex((float) (radius * Math.sin(angle)), (float) (-radius * Math.cos(angle)), z, u, v);
         }

@@ -4,7 +4,6 @@ import dev.ringworld.client.ClientRingState;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingPosition;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
-import dev.ringworld.world.RingTerrainNoiseMapping;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import net.minecraft.client.Minecraft;
@@ -59,7 +58,7 @@ public abstract class PlayerPositionDebugHudEntryMixin {
         RingTerrainAtlas atlas = ClientRingState.terrainAtlas();
         String atlasStatus = atlas == null ? "not received" : String.format(Locale.ROOT, "%d/%d cells (%.1f%%), step %d", atlas.presentCount(), atlas.cellCount(), atlas.completion() * 100.0, atlas.sampleStep());
 
-        lines.addToGroup(DebugEntryPosition.GROUP, List.of(String.format(Locale.ROOT, "Ring XYZ: %.3f / %.5f / %.3f", canonicalX, entity.getY(), entity.getZ()), String.format(Locale.ROOT, "Ring Block: %d %d %d", blockPos.getX(), blockPos.getY(), blockPos.getZ()), String.format(Locale.ROOT, "Ring Chunk: %d %d %d [%d %d in r.%d.%d.mca]", chunkPos.x(), SectionPos.blockToSectionCoord(blockPos.getY()), chunkPos.z(), chunkPos.getRegionLocalX(), chunkPos.getRegionLocalZ(), chunkPos.getRegionX(), chunkPos.getRegionZ()), String.format(Locale.ROOT, "Facing: %s (%s) (%.1f / %.1f)", direction, directionDescription, Mth.wrapDegrees(entity.getYRot()), Mth.wrapDegrees(entity.getXRot())), String.format(Locale.ROOT, "Loop: X 0-%d, %d blocks / %d chunks", geometry.circumferenceBlocks() - 1, geometry.circumferenceBlocks(), geometry.circumferenceChunks()), String.format(Locale.ROOT, "Worldgen: %s (%d)", RingTerrainNoiseMapping.diagnosticName(ClientRingState.terrainNoiseMapping()), ClientRingState.terrainNoiseMapping()), "Ring Atlas: " + atlasStatus, client.level.dimension().identifier() + " FC: " + forcedChunks.size()));
+        lines.addToGroup(DebugEntryPosition.GROUP, List.of(String.format(Locale.ROOT, "Ring XYZ: %.3f / %.5f / %.3f", canonicalX, entity.getY(), entity.getZ()), String.format(Locale.ROOT, "Ring Block: %d %d %d", blockPos.getX(), blockPos.getY(), blockPos.getZ()), String.format(Locale.ROOT, "Ring Chunk: %d %d %d [%d %d in r.%d.%d.mca]", chunkPos.x(), SectionPos.blockToSectionCoord(blockPos.getY()), chunkPos.z(), chunkPos.getRegionLocalX(), chunkPos.getRegionLocalZ(), chunkPos.getRegionX(), chunkPos.getRegionZ()), String.format(Locale.ROOT, "Facing: %s (%s) (%.1f / %.1f)", direction, directionDescription, Mth.wrapDegrees(entity.getYRot()), Mth.wrapDegrees(entity.getXRot())), String.format(Locale.ROOT, "Loop: X 0-%d, %d blocks / %d chunks", geometry.circumference() - 1, geometry.circumference(), geometry.circumferenceChunks()), "Ring Atlas: " + atlasStatus, client.level.dimension().identifier() + " FC: " + forcedChunks.size()));
         ci.cancel();
     }
 }

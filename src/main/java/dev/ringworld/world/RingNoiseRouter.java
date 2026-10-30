@@ -15,27 +15,23 @@ import java.util.IdentityHashMap;
 public final class RingNoiseRouter implements DfRewriteRule {
     private final RingGeometry geometry;
     private final int mapping;
-    private final RingWorldGenerationSettings settings;
     private final long seed;
     private final int seaLevel;
     private final NoiseRouter router;
     private final RingNoiseCoordinates coordinates;
-    private final RingMacroTerrain macro;
     private final IdentityHashMap<DensityFunction, DensityFunction> rewritten = new IdentityHashMap<>();
 
-    public RingNoiseRouter(RingGeometry geometry, int mapping, RingWorldGenerationSettings settings, long seed, int seaLevel, NoiseRouter router) {
+    public RingNoiseRouter(RingGeometry geometry, int mapping, long seed, int seaLevel, NoiseRouter router) {
         this.geometry = geometry;
         this.mapping = mapping;
-        this.settings = settings;
         this.seed = seed;
         this.seaLevel = seaLevel;
         this.router = router;
         coordinates = RingNoiseCoordinates.forGeometry(geometry, mapping);
-        macro = new RingMacroTerrain(geometry, seed, settings);
     }
 
-    public boolean matches(RingGeometry geometry, int mapping, RingWorldGenerationSettings settings, long seed, int seaLevel, NoiseRouter router) {
-        return this.geometry.equals(geometry) && this.mapping == mapping && this.settings.equals(settings) && this.seed == seed && this.seaLevel == seaLevel && this.router == router;
+    public boolean matches(RingGeometry geometry, int mapping, long seed, int seaLevel, NoiseRouter router) {
+        return this.geometry.equals(geometry) && this.mapping == mapping && this.seed == seed && this.seaLevel == seaLevel && this.router == router;
     }
 
     @Override
@@ -49,12 +45,6 @@ public final class RingNoiseRouter implements DfRewriteRule {
             // The whole noise leaf sees one transform, including its shift children.
             result = new Cylindrical(input, coordinates);
         } else result = input.rewriteChildren(this);
-        if (macro.active()) {
-            if (original == router.finalDensity()) result = new Macro(result, macro, Mode.FINAL_DENSITY, seaLevel);
-            else if (original == router.chunkSurfaceLevel()) result = new Macro(result, macro, Mode.SURFACE, seaLevel);
-            else if (original == router.continents() && settings.layout() == RingWorldLayout.ARCHIPELAGO)
-                result = new Macro(result, macro, Mode.CONTINENTS, seaLevel);
-        }
         rewritten.put(original, result);
         return result;
     }
@@ -106,65 +96,4 @@ public final class RingNoiseRouter implements DfRewriteRule {
         }
     }
 
-    private enum Mode {CONTINENTS, SURFACE, FINAL_DENSITY}
-
-    private record Macro(DensityFunction input, RingMacroTerrain macro, Mode mode,
-                         int seaLevel) implements DensityFunction {
-        @Override
-        public @NonNull DensitySampler compileSampler(@NonNull CompileContext compiler) {
-            DensitySampler delegate = input.compileSampler(compiler);
-            return new DensitySampler() {
-                @Override
-                public float sampleValue(@NonNull SamplerContext context, int x, int y, int z) {
-                    return adjust(x, y, z, delegate.sampleValue(context, x, y, z));
-                }
-
-                @Override
-                public void sampleVolume(@NonNull SamplerContext context, @NonNull DensityBuffer output, @NonNull DensityVolume volume) {
-                    delegate.sampleVolume(context, output, volume);
-                    int index = 0;
-                    for (int z = 0; z < volume.sizeZ(); z++)
-                        for (int x = 0; x < volume.sizeX(); x++)
-                            for (int y = 0; y < volume.sizeY(); y++, index++)
-                                output.set(index, adjust(volume.blockX(x), volume.blockY(y), volume.blockZ(z), output.get(index)));
-                }
-            };
-        }
-
-        private float adjust(int x, int y, int z, float base) {
-            double land = macro.landBias(x, z), river = macro.riverInfluence(x, z);
-            return (float) switch (mode) {
-                case CONTINENTS -> Math.clamp(base + land * 0.62, -1.0, 1.0);
-                case SURFACE ->
-                        Math.min(base + land * 13.0, river > 0 ? seaLevel - 1.0 + (1.0 - river) * 4.0 : Double.POSITIVE_INFINITY);
-                case FINAL_DENSITY -> {
-                    double band = Math.max(0.0, 1.0 - Math.abs(y - seaLevel) / 64.0);
-                    double density = base + land * 0.36 * band;
-                    if (river > 0 && y >= seaLevel - 7.0 + (1.0 - river) * 9.0)
-                        density = Math.min(density, -0.35 - river * 0.65);
-                    yield density;
-                }
-            };
-        }
-
-        @Override
-        public @NonNull DensityFunction rewriteChildren(DfRewriteRule rule) {
-            return new Macro(rule.rewrite(input), macro, mode, seaLevel);
-        }
-
-        @Override
-        public @NonNull Interval range() {
-            return Interval.INFINITE;
-        }
-
-        @Override
-        public int domainAxes() {
-            return ALL_AXES;
-        }
-
-        @Override
-        public @NonNull MapCodec<? extends DensityFunction> codec() {
-            throw new UnsupportedOperationException("Ring samplers are runtime-only");
-        }
-    }
 }

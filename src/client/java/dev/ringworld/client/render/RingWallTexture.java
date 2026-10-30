@@ -1,6 +1,7 @@
 package dev.ringworld.client.render;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 
@@ -10,14 +11,14 @@ import java.util.Arrays;
  * Worker-only wall colour atlas. Four strips: two inner faces, then two outer faces.
  */
 final class RingWallTexture {
-    record ContentKey(RingGeometry geometry, RingWallStyle style, long seed, int bottom, int top, int columns,
+    record ContentKey(RingGeometry geometry, WallSettings style, long seed, int bottom, int top, int columns,
                       int paletteHash, long terrainHash) {
     }
 
     /**
      * Only inner industrial motifs depend on Atlas heights at the rims.
      */
-    static ContentKey contentKey(RingTerrainAtlas atlas, RingWallStyle style, long seed, int bottom, int top, int columns, int[] palette) {
+    static ContentKey contentKey(RingTerrainAtlas atlas, WallSettings style, long seed, int bottom, int top, int columns, int[] palette) {
         long terrainHash = 0L;
         if (RingIndustrialElements.enabled(style)) {
             var geometry = atlas.geometry();
@@ -25,10 +26,10 @@ final class RingWallTexture {
             for (int side = 0; side < 2; side++) {
                 int edge = side == 0 ? geometry.minWidthZ() : geometry.maxWidthZ();
                 int inward = side == 0 ? 1 : -1;
-                int anchorZ = edge + inward * (style.thicknessBlocks() + 3);
+                int anchorZ = edge + inward * (style.thickness() + 3);
                 for (int col = 0; col < columns; col++) {
-                    int x = (int) ((col + 0.5) * geometry.circumferenceBlocks() / columns);
-                    var feature = RingIndustrialElements.feature(x, geometry.circumferenceBlocks(), seed, side);
+                    int x = (int) ((col + 0.5) * geometry.circumference() / columns);
+                    var feature = RingIndustrialElements.feature(x, geometry.circumference(), seed, side);
                     terrainHash ^= featureBase(atlas, feature, anchorZ, bottom);
                     terrainHash *= 0x100000001b3L;
                 }
@@ -37,14 +38,14 @@ final class RingWallTexture {
         return new ContentKey(atlas.geometry(), style, seed, bottom, top, columns, Arrays.hashCode(palette), terrainHash);
     }
 
-    static NativeImage build(RingTerrainAtlas atlas, RingWallStyle style, long seed, int bottom, int top, int columns, int[] palette, java.util.function.BooleanSupplier cancelled) {
-        return build(atlas, style, seed, bottom, top, columns, palette, cancelled, Math.min(512, Math.max(1, top - bottom)));
+    static NativeImage build(RingTerrainAtlas atlas, WallSettings style, long seed, int bottom, int top, int columns, int[] palette, java.util.function.BooleanSupplier cancelled) {
+        return build(atlas, style, seed, bottom, top, columns, palette, cancelled, Math.clamp(top - bottom, 1, 512));
     }
 
     /**
      * Four independent strips; stop before a mip would merge different wall faces.
      */
-    static NativeImage[] buildMipmapped(RingTerrainAtlas atlas, RingWallStyle style, long seed, int bottom, int top, int columns, int[] palette, java.util.function.BooleanSupplier cancelled) {
+    static NativeImage[] buildMipmapped(RingTerrainAtlas atlas, WallSettings style, long seed, int bottom, int top, int columns, int[] palette, java.util.function.BooleanSupplier cancelled) {
         int rows = 1;
         while (rows < Math.clamp(top - bottom, 1, 512)) rows <<= 1;
         NativeImage[] levels = new NativeImage[Integer.numberOfTrailingZeros(rows) + 1];
@@ -77,7 +78,7 @@ final class RingWallTexture {
         }
     }
 
-    private static NativeImage build(RingTerrainAtlas atlas, RingWallStyle style, long seed, int bottom, int top, int columns, int[] palette, java.util.function.BooleanSupplier cancelled, int rows) {
+    private static NativeImage build(RingTerrainAtlas atlas, WallSettings style, long seed, int bottom, int top, int columns, int[] palette, java.util.function.BooleanSupplier cancelled, int rows) {
         int height = Math.max(1, top - bottom);
         NativeImage image = new NativeImage(columns, rows * 4, false);
         try {
@@ -85,26 +86,26 @@ final class RingWallTexture {
             for (int strip = 0; strip < 4; strip++) {
                 int side = strip % 2;
                 boolean inner = strip < 2;
-                int depth = inner ? style.thicknessBlocks() - 1 : 0;
+                int depth = inner ? style.thickness() - 1 : 0;
                 int inward = side == 0 ? 1 : -1;
                 int edge = side == 0 ? geometry.minWidthZ() : geometry.maxWidthZ();
-                int anchorZ = edge + inward * (style.thicknessBlocks() + 3);
+                int anchorZ = edge + inward * (style.thickness() + 3);
                 for (int col = 0; col < columns; col++) {
                     if ((col & 63) == 0 && cancelled.getAsBoolean())
                         throw new java.util.concurrent.CancellationException("obsolete wall texture");
-                    int x = (int) ((col + 0.5) * geometry.circumferenceBlocks() / columns);
-                    var feature = RingIndustrialElements.feature(x, geometry.circumferenceBlocks(), seed, side);
+                    int x = (int) ((col + 0.5) * geometry.circumference() / columns);
+                    var feature = RingIndustrialElements.feature(x, geometry.circumference(), seed, side);
                     int base = inner && RingIndustrialElements.enabled(style) ? featureBase(atlas, feature, anchorZ, bottom) : bottom;
                     for (int row = 0; row < rows; row++) {
                         int y = bottom + (int) ((row + 0.5) * height / rows);
                         int color = 0;
                         // Closed mesh carries decay; colour mips must stay opaque.
                         {
-                            int roll = RingWallPattern.materialRoll(style, x, y, depth, geometry.circumferenceBlocks(), seed);
+                            int roll = RingWallPattern.materialRoll(style, x, y, depth, geometry.circumference(), seed);
                             float shade = 1.0F;
                             if (inner && RingIndustrialElements.enabled(style)) {
-                                for (int relief = 3; relief >= -Math.min(3, style.thicknessBlocks() - 1); relief--) {
-                                    int motif = RingIndustrialElements.roll(feature, y - base, top - base, relief, style.thicknessBlocks());
+                                for (int relief = 3; relief >= -Math.min(3, style.thickness() - 1); relief--) {
+                                    int motif = RingIndustrialElements.roll(feature, y - base, top - base, relief, style.thickness());
                                     if (motif >= 0) {
                                         roll = motif;
                                         shade = relief < 0 ? 0.48F : 1.0F;

@@ -2,7 +2,8 @@ package dev.ringworld.server;
 
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
-import dev.ringworld.server.atlas.pregen.HeadlessPrewarmCoordinator;
+import dev.ringworld.config.RingWorldConfig;
+import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,6 +12,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
@@ -24,15 +26,15 @@ import java.util.Set;
  */
 public final class RingWorldServer {
     private static final Map<ServerLevel, RingGeometry> WORLD_GEOMETRY = new IdentityHashMap<>();
-    private static final Map<ServerLevel, LinkedHashMap<Long, net.minecraft.world.level.chunk.LevelChunk>> PENDING_LEGACY_RIM_MIGRATIONS = new IdentityHashMap<>();
+    private static final Map<ServerLevel, LinkedHashMap<Long, LevelChunk>> PENDING_LEGACY_RIM_MIGRATIONS = new IdentityHashMap<>();
 
     /**
      * Queues safe deferred rim migration from a loader-owned chunk-load callback.
      */
-    public static void onChunkLoaded(ServerLevel world, net.minecraft.world.level.chunk.LevelChunk chunk) {
+    public static void onChunkLoaded(ServerLevel world, LevelChunk chunk) {
         if (!RingWorldApi.isRingWorld(world)) return;
         if (RingGenerationBoundary.containsRim(chunk, geometryFor(world))) {
-            PENDING_LEGACY_RIM_MIGRATIONS.computeIfAbsent(world, unused -> new LinkedHashMap<>()).putIfAbsent(chunk.getPos().pack(), chunk);
+            PENDING_LEGACY_RIM_MIGRATIONS.computeIfAbsent(world, _ -> new LinkedHashMap<>()).putIfAbsent(chunk.getPos().pack(), chunk);
         }
     }
 
@@ -52,36 +54,16 @@ public final class RingWorldServer {
         player.level().getServer().execute(() -> rescueEmbeddedPlayer(player));
     }
 
-    /**
-     * Installs saved geometry as soon as the constructed ServerLevel owns its
-     * persistent-state manager and chunk generator. Bootstrap config is used
-     * only when {@link RingWorldSettings#get} creates this world's first state.
-     */
     public static RingGeometry attachWorldGeometry(ServerLevel world) {
         if (!RingWorldApi.isRingWorld(world)) return null;
-        RingWorldSettings settings = RingWorldSettings.get(world);
+        RingWorldConfig settings = RingWorldConfig.get(world);
         RingGeometry geometry = settings.geometry();
         WORLD_GEOMETRY.put(world, geometry);
-        attachGeneratorSettings(world, geometry, settings.wallHeightBlocks(), settings.wallStyle(), settings.terrainNoiseMapping(), settings.generationSettings(), settings.generatorSeed());
+        attachGeneratorSettings(world, geometry, settings.wallSettings());
         return geometry;
     }
 
-    /**
-     * Constructor-tail bridge for tick schedulers. A copied ordinary world can
-     * be rejected before Fabric publishes a level-load event; explicit
-     * headless mode records that rejection before rethrowing the original
-     * failure. Ordinary launches take the same failure path unchanged.
-     */
-    public static RingGeometry attachTickSchedulerGeometry(ServerLevel world) {
-        try {
-            return attachWorldGeometry(world);
-        } catch (Throwable failure) {
-            HeadlessPrewarmCoordinator.recordPreLoadRejection(world.getServer(), failure);
-            throw failure;
-        }
-    }
-
-    private static void attachGeneratorSettings(ServerLevel world, RingGeometry geometry, int wallHeightBlocks, dev.ringworld.world.RingWallStyle wallStyle, int terrainNoiseMapping, dev.ringworld.world.RingWorldGenerationSettings generationSettings, long generatorSeed) {
+    private static void attachGeneratorSettings(ServerLevel world, RingGeometry geometry, WallSettings wallStyle) {
         RingStructurePolicy policy = RingStructurePolicy.get(world);
         boolean guaranteeStronghold = policy.guaranteesStronghold();
         ChunkGenerator generator = world.getChunkSource().getGenerator();
@@ -90,11 +72,9 @@ public final class RingWorldServer {
         var generatorState = world.getChunkSource().getGeneratorState();
         if (generator instanceof RingWorldGeneratorAccess access) {
             access.ringworld$setGeometry(geometry);
-            access.ringworld$setTerrainNoiseMapping(terrainNoiseMapping);
-            access.ringworld$setWallHeight(wallHeightBlocks);
+            access.ringworld$setWallHeight(wallStyle.height());
             access.ringworld$setWallStyle(wallStyle);
             access.ringworld$setGuaranteeStronghold(guaranteeStronghold);
-            access.ringworld$setGenerationSettings(generationSettings, generatorSeed);
             periodicClimateSampler = access.ringworld$getPeriodicClimateSampler(generatorState.randomState());
             oceanFloorHeight = (x, z) -> generator.getFirstOccupiedHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, world, generatorState.randomState());
         }
@@ -115,7 +95,7 @@ public final class RingWorldServer {
                 RingWorldMod.LOGGER.error("Saved RingWorld ocean-monument candidate is incompatible with the current built-in registry or biome data; it will not be moved or regenerated");
             }
         }
-        RingWorldMod.LOGGER.debug("Attached RingWorld generator policy: guaranteeStronghold={}, monumentStatus={}, terrainNoiseMapping={}", guaranteeStronghold, policy.oceanMonument().status(), terrainNoiseMapping);
+        RingWorldMod.LOGGER.debug("Attached RingWorld generator policy: guaranteeStronghold={}, monumentStatus={}", guaranteeStronghold, policy.oceanMonument().status());
     }
 
     /**
@@ -174,7 +154,7 @@ public final class RingWorldServer {
         iterator.remove();
 
         long started = System.nanoTime();
-        boolean migrated = RingGenerationBoundary.migrateLegacyRim(entry.getValue(), geometry, RingWorldSettings.get(world).wallHeightBlocks());
+        boolean migrated = RingGenerationBoundary.migrateLegacyRim(entry.getValue(), geometry, RingWorldConfig.get(world).wallSettings().height());
         if (migrated) {
             double elapsedMs = (System.nanoTime() - started) / 1000000.0;
             RingWorldMod.LOGGER.info("Migrated legacy rim chunk {} in {} ms ({} queued)", entry.getValue().getPos(), elapsedMs, pending.size());
@@ -192,8 +172,6 @@ public final class RingWorldServer {
     public static void rescueEmbeddedPlayer(ServerPlayer player) {
         ServerLevel world = player.level();
         if (!RingWorldApi.isRingWorld(world)) return;
-        RingWorldSettings settings = RingWorldSettings.get(world);
-        RingWorldMod.LOGGER.info("[diagnostic] joined ring world at x={}, y={}, z={}; width={}, circumference={}, seed={}, format={}", player.getX(), player.getY(), player.getZ(), settings.widthBlocks(), settings.circumferenceBlocks(), settings.generatorSeed(), settings.formatVersion());
         if (world.noCollision(player)) return;
 
         int blockX = (int) Math.floor(player.getX());

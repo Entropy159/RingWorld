@@ -4,10 +4,6 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "CompassAngleStateMixin",
-    "CreateWorldScreenInvoker",
-    "CreateWorldScreenMixin",
-    "CreateWorldSeedTabMixin",
-    "PauseScreenMixin",
     "EntityRenderManagerMixin",
     "ExteriorSkyLightMixin",
     "ExteriorEntityVisibilityMixin",

@@ -16,7 +16,7 @@ public final class RingAtlasSurfaceInvalidation {
             throw new IllegalArgumentException("atlas sample step must divide one chunk");
         }
         int row = Math.floorDiv(blockZ - geometry.minWidthZ(), sampleStep);
-        int rows = divideCeil(geometry.widthBlocks(), sampleStep);
+        int rows = divideCeil(geometry.width(), sampleStep);
         if (row < 0 || row >= rows) return Optional.empty();
         return Optional.of(new Cell(geometry.wrapBlockX(blockX) / sampleStep, row));
     }

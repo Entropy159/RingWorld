@@ -1,13 +1,17 @@
 package dev.ringworld.client;
 
-import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.api.RingWorldApi;
+import dev.ringworld.config.RingWorldConfig;
+import dev.ringworld.net.RingBuildingSettingsPayload;
 import dev.ringworld.net.RingTerrainAtlasMetadataPayload;
 import dev.ringworld.net.RingTerrainPreviewPayload;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingPosition;
+import dev.ringworld.world.RingTerrainPreview;
+import dev.ringworld.world.RingTerrainPreviewStage;
 import dev.ringworld.world.atlas.RingAtlasCacheWriter;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -16,31 +20,19 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Client copy of the immutable settings received during login.
  */
 public final class ClientRingState {
-    private static volatile RingGeometry geometry;
-    private static volatile ResourceKey<Level> dimension;
-    private static volatile int wallHeightBlocks;
-    private static volatile int surfaceReferenceY;
-    private static volatile int terrainNoiseMapping;
-    private static volatile int settingsFormatVersion;
-    private static volatile RingWallStyle wallStyle = RingWallStyle.LEGACY;
+    private static final Map<ResourceKey<Level>, RingWorldConfig> CONFIGS = new HashMap<>();
     private static volatile boolean outsideBuilding = true;
-    private static volatile boolean canControlBuilding;
-    private static volatile RingSkyProfile skyProfile = Constants.DEFAULT_SKY_PROFILE;
-    private static volatile RingWorldGenerationSettings generationSettings = RingWorldGenerationSettings.DEFAULT;
     private static volatile long generatorSeed;
     private static volatile long layoutFingerprint;
-    private static volatile float sunAngleOffsetY;
-    private static volatile float sunAngleOffsetZ;
     @Nullable
     private static volatile RingPosition cameraPosition;
-    private static volatile long cameraSeamCrossings;
-    private static volatile long seamCorrectionPackets;
     @Nullable
     private static volatile RingTerrainAtlas terrainAtlas;
     @Nullable
@@ -57,42 +49,19 @@ public final class ClientRingState {
     private static long lastTerrainAtlasPublishMillis;
     private static long terrainAtlasPendingSinceMillis;
     private static long lastTerrainAtlasChangeMillis;
-    private static Path cacheDirectory = Path.of("ringworld-cache");
+    private static final Path cacheDirectory = FabricLoader.getInstance().getGameDir().resolve(RingWorldMod.MOD_ID + "-cache");
     private static final RingAtlasCacheWriter CACHE_WRITER = new RingAtlasCacheWriter();
     private static java.util.concurrent.CompletableFuture<Void> terrainAtlasSave;
 
-    /**
-     * Platform bootstrap supplies its game-local cache directory before login.
-     */
-    public static synchronized void configureCacheDirectory(Path directory) {
-        if (directory == null) throw new IllegalArgumentException("cache directory is required");
-        cacheDirectory = directory.toAbsolutePath().normalize();
-    }
-
-    public static void set(RingGeometry newGeometry, ResourceKey<Level> newDimension, int newWallHeightBlocks, int newSurfaceReferenceY, int newTerrainNoiseMapping, RingWallStyle newWallStyle, RingSkyProfile newSkyProfile, RingWorldGenerationSettings newGenerationSettings, float newSunAngleOffsetY, float newSunAngleOffsetZ, long newGeneratorSeed, int newSettingsFormatVersion, long newLayoutFingerprint) {
-        geometry = newGeometry;
-        dimension = newDimension;
-        wallHeightBlocks = newWallHeightBlocks;
-        surfaceReferenceY = newSurfaceReferenceY;
-        terrainNoiseMapping = dev.ringworld.world.RingTerrainNoiseMapping.requireSupported(newTerrainNoiseMapping);
-        if (newSettingsFormatVersion < 1 || newSettingsFormatVersion > RingWorldSettings.FORMAT_VERSION) {
-            throw new IllegalArgumentException("Unsupported RingWorld settings format " + newSettingsFormatVersion);
-        }
-        settingsFormatVersion = newSettingsFormatVersion;
-        wallStyle = Objects.requireNonNull(newWallStyle, "wallStyle");
-        skyProfile = Objects.requireNonNull(newSkyProfile, "skyProfile");
-        generationSettings = Objects.requireNonNull(newGenerationSettings, "generationSettings");
-        sunAngleOffsetY = newSunAngleOffsetY;
-        sunAngleOffsetZ = newSunAngleOffsetZ;
+    public static void set(ResourceKey<Level> dimension, RingWorldConfig config, long newGeneratorSeed, long newLayoutFingerprint) {
+        CONFIGS.put(dimension, config);
         generatorSeed = newGeneratorSeed;
         layoutFingerprint = newLayoutFingerprint;
         cameraPosition = null;
-        cameraSeamCrossings = 0;
-        seamCorrectionPackets = 0;
         terrainAtlas = null;
         terrainPreview = null;
         terrainPreviewStage = -1;
-        serverAtlasWorldHash = 0L;
+        serverAtlasWorldHash = 0;
         hasServerAtlasWorldHash = false;
         terrainAtlasCachePath = null;
         terrainAtlasRevision++;
@@ -106,81 +75,39 @@ public final class ClientRingState {
 
     @Nullable
     public static RingGeometry geometry() {
+        var config = config();
+        return config == null ? null : config.geometry();
+    }
+
+    public static @Nullable RingWorldConfig config() {
         Minecraft client = Minecraft.getInstance();
-        return geometry != null && client.level != null && RingWorldApi.isRingWorld(client.level) ? geometry : null;
+        if (client.level == null) {
+            return null;
+        }
+        return config(client.level.dimension());
     }
 
-    public static ResourceKey<Level> dimension() {
-        return dimension;
-    }
-
-    public static int wallHeightBlocks() {
-        return wallHeightBlocks;
-    }
-
-    public static int surfaceReferenceY() {
-        return surfaceReferenceY;
-    }
-
-    public static int terrainNoiseMapping() {
-        return terrainNoiseMapping;
-    }
-
-    public static int settingsFormatVersion() {
-        return settingsFormatVersion;
-    }
-
-    public static RingWallStyle wallStyle() {
-        return wallStyle;
+    public static @Nullable RingWorldConfig config(ResourceKey<Level> dimension) {
+        return CONFIGS.get(dimension);
     }
 
     public static boolean outsideBuilding() {
         return outsideBuilding;
     }
 
-    public static boolean canControlBuilding() {
-        return canControlBuilding;
-    }
-
-    public static void setBuildingSettings(dev.ringworld.net.RingBuildingSettingsPayload payload) {
+    public static void setBuildingSettings(RingBuildingSettingsPayload payload) {
         if (payload.fingerprint() != layoutFingerprint) return;
         outsideBuilding = payload.enabled();
-        canControlBuilding = payload.canControl();
-    }
-
-    public static RingSkyProfile skyProfile() {
-        return skyProfile;
-    }
-
-    public static RingWorldGenerationSettings generationSettings() {
-        return generationSettings;
-    }
-
-    public static float sunAngleOffsetY() {
-        return sunAngleOffsetY;
-    }
-
-    public static float sunAngleOffsetZ() {
-        return sunAngleOffsetZ;
     }
 
     public static long generatorSeed() {
         return generatorSeed;
     }
 
-    public static void setSkyProfile(RingSkyProfile profile) {
-        skyProfile = java.util.Objects.requireNonNull(profile, "profile");
-    }
-
     public static long layoutFingerprint() {
         return layoutFingerprint;
     }
 
-    /**
-     * Tracks the continuous client presentation chart. It also protects against a canonical
-     * correction from an older server without interpolating across the full
-     * circumference.
-     */
     public static void updateCameraPosition(double canonicalX) {
         RingGeometry currentGeometry = geometry();
         if (currentGeometry == null) return;
@@ -190,37 +117,15 @@ public final class ClientRingState {
             return;
         }
         double nearest = currentGeometry.nearestImageX(canonicalX, previous.presentationX(currentGeometry));
-        RingPosition next = RingPosition.fromPresentationX(nearest, currentGeometry);
-        if (next.chartIndex() != previous.chartIndex()) cameraSeamCrossings++;
-        cameraPosition = next;
+        cameraPosition = RingPosition.fromPresentationX(nearest, currentGeometry);
     }
 
-    @Nullable
-    public static RingPosition cameraPosition() {
-        return cameraPosition;
-    }
-
-    public static long cameraSeamCrossings() {
-        return cameraSeamCrossings;
-    }
-
-    public static void recordSeamCorrectionPacket() {
-        seamCorrectionPackets++;
-    }
-
-    public static long seamCorrectionPackets() {
-        return seamCorrectionPackets;
-    }
-
-    /**
-     * Installs metadata and reuses a complete world-hash cache when available.
-     */
     public static boolean installTerrainAtlas(RingTerrainAtlasMetadataPayload metadata) {
-        RingGeometry current = geometry;
+        RingGeometry current = geometry();
         if (current == null || metadata.tileSize() != RingTerrainAtlas.TILE_SIZE) return false;
         RingTerrainAtlas replacement = null;
         ResourceKey<Level> newDimension = metadata.dimension();
-        Path cache = cacheDirectory.resolve("terrain-" + newDimension.identifier().toLanguageKey() + Long.toUnsignedString(metadata.worldHash(), 16) + ".rwat.gz");
+        Path cache = cacheDirectory.resolve("terrain-" + newDimension.identifier().toLanguageKey() + "-" + Long.toUnsignedString(metadata.worldHash(), 16) + ".rwat.gz");
         if (metadata.revision() < 0L) return false;
         if (Files.exists(cache)) {
             try {
@@ -346,13 +251,6 @@ public final class ClientRingState {
     }
 
     /**
-     * Raw teardown assertion; unlike {@link #geometry()}, this does not depend on the active level.
-     */
-    public static boolean sessionCleared() {
-        return geometry == null && wallHeightBlocks == 0 && surfaceReferenceY == 0 && terrainNoiseMapping == 0 && settingsFormatVersion == 0 && wallStyle.equals(RingWallStyle.LEGACY) && skyProfile.equals(Constants.DEFAULT_SKY_PROFILE) && outsideBuilding && !canControlBuilding && generationSettings.equals(RingWorldGenerationSettings.DEFAULT) && generatorSeed == 0L && layoutFingerprint == 0L && cameraPosition == null && cameraSeamCrossings == 0L && seamCorrectionPackets == 0L && terrainAtlas == null && terrainPreview == null && terrainPreviewStage == -1 && serverAtlasWorldHash == 0L && !hasServerAtlasWorldHash && terrainAtlasCachePath == null && !terrainAtlasDirty && !terrainAtlasPendingRender;
-    }
-
-    /**
      * Coalesces partial-cache writes while saving a newly completed atlas immediately.
      */
     public static void saveTerrainAtlasIfDue(boolean force) {
@@ -415,25 +313,15 @@ public final class ClientRingState {
 
     public static void clear() {
         saveTerrainAtlasIfDue(true);
-        geometry = null;
-        wallHeightBlocks = 0;
-        surfaceReferenceY = 0;
-        terrainNoiseMapping = 0;
-        settingsFormatVersion = 0;
-        wallStyle = RingWallStyle.LEGACY;
-        skyProfile = Constants.DEFAULT_SKY_PROFILE;
+        CONFIGS.clear();
         outsideBuilding = true;
-        canControlBuilding = false;
-        generationSettings = RingWorldGenerationSettings.DEFAULT;
-        layoutFingerprint = 0L;
-        generatorSeed = 0L;
+        layoutFingerprint = 0;
+        generatorSeed = 0;
         cameraPosition = null;
-        cameraSeamCrossings = 0;
-        seamCorrectionPackets = 0;
         terrainAtlas = null;
         terrainPreview = null;
         terrainPreviewStage = -1;
-        serverAtlasWorldHash = 0L;
+        serverAtlasWorldHash = 0;
         hasServerAtlasWorldHash = false;
         terrainAtlasCachePath = null;
         // Queued immutable snapshots retain their own paths and finish in order.
@@ -441,10 +329,10 @@ public final class ClientRingState {
         terrainAtlasSave = null;
         terrainAtlasDirty = false;
         terrainAtlasPendingRender = false;
-        lastTerrainAtlasSaveMillis = 0L;
-        lastTerrainAtlasPublishMillis = 0L;
-        terrainAtlasPendingSinceMillis = 0L;
-        lastTerrainAtlasChangeMillis = 0L;
+        lastTerrainAtlasSaveMillis = 0;
+        lastTerrainAtlasPublishMillis = 0;
+        terrainAtlasPendingSinceMillis = 0;
+        lastTerrainAtlasChangeMillis = 0;
         terrainAtlasRevision++;
     }
 }

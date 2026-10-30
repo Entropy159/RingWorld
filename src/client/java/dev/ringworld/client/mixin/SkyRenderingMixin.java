@@ -11,15 +11,13 @@ import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingDistortionTuning;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingSkyCycle;
-import dev.ringworld.world.RingSkyProfile;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.MoonPhase;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -55,7 +53,7 @@ public abstract class SkyRenderingMixin {
     @Unique
     private boolean ringworld$renderingCenteredSun;
     @Unique
-    private RingSkyCycle.SunVisual ringworld$sunVisual = RingSkyCycle.sunVisual(6000.0);
+    private int sunColor;
 
     @Inject(method = "close", at = @At("TAIL"))
     private void ringworld$closeSkyGeometry(CallbackInfo ci) {
@@ -66,32 +64,23 @@ public abstract class SkyRenderingMixin {
     private void ringworld$updateFixedSky(ClientLevel world, float tickProgress, Camera camera, SkyRenderState state, CallbackInfo ci) {
         RingGeometry geometry = ClientRingState.geometry();
         if (geometry == null) return;
-        if (notVanilla()) {
-            state.sunAngle = RingSkyCycle.FIXED_SUN_ANGLE_RADIANS;
-            state.moonAngle = RingSkyCycle.FIXED_SUN_ANGLE_RADIANS;
+        var config = ClientRingState.config();
+        if (config == null) return;
+        if (centeredSun()) {
+            state.sunAngle = 0;
+            state.moonAngle = 0;
             // Stars are infinitely distant but directionally fixed in physical
             // ring space. Counter-rotate the player's local tangent frame so a
             // cluster below one side appears overhead on the opposite side.
             state.sunriseAndSunsetColor = new Vector4f();
         }
-        state.starAngle = RingSkyCycle.starFieldAngleRadians(geometry, camera.position().x);
-        RingSkyProfile skyProfile = ClientRingState.skyProfile();
-        switch (skyProfile.backdrop()) {
-            case ATMOSPHERE -> {
-            }
-            case NIGHT -> {
-                state.skyColor = new Vector3f(5 / 255f, 8 / 255f, 16 / 255f);
-                state.starBrightness = Math.max(state.starBrightness, 0.88F);
-            }
-            case VOID -> {
-                state.skyColor = new Vector3f(1 / 255f, 1 / 255f, 3 / 255f);
-                state.starBrightness = 0.0F;
-            }
-        }
+        sunColor = config.skySettings().sunTintColor();
+        state.starAngle = (float) -geometry.angleAt(camera.position().x);
+        state.skyColor = config.skySettings().skyType().getSkyColor(state.skyColor);
+        state.starBrightness = config.skySettings().skyType().getStarBrightness(state.starBrightness);
         // FogRenderer clears to the live backdrop. Flat sky discs would
         // reintroduce a horizontal boundary over that continuous background.
         state.shouldRenderDarkDisc = false;
-        ringworld$sunVisual = RingSkyCycle.sunVisual(world.getOverworldClockTime() + tickProgress);
         ringworld$cameraY = (float) camera.position().y;
         ringworld$cameraZ = (float) camera.position().z;
         ringworld$cameraX = camera.position().x;
@@ -114,22 +103,26 @@ public abstract class SkyRenderingMixin {
 
     @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)
     private void ringworld$hideCameraRelativeSun(RenderPass pass, float alpha, PoseStack matrices, CallbackInfo ci) {
-        if (ClientRingState.geometry() != null && !ringworld$renderingCenteredSun && notVanilla()) {
+        if (ClientRingState.geometry() != null && !ringworld$renderingCenteredSun && centeredSun()) {
             ci.cancel();
         }
     }
 
     @ModifyConstant(method = "renderSun", constant = @Constant(floatValue = 30.0F), require = 1)
     private float ringworld$shrinkCenteredSun(float vanillaHalfWidth) {
-        return ClientRingState.geometry() != null && ringworld$renderingCenteredSun && notVanilla() ? ClientRingState.skyProfile().lightSource().halfWidth() : vanillaHalfWidth;
+        var config = ClientRingState.config();
+        if (config != null) {
+            return config.skySettings().sunWidth() >= 0 ? config.skySettings().sunWidth() : vanillaHalfWidth;
+        }
+        return vanillaHalfWidth;
     }
 
     @ModifyArg(method = "renderSun", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/DynamicGpuData;writeTransform(Lorg/joml/Matrix4f;Lorg/joml/Vector4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;"), index = 1)
     private Vector4f ringworld$tintCenteredSun(Vector4f vanillaColor) {
-        if (ClientRingState.geometry() == null || !ringworld$renderingCenteredSun || !notVanilla()) {
+        if (ClientRingState.geometry() == null || sunColor < 0) {
             return vanillaColor;
         }
-        return new Vector4f(ringworld$sunVisual.red(), ringworld$sunVisual.green(), ringworld$sunVisual.blue(), vanillaColor.w() * ringworld$sunVisual.brightness() * (ClientRingState.skyProfile().lightSource() == RingSkyProfile.LightSource.LARGE ? 0.72F : 1.0F));
+        return new Vector4f(ARGB.red(sunColor), ARGB.green(sunColor), ARGB.blue(sunColor), vanillaColor.w() * ARGB.alpha(sunColor));
     }
 
     @Inject(method = "render", at = @At("TAIL"))
@@ -138,12 +131,14 @@ public abstract class SkyRenderingMixin {
         float alpha = state.rainBrightness;
         RingGeometry geometry = ClientRingState.geometry();
         if (geometry == null) return;
+        var config = ClientRingState.config();
+        if (config == null) return;
 
         RingSurfaceTextureRenderer.render(matrices, geometry, new Vec3(ringworld$cameraX, ringworld$cameraY, ringworld$cameraZ), alpha);
 
         // Vanilla drew stars after its first sun. The ring covers those stars
         // but stays behind the central star, so redraw the fixed sun once.
-        if (ClientRingState.skyProfile().lightSource() != RingSkyProfile.LightSource.NONE && notVanilla()) {
+        if (centeredSun()) {
             matrices.pushPose();
             matrices.rotate(Axis.XP.rotation(ringworld$starTiltRadians));
             matrices.rotate(Axis.YP.rotationDegrees(-90.0F));
@@ -161,24 +156,30 @@ public abstract class SkyRenderingMixin {
 
     @ModifyConstant(method = "renderSunMoonAndStars", constant = @Constant(floatValue = -90))
     private float sunAngleY(float constant) {
-        if (!notVanilla()) {
-            constant += ClientRingState.sunAngleOffsetY();
+        if (!centeredSun()) {
+            var config = ClientRingState.config();
+            if (config != null) {
+                constant += config.skySettings().sunAngleY();
+            }
         }
         return constant;
     }
 
     @Inject(method = "renderSunMoonAndStars", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", ordinal = 1))
     private void sunAngleZ(RenderPass renderPass, PoseStack poseStack, float sunAngle, float moonAngle, float starAngle, MoonPhase moonPhase, float rainBrightness, float starBrightness, CallbackInfo ci) {
-        if (!notVanilla()) {
+        if (!centeredSun()) {
             poseStack.pushPose();
-            poseStack.rotate(Axis.ZP.rotationDegrees(ClientRingState.sunAngleOffsetZ()));
+            var config = ClientRingState.config();
+            if (config != null) {
+                poseStack.rotate(Axis.ZP.rotationDegrees(config.skySettings().sunAngleZ()));
+            }
         }
     }
 
     @Inject(method = "renderSunMoonAndStars", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", ordinal = 2))
     private void resetAngle(RenderPass renderPass, PoseStack poseStack, float sunAngle, float moonAngle, float starAngle, MoonPhase moonPhase, float rainBrightness, float starBrightness, CallbackInfo ci) {
         poseStack.popPose();
-        if (!notVanilla()) {
+        if (!centeredSun()) {
             poseStack.popPose(); //Remove Z rotation
         }
         poseStack.pushPose();
@@ -186,7 +187,11 @@ public abstract class SkyRenderingMixin {
     }
 
     @Unique
-    private boolean notVanilla() {
-        return ClientRingState.skyProfile().lightSource() != RingSkyProfile.LightSource.VANILLA;
+    private boolean centeredSun() {
+        var config = ClientRingState.config();
+        if (config != null) {
+            return config.skySettings().centeredSun();
+        }
+        return false;
     }
 }

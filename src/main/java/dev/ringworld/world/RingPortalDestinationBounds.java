@@ -96,7 +96,7 @@ public final class RingPortalDestinationBounds {
      */
     public static List<BlockPos> periodicQueryAnchors(RingGeometry geometry, BlockPos normalizedAnchor) {
         int x = geometry.wrapBlockX(normalizedAnchor.getX());
-        int circumference = geometry.circumferenceBlocks();
+        int circumference = geometry.circumference();
         return List.of(new BlockPos(x, normalizedAnchor.getY(), normalizedAnchor.getZ()), new BlockPos(x - circumference, normalizedAnchor.getY(), normalizedAnchor.getZ()), new BlockPos(x + circumference, normalizedAnchor.getY(), normalizedAnchor.getZ()));
     }
 

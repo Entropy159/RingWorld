@@ -1,10 +1,8 @@
 package dev.ringworld.world.atlas;
 
-import dev.ringworld.Constants;
-import dev.ringworld.world.RingDimensionReport;
+import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingLayoutFingerprint;
-import dev.ringworld.world.RingWorldSettings;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -70,12 +68,9 @@ public final class RingTerrainAtlas {
         this.dimension = dimension;
         this.worldHash = worldHash;
         this.sampleStep = sampleStep;
-        this.columns = divideCeil(geometry.circumferenceBlocks(), sampleStep);
-        this.rows = divideCeil(geometry.widthBlocks(), sampleStep);
+        this.columns = divideCeil(geometry.circumference(), sampleStep);
+        this.rows = divideCeil(geometry.width(), sampleStep);
         long cells = Math.multiplyExact((long) columns, rows);
-        if (cells > Constants.MAX_ATLAS_CELLS) {
-            throw new IllegalArgumentException(RingDimensionReport.atlasLimitMessage(cells));
-        }
         int cellCount = Math.toIntExact(cells);
         this.heights = new short[cellCount];
         this.colors = new int[cellCount];
@@ -84,7 +79,7 @@ public final class RingTerrainAtlas {
         this.present = new boolean[cellCount];
     }
 
-    public static long worldHash(RingWorldSettings settings) {
+    public static long worldHash(RingWorldConfig settings) {
         long value = RingLayoutFingerprint.compute(settings);
         value = RingLayoutFingerprint.mix(value ^ ((long) FORMAT_VERSION << 32));
         return RingLayoutFingerprint.mix(value ^ SAMPLE_STEP_BLOCKS);
@@ -132,10 +127,6 @@ public final class RingTerrainAtlas {
 
     public int cellCount() {
         return present.length;
-    }
-
-    public long estimatedMemoryBytes() {
-        return (long) present.length * ESTIMATED_BYTES_PER_CELL;
     }
 
     public long estimatedWireBytes() {
@@ -227,38 +218,11 @@ public final class RingTerrainAtlas {
         return changed;
     }
 
-    /**
-     * Stores a sample selected by canonical block coordinates.
-     */
-    public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor) {
-        return putBlockSample(blockX, blockZ, surfaceY, mapColor, 0);
-    }
-
-    public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor, int blockLight) {
-        return putBlockSample(blockX, blockZ, surfaceY, mapColor, blockLight, mapColor);
-    }
-
-    public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor, int blockLight, int sideColor) {
-        return putBlockSample(blockX, blockZ, surfaceY, mapColor, blockLight, sideColor, 0);
-    }
-
     public boolean putBlockSample(int blockX, int blockZ, int surfaceY, int mapColor, int blockLight, int sideColor, int waterCoverage) {
         int column = geometry.wrapBlockX(blockX) / sampleStep;
         int row = Math.floorDiv(blockZ - geometry.minWidthZ(), sampleStep);
         if (row < 0 || row >= rows) return false;
         return putCell(column, row, surfaceY, mapColor, blockLight, sideColor, waterCoverage);
-    }
-
-    public boolean putCell(int column, int row, int surfaceY, int mapColor) {
-        return putCell(column, row, surfaceY, mapColor, 0);
-    }
-
-    public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight) {
-        return putCell(column, row, surfaceY, mapColor, blockLight, mapColor);
-    }
-
-    public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight, int sideColor) {
-        return putCell(column, row, surfaceY, mapColor, blockLight, sideColor, 0);
     }
 
     public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight, int sideColor, int waterCoverage) {
@@ -458,8 +422,8 @@ public final class RingTerrainAtlas {
             output.writeInt(FORMAT_VERSION);
             output.writeUTF(dimension.identifier().toString());
             output.writeLong(worldHash);
-            output.writeInt(geometry.widthBlocks());
-            output.writeInt(geometry.circumferenceBlocks());
+            output.writeInt(geometry.width());
+            output.writeInt(geometry.circumference());
             output.writeInt(sampleStep);
             output.writeInt(columns);
             output.writeInt(rows);
@@ -506,16 +470,6 @@ public final class RingTerrainAtlas {
             if (input.read() != -1) throw new IOException("trailing terrain atlas data");
             return atlas;
         }
-    }
-
-    /**
-     * Loads the authoritative dimension-owned atlas or migrates a validated
-     * legacy root atlas exactly once. An invalid authoritative file never
-     * falls back to legacy state, and a legacy file is copied only after its
-     * geometry and world hash have passed {@link #load}.
-     */
-    public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, ResourceKey<Level> dimension, long expectedHash) {
-        return loadStorage(currentPath, legacyPath, expectedGeometry, dimension, expectedHash, SAMPLE_STEP_BLOCKS);
     }
 
     public static StorageLoad loadStorage(Path currentPath, Path legacyPath, RingGeometry expectedGeometry, ResourceKey<Level> dimension, long expectedHash, int expectedSampleStep) {

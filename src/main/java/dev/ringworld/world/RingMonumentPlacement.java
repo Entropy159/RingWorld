@@ -81,7 +81,7 @@ public final class RingMonumentPlacement {
 
         static Bounds forGeometry(RingGeometry geometry) {
             int minChunkX = divideCeil(FOOTPRINT_MARGIN_BLOCKS, 16);
-            int maxChunkX = Math.floorDiv(geometry.circumferenceBlocks() - 1 - FOOTPRINT_MARGIN_BLOCKS - 15, 16);
+            int maxChunkX = Math.floorDiv(geometry.circumference() - 1 - FOOTPRINT_MARGIN_BLOCKS - 15, 16);
             int minChunkZ = divideCeil(geometry.minWidthZ() + FOOTPRINT_MARGIN_BLOCKS, 16);
             int maxChunkZ = Math.floorDiv(geometry.maxWidthZ() - FOOTPRINT_MARGIN_BLOCKS - 15, 16);
             return new Bounds(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
