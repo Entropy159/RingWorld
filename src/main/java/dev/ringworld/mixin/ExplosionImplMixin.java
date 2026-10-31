@@ -1,5 +1,7 @@
 package dev.ringworld.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingGeometry;
@@ -26,20 +28,20 @@ public abstract class ExplosionImplMixin {
     @Final
     private Vec3 center;
 
-    @Redirect(method = "getSeenPercent", at = @At(value = "NEW", target = "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/level/ClipContext;"))
-    private static ClipContext ringworld$periodicExposureRay(Vec3 start, Vec3 end, ClipContext.Block shapeType, ClipContext.Fluid fluidHandling, Entity entity) {
+    @WrapOperation(method = "getSeenPercent", at = @At(value = "NEW", target = "(Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/level/ClipContext$Block;Lnet/minecraft/world/level/ClipContext$Fluid;Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/level/ClipContext;"))
+    private static ClipContext ringworld$periodicExposureRay(Vec3 from, Vec3 to, ClipContext.Block block, ClipContext.Fluid fluid, Entity entity, Operation<ClipContext> original) {
         if (entity.level() instanceof ServerLevel serverWorld && RingWorldApi.isRingWorld(serverWorld)) {
             RingGeometry geometry = RingWorldServer.geometryFor(serverWorld);
-            end = new Vec3(geometry.nearestImageX(end.x, start.x), end.y, end.z);
+            from = new Vec3(geometry.nearestImageX(to.x, to.x), to.y, to.z);
         }
-        return new ClipContext(start, end, shapeType, fluidHandling, entity);
+        return original.call(from, to, block, fluid, entity);
     }
 
     // NeoForge patches vanilla's no-argument method into a wrapper and
     // moves the entity loop into hurtEntities(List<BlockPos>). Match
     // both layouts while requiring the eye-position call in whichever
     // implementation actually owns the loop.
-    @Redirect(method = {"hurtEntities()V", "hurtEntities(Ljava/util/List;)V"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;getEyePosition()Lnet/minecraft/world/phys/Vec3;"))
+    @Redirect(method = "hurtEntities()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;getEyePosition()Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 ringworld$periodicKnockbackOrigin(Entity entity) {
         Vec3 entityEye = entity.getEyePosition();
         if (!RingWorldApi.isRingWorld(level)) return entityEye;
