@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.config.adapters.BlockStateAdapter;
+import dev.ringworld.config.adapters.WallPatternAdapter;
+import dev.ringworld.world.wall.RingWallPattern;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -17,7 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 public class ConfigLoader {
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(BlockState.class, new BlockStateAdapter()).enableComplexMapKeySerialization().create();
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(BlockState.class, new BlockStateAdapter()).registerTypeAdapter(RingWallPattern.class, new WallPatternAdapter()).enableComplexMapKeySerialization().create();
 
     public static Path getConfigPath(ResourceKey<Level> dimension) throws IOException {
         var configFolder = FabricLoader.getInstance().getConfigDir().resolve(RingWorldMod.MOD_ID);

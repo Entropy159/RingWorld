@@ -73,7 +73,7 @@ public final class RingGenerationBoundary {
     }
 
     /**
-     * Installs the saved deterministic wall style after features have finished.
+     * Installs the saved deterministic wall settings after features have finished.
      */
     public static void installRim(ChunkAccess chunk, RingGeometry geometry, int wallHeightBlocks, WallSettings style, long worldSeed) {
         if (wallHeightBlocks <= 0) return;
@@ -98,7 +98,7 @@ public final class RingGenerationBoundary {
                     mutable.set(x, y, z);
                     chunk.removeBlockEntity(mutable);
                     if (RingWallPattern.blockPresent(style, x, y, depth, wallTopExclusive, geometry.circumference(), worldSeed)) {
-                        chunk.setBlockState(mutable, texturedRimBlock(style, x, y, depth, geometry.circumference(), worldSeed), 0);
+                        chunk.setBlockState(mutable, texturedRimBlock(style, x, y, chunk.getMinY(), depth, geometry.circumference(), worldSeed), 0);
                     } else {
                         chunk.setBlockState(mutable, Blocks.AIR.defaultBlockState(), 0);
                     }
@@ -120,7 +120,7 @@ public final class RingGenerationBoundary {
                 if (!chunk.getBlockState(pos).is(Blocks.BEDROCK)) continue;
                 // Fold the wall's vertical pattern across the underside from each rim.
                 int patternY = y + Math.min(z - geometry.minWidthZ(), geometry.maxWidthZ() - z);
-                chunk.setBlockState(pos, texturedRimBlock(style, x, patternY, 0, geometry.circumference(), seed), 0);
+                chunk.setBlockState(pos, texturedRimBlock(style, x, patternY, chunk.getMinY(), 0, geometry.circumference(), seed), 0);
             }
         }
     }
@@ -135,13 +135,8 @@ public final class RingGenerationBoundary {
         return highDepth >= 0 && highDepth < style.thickness() ? highDepth : -1;
     }
 
-    private static BlockState texturedRimBlock(WallSettings style, int x, int y, int depth, int circumference, long worldSeed) {
-        int roll = RingWallPattern.materialRoll(style, x, y, depth, circumference, worldSeed);
-        return styledRimBlockForRoll(style, roll);
-    }
-
-    public static BlockState styledRimBlockForRoll(WallSettings style, int roll) {
+    private static BlockState texturedRimBlock(WallSettings style, int x, int y, int minY, int depth, int circumference, long worldSeed) {
+        int roll = RingWallPattern.materialRoll(style, x, y, minY, depth, circumference, worldSeed);
         return style.getFromRoll(roll);
     }
-
 }

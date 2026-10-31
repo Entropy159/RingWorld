@@ -1,8 +1,10 @@
 package dev.ringworld;
 
 import dev.ringworld.api.RingCompatibilityContract;
+import dev.ringworld.config.wallpattern.*;
 import dev.ringworld.net.RingWorldNetworking;
 import dev.ringworld.server.FabricRingWorldServer;
+import dev.ringworld.world.wall.RingWallPattern;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
@@ -18,6 +20,14 @@ public final class RingWorldMod implements ModInitializer {
         logLoadedConflicts();
         RingWorldNetworking.registerPayloads();
         FabricRingWorldServer.register();
+
+        RingWallPattern.addPattern(new ClusteredWallPattern());
+        RingWallPattern.addPattern(new EngineeredWallPattern());
+        RingWallPattern.addPattern(new GradientWallPattern());
+        RingWallPattern.addPattern(new HybridWallPattern());
+        RingWallPattern.addPattern(new MasonryWallPattern());
+        RingWallPattern.addPattern(new PanelWallPattern());
+        RingWallPattern.addPattern(new StrataWallPattern());
     }
 
     public static Identifier id(String path) {

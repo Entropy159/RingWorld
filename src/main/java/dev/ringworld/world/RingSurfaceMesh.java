@@ -117,7 +117,7 @@ public final class RingSurfaceMesh {
             // Rims are vertical structures, while the terrain Atlas stores one
             // exposed top sample per cell. Stretching the detailed terrain mesh
             // through those high rim samples produces a broad ramp once the
-            // Atlas completes. Keep the style-derived closed rim at every Atlas
+            // Atlas completes. Keep the settings-derived closed rim at every Atlas
             // stage and terminate terrain at its inner faces instead.
             bridgeRims = wallHeightBlocks > 0;
             minimumRimBottom = new float[segments + 1];

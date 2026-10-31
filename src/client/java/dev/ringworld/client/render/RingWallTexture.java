@@ -5,11 +5,9 @@ import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingSurfaceLod;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
-import dev.ringworld.world.wall.RingGenerationBoundary;
 import dev.ringworld.world.wall.RingWallPattern;
 import net.minecraft.client.Minecraft;
 
-import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 
@@ -17,7 +15,8 @@ import java.util.function.BooleanSupplier;
  * Worker-only wall colour atlas. Four strips: two inner faces, then two outer faces.
  */
 final class RingWallTexture {
-    record ContentKey(RingGeometry geometry, WallSettings style, long seed, int bottom, int top, int columns, long terrainHash) {
+    record ContentKey(RingGeometry geometry, WallSettings style, long seed, int bottom, int top, int columns,
+                      long terrainHash) {
     }
 
     /**
@@ -74,13 +73,13 @@ final class RingWallTexture {
                 int depth = inner ? style.thickness() - 1 : 0;
                 for (int col = 0; col < columns; col++) {
                     if ((col & 63) == 0 && cancelled.getAsBoolean())
-                        throw new java.util.concurrent.CancellationException("obsolete wall texture");
+                        throw new CancellationException("obsolete wall texture");
                     int x = (int) ((col + 0.5) * geometry.circumference() / columns);
                     for (int row = 0; row < rows; row++) {
                         int y = bottom + (int) ((row + 0.5) * height / rows);
-                        int roll = RingWallPattern.materialRoll(style, x, y, depth, geometry.circumference(), seed);
+                        int roll = RingWallPattern.materialRoll(style, x, y, bottom, depth, geometry.circumference(), seed);
                         float shade = 1.0F;
-                        int rgb = RingWallMaterialColors.color(RingGenerationBoundary.styledRimBlockForRoll(style, roll), Minecraft.getInstance().level);
+                        int rgb = RingWallMaterialColors.color(style.getFromRoll(roll), Minecraft.getInstance().level);
                         int color = 0xFF000000 | (int) ((rgb >>> 16 & 255) * shade) << 16 | (int) ((rgb >>> 8 & 255) * shade) << 8 | (int) ((rgb & 255) * shade);
                         image.setPixel(col, strip * rows + row, color);
                     }

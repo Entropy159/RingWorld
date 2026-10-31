@@ -27,7 +27,7 @@ public class BlockStateAdapter extends TypeAdapter<BlockState> {
         result.append(id);
         if (!state.isSingletonState()) {
             result.append("[");
-            result.append(state.getValues().map(Property.Value::toString).collect(Collectors.joining(",")));
+            result.append(state.getValues().filter(val -> val.value() != state.getBlock().defaultBlockState().getValue(val.property())).map(Property.Value::toString).collect(Collectors.joining(",")));
             result.append("]");
         }
 

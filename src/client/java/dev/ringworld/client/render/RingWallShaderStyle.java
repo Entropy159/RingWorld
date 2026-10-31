@@ -1,7 +1,6 @@
 package dev.ringworld.client.render;
 
 import dev.ringworld.config.WallSettings;
-import dev.ringworld.world.wall.RingGenerationBoundary;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Matrix4f;
@@ -32,7 +31,7 @@ final class RingWallShaderStyle {
         }
         Run fifth = runs.get(4);
         int seedBits = (int) ((worldSeed ^ worldSeed >>> 32) & 31L);
-        int metadata = settings.pattern().ordinal() * 32 + seedBits;
+        int metadata = settings.pattern().id.hashCode() * 32 + seedBits;
         int vertexArgb = metadata << 24 | fifth.rgb();
         return new Encoded(palette, vertexArgb);
     }
@@ -40,11 +39,11 @@ final class RingWallShaderStyle {
     private static List<Run> runs(WallSettings style, Level world) {
         List<Run> result = new ArrayList<>();
         int start = 0;
-        BlockState previous = RingGenerationBoundary.styledRimBlockForRoll(style, 0);
+        BlockState previous = style.getFromRoll(0);
         int previousRgb = RingWallMaterialColors.color(previous, world);
         int totalRolls = style.getTotalRolls();
         for (int roll = 1; roll <= totalRolls; roll++) {
-            BlockState current = roll == totalRolls ? null : RingGenerationBoundary.styledRimBlockForRoll(style, roll);
+            BlockState current = roll == totalRolls ? null : style.getFromRoll(0);
             if (roll < totalRolls && current.equals(previous)) continue;
             result.add(new Run(start, roll, previousRgb));
             start = roll;
