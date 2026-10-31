@@ -119,7 +119,7 @@ public abstract class SkyRenderingMixin {
 
     @ModifyArg(method = "renderSun", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/DynamicGpuData;writeTransform(Lorg/joml/Matrix4f;Lorg/joml/Vector4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;"), index = 1)
     private Vector4f ringworld$tintCenteredSun(Vector4f vanillaColor) {
-        if (ClientRingState.geometry() == null || sunColor < 0) {
+        if (ClientRingState.geometry() == null || sunColor == 0) {
             return vanillaColor;
         }
         return new Vector4f(ARGB.red(sunColor), ARGB.green(sunColor), ARGB.blue(sunColor), vanillaColor.w() * ARGB.alpha(sunColor));
