@@ -1,7 +1,7 @@
 package dev.ringworld.client.render;
 
 import dev.ringworld.config.WallSettings;
-import dev.ringworld.world.RingGenerationBoundary;
+import dev.ringworld.world.wall.RingGenerationBoundary;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Matrix4f;
@@ -21,7 +21,8 @@ final class RingWallShaderStyle {
         while (runs.size() > MAX_SHADER_MATERIALS) mergeSmallestAdjacentRun(runs);
         while (runs.size() < MAX_SHADER_MATERIALS) {
             Run last = runs.getLast();
-            runs.add(new Run(100, 100, last.rgb()));
+            int rolls = settings.getTotalRolls();
+            runs.add(new Run(rolls, rolls, last.rgb()));
         }
 
         Matrix4f palette = new Matrix4f();
@@ -36,25 +37,19 @@ final class RingWallShaderStyle {
         return new Encoded(palette, vertexArgb);
     }
 
-    static int[] paletteColors(WallSettings style, Level world) {
-        int[] colors = new int[100];
-        for (int roll = 0; roll < 100; roll++)
-            colors[roll] = materialRgb(RingGenerationBoundary.styledRimBlockForRoll(style, roll), world);
-        return colors;
-    }
-
     private static List<Run> runs(WallSettings style, Level world) {
         List<Run> result = new ArrayList<>();
         int start = 0;
         BlockState previous = RingGenerationBoundary.styledRimBlockForRoll(style, 0);
-        int previousRgb = materialRgb(previous, world);
-        for (int roll = 1; roll <= 100; roll++) {
-            BlockState current = roll == 100 ? null : RingGenerationBoundary.styledRimBlockForRoll(style, roll);
-            if (roll < 100 && current.equals(previous)) continue;
+        int previousRgb = RingWallMaterialColors.color(previous, world);
+        int totalRolls = style.getTotalRolls();
+        for (int roll = 1; roll <= totalRolls; roll++) {
+            BlockState current = roll == totalRolls ? null : RingGenerationBoundary.styledRimBlockForRoll(style, roll);
+            if (roll < totalRolls && current.equals(previous)) continue;
             result.add(new Run(start, roll, previousRgb));
             start = roll;
             previous = current;
-            if (current != null) previousRgb = materialRgb(current, world);
+            if (current != null) previousRgb = RingWallMaterialColors.color(current, world);
         }
         return result;
     }
@@ -72,10 +67,6 @@ final class RingWallShaderStyle {
         int rgb = rgb(Math.round((red255(a.rgb()) * a.length() + red255(b.rgb()) * b.length()) / (float) total), Math.round((green255(a.rgb()) * a.length() + green255(b.rgb()) * b.length()) / (float) total), Math.round((blue255(a.rgb()) * a.length() + blue255(b.rgb()) * b.length()) / (float) total));
         runs.set(first, new Run(a.start(), b.end(), rgb));
         runs.remove(second);
-    }
-
-    private static int materialRgb(BlockState state, Level world) {
-        return RingWallMaterialColors.color(state, world);
     }
 
     private static float red(int rgb) {

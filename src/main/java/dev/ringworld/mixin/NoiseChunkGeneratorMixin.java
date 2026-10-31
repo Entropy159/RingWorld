@@ -2,6 +2,7 @@ package dev.ringworld.mixin;
 
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
+import dev.ringworld.world.wall.RingGenerationBoundary;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.StructureManager;

@@ -1,19 +1,18 @@
-package dev.ringworld.world;
+package dev.ringworld.world.wall;
 
 import dev.ringworld.config.WallSettings;
+import dev.ringworld.world.RingGeometry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
 /**
  * Boundary operations performed during chunk generation, never live ticks.
  */
 public final class RingGenerationBoundary {
-    public static final int RIM_THICKNESS = 5;
     /**
      * Increment when rim placement/material semantics change.
      */
@@ -136,85 +135,13 @@ public final class RingGenerationBoundary {
         return highDepth >= 0 && highDepth < style.thickness() ? highDepth : -1;
     }
 
-    /**
-     * One-time, content-detected migration for already generated stone-brick
-     * rims. Once converted there are no legacy blocks above the new top, so a
-     * deliberately broken textured wall is not rebuilt on later chunk loads.
-     */
-    public static boolean migrateLegacyRim(LevelChunk chunk, RingGeometry geometry, int wallHeightBlocks) {
-        if (!containsRim(chunk, geometry)) return false;
-        ChunkPos pos = chunk.getPos();
-        int wallTopExclusive = wallTopExclusive(chunk.getMinY(), chunk.getHeight(), wallHeightBlocks);
-        int chunkTopExclusive = chunk.getMinY() + chunk.getHeight();
-        int[] rimZs = {geometry.minWidthZ(), geometry.maxWidthZ()};
-        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
-
-        boolean legacy = false;
-        for (int rimZ : rimZs) {
-            if (!containsZ(pos, rimZ)) continue;
-            for (int x = pos.getMinBlockX(); x <= pos.getMaxBlockX() && !legacy; x++) {
-                for (int y = wallTopExclusive; y < chunkTopExclusive; y++) {
-                    if (chunk.getBlockState(mutable.set(x, y, rimZ)).is(Blocks.STONE_BRICKS)) {
-                        legacy = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if (!legacy) return false;
-
-        for (int rimZ : rimZs) {
-            if (!containsZ(pos, rimZ)) continue;
-            int inwardDirection = rimZ == geometry.minWidthZ() ? 1 : -1;
-            for (int x = pos.getMinBlockX(); x <= pos.getMaxBlockX(); x++) {
-                for (int depth = 0; depth < RIM_THICKNESS; depth++) {
-                    int z = rimZ + inwardDirection * depth;
-                    for (int y = chunk.getMinY(); y < chunkTopExclusive; y++) {
-                        mutable.set(x, y, z);
-                        if (y < wallTopExclusive) {
-                            chunk.removeBlockEntity(mutable);
-                            chunk.setBlockState(mutable, texturedRimBlock(x, y, z), 0);
-                        } else if (chunk.getBlockState(mutable).is(Blocks.STONE_BRICKS)) {
-                            chunk.removeBlockEntity(mutable);
-                            chunk.setBlockState(mutable, Blocks.AIR.defaultBlockState(), 0);
-                        }
-                    }
-                }
-            }
-        }
-        chunk.markUnsaved();
-        return true;
-    }
-
-    public static boolean isRimMaterial(BlockState state) {
-        return state.is(Blocks.COBBLESTONE) || state.is(Blocks.MOSSY_COBBLESTONE) || state.is(Blocks.STONE) || state.is(Blocks.ANDESITE) || state.is(Blocks.STONE_BRICKS) || state.is(Blocks.CRACKED_STONE_BRICKS) || state.is(Blocks.MOSSY_STONE_BRICKS) || state.is(Blocks.TUFF) || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.POLISHED_DIORITE) || state.is(Blocks.QUARTZ_BLOCK) || state.is(Blocks.PRISMARINE_BRICKS) || state.is(Blocks.DEEPSLATE_BRICKS) || state.is(Blocks.DEEPSLATE_TILES) || state.is(Blocks.POLISHED_BASALT) || state.is(Blocks.TUFF_BRICKS) || state.is(Blocks.RAW_COPPER_BLOCK) || state.is(Blocks.MOSS_BLOCK) || state.is(Blocks.SEA_LANTERN) || state.is(Blocks.CALCITE) || state.is(Blocks.POLISHED_ANDESITE) || state.is(Blocks.NETHER_BRICKS) || state.is(Blocks.RED_NETHER_BRICKS) || state.is(Blocks.BLACKSTONE) || state.is(Blocks.POLISHED_BLACKSTONE_BRICKS) || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.OBSIDIAN) || state.is(Blocks.CRYING_OBSIDIAN) || state.is(Blocks.GILDED_BLACKSTONE) || state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.OAK_LOG) || state.is(Blocks.SPRUCE_LOG) || state.is(Blocks.DARK_OAK_LOG) || state.is(Blocks.OAK_PLANKS) || state.is(Blocks.STRIPPED_SPRUCE_LOG);
-    }
-
-    private static BlockState texturedRimBlock(int x, int y, int z) {
-        long hash = (long) x * 0x9E3779B97F4A7C15L ^ (long) y * 0xC2B2AE3D27D4EB4FL ^ (long) z * 0x165667B19E3779F9L;
-        hash ^= hash >>> 30;
-        hash *= 0xBF58476D1CE4E5B9L;
-        hash ^= hash >>> 27;
-        // Roughly 30% mossy blocks, stable across reloads and generation order.
-        return Long.remainderUnsigned(hash, 10L) < 3L ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
-    }
-
     private static BlockState texturedRimBlock(WallSettings style, int x, int y, int depth, int circumference, long worldSeed) {
-        // One independently sampled block in a thousand. Keeping this outside
-        // the 0-99 palette roll avoids the former minimum density of one percent.
-        if (style.palette() == WallSettings.Palette.INDUSTRIAL && RingWallPattern.rareAccent(style, x, y, depth, circumference, worldSeed, 1)) {
-            return Blocks.SEA_LANTERN.defaultBlockState();
-        }
         int roll = RingWallPattern.materialRoll(style, x, y, depth, circumference, worldSeed);
         return styledRimBlockForRoll(style, roll);
     }
 
     public static BlockState styledRimBlockForRoll(WallSettings style, int roll) {
-        if (style == null) throw new IllegalArgumentException("wall style is required");
-        if (roll < 0 || roll > 99) {
-            throw new IllegalArgumentException("wall material roll must be in [0, 99]");
-        }
-        return style.palette().get(roll);
+        return style.getFromRoll(roll);
     }
 
 }

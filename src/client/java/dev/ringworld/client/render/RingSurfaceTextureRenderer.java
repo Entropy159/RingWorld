@@ -219,7 +219,7 @@ public final class RingSurfaceTextureRenderer {
         int worldBottomY = client.level == null ? Constants.DEFAULT_MIN_Y : client.level.getMinY();
         var config = ClientRingState.config();
         if (config == null) return null;
-        MeshInputs meshInputs = new MeshInputs(RingGeometry.SURFACE_Y, worldBottomY + config.wallSettings().height(), config.wallSettings().height(), RingWallShaderStyle.encode(config.wallSettings(), ClientRingState.generatorSeed(), client.level), geometry.equals(bufferedGeometry) && atlas.worldHash() == bufferedWorldHash, vertexBuffer != null, bufferedMeshDetailed, bufferedMeshHeightFingerprint, config.wallSettings(), ClientRingState.generatorSeed(), worldBottomY, RingWallShaderStyle.paletteColors(config.wallSettings(), client.level), wallTextureView == null ? null : wallTextureKey);
+        MeshInputs meshInputs = new MeshInputs(RingGeometry.SURFACE_Y, worldBottomY + config.wallSettings().height(), config.wallSettings().height(), RingWallShaderStyle.encode(config.wallSettings(), ClientRingState.generatorSeed(), client.level), geometry.equals(bufferedGeometry) && atlas.worldHash() == bufferedWorldHash, vertexBuffer != null, bufferedMeshDetailed, bufferedMeshHeightFingerprint, config.wallSettings(), ClientRingState.generatorSeed(), worldBottomY, wallTextureView == null ? null : wallTextureKey);
         RingTerrainPreview preview = ClientRingState.terrainPreview();
         pendingTextureBuild = CompletableFuture.supplyAsync(() -> buildTexture(buildSnapshot, generation, profile, quality, meshInputs, preview), BUILD_WORKER);
         return null;
@@ -242,9 +242,9 @@ public final class RingSurfaceTextureRenderer {
                 RingSurfaceMesh.Mesh mesh = RingSurfaceMesh.build(atlas.geometry(), atlas, atlas.isComplete(), inputs.referenceY(), inputs.wallTopY(), inputs.wallHeightBlocks(), inputs.savedStyle(), inputs.seed(), profile);
                 packed = RingSurfaceGpu.packMesh(mesh, inputs.wallStyle().vertexArgb());
                 int wallColumns = Math.min(16384, profile.textureColumns());
-                nextWallTextureKey = RingWallTexture.contentKey(atlas, inputs.savedStyle(), inputs.seed(), inputs.bottomY(), inputs.wallTopY(), wallColumns, inputs.palette());
+                nextWallTextureKey = RingWallTexture.contentKey(atlas, inputs.savedStyle(), inputs.seed(), inputs.bottomY(), inputs.wallTopY(), wallColumns);
                 if (!nextWallTextureKey.equals(inputs.wallTextureKey())) {
-                    wallImages = RingWallTexture.buildMipmapped(atlas, inputs.savedStyle(), inputs.seed(), inputs.bottomY(), inputs.wallTopY(), wallColumns, inputs.palette(), () -> generation != textureBuildGeneration);
+                    wallImages = RingWallTexture.buildMipmapped(atlas, inputs.savedStyle(), inputs.seed(), inputs.bottomY(), inputs.wallTopY(), wallColumns, () -> generation != textureBuildGeneration);
                 }
             }
             if (generation != textureBuildGeneration)
@@ -434,7 +434,7 @@ public final class RingSurfaceTextureRenderer {
 
     private record MeshInputs(int referenceY, int wallTopY, int wallHeightBlocks, RingWallShaderStyle.Encoded wallStyle,
                               boolean sameAtlas, boolean hasMesh, boolean detailed, long fingerprint,
-                              WallSettings savedStyle, long seed, int bottomY, int[] palette,
+                              WallSettings savedStyle, long seed, int bottomY,
                               RingWallTexture.ContentKey wallTextureKey) {
     }
 

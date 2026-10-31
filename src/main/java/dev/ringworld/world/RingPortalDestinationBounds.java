@@ -17,57 +17,20 @@ public final class RingPortalDestinationBounds {
      */
     public static final int FRAME_CLEARANCE = 3;
 
-    /**
-     * Lowest Z at which a portal block and its complete frame remain clear of the low rim.
-     */
-    public static int safePortalMinZ(RingGeometry geometry) {
-        return safePortalMinZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
-    }
-
     public static int safePortalMinZ(RingGeometry geometry, int rimThicknessBlocks) {
         return geometry.minWidthZ() + rimThicknessBlocks + FRAME_CLEARANCE;
-    }
-
-    /**
-     * Highest Z at which a portal block and its complete frame remain clear of the high rim.
-     */
-    public static int safePortalMaxZ(RingGeometry geometry) {
-        return safePortalMaxZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
     }
 
     public static int safePortalMaxZ(RingGeometry geometry, int rimThicknessBlocks) {
         return geometry.maxWidthZ() - rimThicknessBlocks - FRAME_CLEARANCE;
     }
 
-    /**
-     * Lowest creation/search anchor whose entire 16-block creation sweep stays safe.
-     */
-    public static int safeAnchorMinZ(RingGeometry geometry) {
-        return safeAnchorMinZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
-    }
-
     public static int safeAnchorMinZ(RingGeometry geometry, int rimThicknessBlocks) {
         return safePortalMinZ(geometry, rimThicknessBlocks) + CREATION_SEARCH_RADIUS;
     }
 
-    /**
-     * Highest creation/search anchor whose entire 16-block creation sweep stays safe.
-     */
-    public static int safeAnchorMaxZ(RingGeometry geometry) {
-        return safeAnchorMaxZ(geometry, RingGenerationBoundary.RIM_THICKNESS);
-    }
-
     public static int safeAnchorMaxZ(RingGeometry geometry, int rimThicknessBlocks) {
         return safePortalMaxZ(geometry, rimThicknessBlocks) - CREATION_SEARCH_RADIUS;
-    }
-
-    /**
-     * Normalizes an already dimension-scaled Overworld target. X is periodic;
-     * Y is unchanged; finite Z is clamped far enough inward for vanilla's
-     * complete portal-creation search envelope.
-     */
-    public static BlockPos normalizeSearchAnchor(RingGeometry geometry, BlockPos target) {
-        return normalizeSearchAnchor(geometry, target, RingGenerationBoundary.RIM_THICKNESS);
     }
 
     public static BlockPos normalizeSearchAnchor(RingGeometry geometry, BlockPos target, int rimThicknessBlocks) {
@@ -78,13 +41,6 @@ public final class RingPortalDestinationBounds {
         }
         int z = Math.clamp(target.getZ(), minZ, maxZ);
         return new BlockPos(geometry.wrapBlockX(target.getX()), target.getY(), z);
-    }
-
-    /**
-     * True when a discovered portal block and its frame remain inside the playable interior.
-     */
-    public static boolean isSafePortalBlock(RingGeometry geometry, BlockPos portalBlock) {
-        return isSafePortalBlock(geometry, portalBlock, RingGenerationBoundary.RIM_THICKNESS);
     }
 
     public static boolean isSafePortalBlock(RingGeometry geometry, BlockPos portalBlock, int rimThicknessBlocks) {

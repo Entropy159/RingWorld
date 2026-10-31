@@ -2,6 +2,7 @@ package dev.ringworld.world;
 
 import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.config.WallSettings;
+import dev.ringworld.world.wall.RingGenerationBoundary;
 
 /**
  * Stable identity for every immutable value that changes canonical terrain or
@@ -22,7 +23,7 @@ public final class RingLayoutFingerprint {
         value = mix(value ^ (Integer.toUnsignedLong(circumferenceBlocks) << 1));
         value = mix(value ^ (Integer.toUnsignedLong(wallHeightBlocks) << 17));
         value = mix(value ^ (Integer.toUnsignedLong(wallStyle.thickness()) << 9));
-        value = mix(value ^ (Integer.toUnsignedLong(wallStyle.palette().ordinal()) << 13));
+        value = mix(value ^ (Integer.toUnsignedLong(wallStyle.palette().hashCode()) << 13));
         value = mix(value ^ (Integer.toUnsignedLong(wallStyle.pattern().ordinal()) << 21));
         value = mix(value ^ (Integer.toUnsignedLong(wallStyle.decay()) << 29));
         return mix(value ^ (Integer.toUnsignedLong(RingGenerationBoundary.RIM_STYLE_VERSION) << 25));

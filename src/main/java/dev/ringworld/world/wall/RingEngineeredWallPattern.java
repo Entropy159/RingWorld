@@ -1,4 +1,4 @@
-package dev.ringworld.world;
+package dev.ringworld.world.wall;
 
 import dev.ringworld.config.WallSettings;
 
@@ -6,10 +6,10 @@ import dev.ringworld.config.WallSettings;
  * Periodic structural bays and correlated weathering for the engineered rim.
  */
 public final class RingEngineeredWallPattern {
-    public record Bay(int index, double position, double width) {
+    private record Bay(int index, double position, double width) {
     }
 
-    public static Bay bay(int x, int circumference) {
+    private static Bay bay(int x, int circumference) {
         if (circumference <= 0) throw new IllegalArgumentException("positive circumference required");
         int count = Math.max(1, (circumference + 12) / 24);
         double coordinate = (double) Math.floorMod(x, circumference) * count / circumference;
@@ -17,8 +17,10 @@ public final class RingEngineeredWallPattern {
         return new Bay((int) coordinate, (coordinate - Math.floor(coordinate)) * width, width);
     }
 
-    public static int materialRoll(WallSettings style, int x, int y, int depth, int circumference, long seed) {
-        return RingWallPattern.originalPanelRoll(style, x, y, depth, circumference, seed);
+    public static int materialRoll(WallSettings style, int x, int y, int depth, int circumference, long seed, int total) {
+        int canonicalX = Math.floorMod(x, circumference);
+        int fine = RingWallPattern.materialNoise(seed, RingWallPattern.MATERIAL_FINE_SALT, canonicalX, y, depth, style.palette(), total);
+        return RingWallPattern.panelRoll(style, canonicalX, y, depth, seed, fine, total);
     }
 
     public static int collapseDepth(WallSettings style, int x, int depth, int circumference, long seed) {

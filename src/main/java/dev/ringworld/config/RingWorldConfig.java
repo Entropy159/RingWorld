@@ -6,12 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 
 public record RingWorldConfig(int width, int circumference, WallSettings wallSettings, SkySettings skySettings,
                               boolean pregenAtlas) {
+    public static final RingWorldConfig DEFAULT = new RingWorldConfig(512, 32768, WallSettings.DEFAULT, SkySettings.DEFAULT, true);
+
     public RingWorldConfig {
         new RingGeometry(width, circumference); //Error checking
-    }
-
-    public RingWorldConfig() {
-        this(256, 16384, WallSettings.DEFAULT, SkySettings.DEFAULT, true);
     }
 
     public RingGeometry geometry() {

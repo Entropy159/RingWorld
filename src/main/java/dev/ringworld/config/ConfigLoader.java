@@ -3,9 +3,11 @@ package dev.ringworld.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.ringworld.RingWorldMod;
+import dev.ringworld.config.adapters.BlockStateAdapter;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 public class ConfigLoader {
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(BlockState.class, new BlockStateAdapter()).enableComplexMapKeySerialization().create();
 
     public static Path getConfigPath(ResourceKey<Level> dimension) throws IOException {
         var configFolder = FabricLoader.getInstance().getConfigDir().resolve(RingWorldMod.MOD_ID);
@@ -30,9 +32,10 @@ public class ConfigLoader {
     public static RingWorldConfig load(ResourceKey<Level> dimension) {
         try {
             Path configPath = getConfigPath(dimension);
-            if (dimension != null) RingWorldMod.LOGGER.info("Loading config for {} at {}", dimension.identifier(), configPath);
+            if (dimension != null)
+                RingWorldMod.LOGGER.info("Loading config for {} at {}", dimension.identifier(), configPath);
             File configFile = configPath.toFile();
-            RingWorldConfig config = new RingWorldConfig();
+            RingWorldConfig config = RingWorldConfig.DEFAULT;
             if (configFile.exists()) {
                 String data = Files.readString(configPath, StandardCharsets.UTF_8);
                 config = fromData(data);

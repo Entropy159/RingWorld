@@ -1,16 +1,27 @@
 package dev.ringworld.config;
 
+import dev.ringworld.world.wall.RingEngineeredWallPattern;
+import dev.ringworld.world.wall.RingWallPattern;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.LinkedHashMap;
 import java.util.function.Function;
 
-public record WallSettings(int height, int thickness, Palette palette, Pattern pattern, int decay) {
+public record WallSettings(int height, int thickness, LinkedHashMap<BlockState, Integer> palette, Pattern pattern,
+                           int decay) {
+    public static final LinkedHashMap<BlockState, Integer> DEFAULT_PALETTE = new LinkedHashMap<>() {{
+        put(Blocks.OBSIDIAN.defaultBlockState(), 50);
+        put(Blocks.CRYING_OBSIDIAN.defaultBlockState(), 15);
+        put(Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState(), 15);
+        put(Blocks.GILDED_BLACKSTONE.defaultBlockState(), 10);
+        put(Blocks.AMETHYST_BLOCK.defaultBlockState(), 2);
+    }};
+    public static final WallSettings DEFAULT = new WallSettings(160, 5, DEFAULT_PALETTE, Pattern.ENGINEERED, 5);
+
     private static final int MIN_THICKNESS = 1;
     private static final int MAX_THICKNESS = 32;
     private static final int MIN_HEIGHT = 32;
-
-    public static final WallSettings DEFAULT = new WallSettings(160, 5, Palette.OBSIDIAN, Pattern.ENGINEERED, 5);
 
     public WallSettings {
         if (thickness < MIN_THICKNESS) {
@@ -27,30 +38,61 @@ public record WallSettings(int height, int thickness, Palette palette, Pattern p
         }
     }
 
-    public enum Palette {
-        WEATHERED(roll -> roll < 55 ? Blocks.COBBLESTONE.defaultBlockState() : roll < 80 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : roll < 95 ? Blocks.STONE.defaultBlockState() : Blocks.ANDESITE.defaultBlockState()),
-        ANCIENT(roll -> roll < 50 ? Blocks.STONE_BRICKS.defaultBlockState() : roll < 72 ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState() : roll < 94 ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState()),
-        NATURAL(roll -> roll < 45 ? Blocks.STONE.defaultBlockState() : roll < 70 ? Blocks.TUFF.defaultBlockState() : roll < 90 ? Blocks.ANDESITE.defaultBlockState() : roll < 98 ? Blocks.COBBLESTONE.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState()),
-        ALLOY(roll -> roll < 40 ? Blocks.SMOOTH_STONE.defaultBlockState() : roll < 70 ? Blocks.POLISHED_DIORITE.defaultBlockState() : roll < 95 ? Blocks.QUARTZ_BLOCK.defaultBlockState() : Blocks.PRISMARINE_BRICKS.defaultBlockState()),
-        INDUSTRIAL(roll -> roll < 40 ? Blocks.DEEPSLATE_BRICKS.defaultBlockState() : roll < 68 ? Blocks.DEEPSLATE_TILES.defaultBlockState() : roll < 86 ? Blocks.POLISHED_BASALT.defaultBlockState() : roll < 97 ? Blocks.TUFF_BRICKS.defaultBlockState() : Blocks.RAW_COPPER_BLOCK.defaultBlockState()),
-        OVERGROWN(roll -> roll < 38 ? Blocks.STONE_BRICKS.defaultBlockState() : roll < 60 ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState() : roll < 78 ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState() : roll < 92 ? Blocks.COBBLESTONE.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState()),
-        MONOLITH(roll -> roll < 55 ? Blocks.SMOOTH_STONE.defaultBlockState() : roll < 82 ? Blocks.CALCITE.defaultBlockState() : Blocks.POLISHED_ANDESITE.defaultBlockState()),
-        NETHER(roll -> roll < 42 ? Blocks.NETHER_BRICKS.defaultBlockState() : roll < 60 ? Blocks.RED_NETHER_BRICKS.defaultBlockState() : roll < 78 ? Blocks.BLACKSTONE.defaultBlockState() : roll < 96 ? Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState() : Blocks.MAGMA_BLOCK.defaultBlockState()),
-        OBSIDIAN(roll -> roll < 55 ? Blocks.OBSIDIAN.defaultBlockState() : roll < 72 ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : roll < 90 ? Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState() : roll < 97 ? Blocks.GILDED_BLACKSTONE.defaultBlockState() : Blocks.AMETHYST_BLOCK.defaultBlockState()),
-        WOOD(roll -> roll < 30 ? Blocks.OAK_LOG.defaultBlockState() : roll < 54 ? Blocks.SPRUCE_LOG.defaultBlockState() : roll < 72 ? Blocks.DARK_OAK_LOG.defaultBlockState() : roll < 90 ? Blocks.OAK_PLANKS.defaultBlockState() : Blocks.STRIPPED_SPRUCE_LOG.defaultBlockState());
+    public int getTotalRolls() {
+        return palette.values().stream().reduce(0, Integer::sum);
+    }
 
-        private final Function<Integer, BlockState> blockFunction;
-
-        Palette(Function<Integer, BlockState> stateFunction) {
-            blockFunction = stateFunction;
+    public BlockState getFromRoll(int roll) {
+        for (var entry : palette.entrySet()) {
+            int chance = entry.getValue();
+            if (roll <= chance) {
+                return entry.getKey();
+            }
+            roll -= chance;
         }
-
-        public BlockState get(int roll) {
-            return blockFunction.apply(roll);
-        }
+        return palette.lastEntry().getKey();
     }
 
     public enum Pattern {
-        CLUSTERED, MASONRY, STRATA, PANELS, GRADIENT, HYBRID, ENGINEERED;
+        CLUSTERED(info -> RingWallPattern.blend(info.coarse(), info.fine(), 72, info.totalRolls())),
+        MASONRY(info -> {
+            int course = Math.floorDiv(info.y(), 2);
+            int brickWidth = 3 + RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_SALT, course, info.depth(), 0, info.style().palette(), info.totalRolls()) % 4;
+            int offset = RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_COARSE_SALT, course, info.depth(), 1, info.style().palette(), info.totalRolls()) % brickWidth;
+            int brick = Math.floorDiv(info.canonicalX() + offset, brickWidth);
+            int body = RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_SALT, brick, course, info.depth(), info.style().palette(), info.totalRolls());
+            return RingWallPattern.blend(body, info.fine(), 76, info.totalRolls());
+        }),
+        STRATA(info -> {
+            int section = Math.floorDiv(info.canonicalX(), 19);
+            int wave = RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_COARSE_SALT, section, info.depth(), 2, info.style().palette(), info.totalRolls()) % 9 - 4;
+            int bandHeight = 3 + RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_SALT, section, Math.floorDiv(info.y(), 13), info.depth(), info.style().palette(), info.totalRolls()) % 7;
+            int band = Math.floorDiv(info.y() + wave, bandHeight);
+            int body = RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_SALT, Math.floorDiv(info.canonicalX(), 11), band, info.depth(), info.style().palette(), info.totalRolls());
+            return RingWallPattern.blend(body, info.fine(), 68, info.totalRolls());
+        }),
+        PANELS(info -> RingWallPattern.panelRoll(info.style(), info.canonicalX(), info.y(), info.depth(), info.worldSeed(), info.fine(), info.totalRolls())),
+        GRADIENT(info -> {
+            int vertical = Math.clamp((info.y() + 64L) * info.totalRolls() / 224, 0, info.totalRolls());
+            int grain = RingWallPattern.blend(info.coarse(), info.fine(), 46, info.totalRolls());
+            return Math.clamp((vertical * 28L + grain * 72L) / info.totalRolls(), 0, info.totalRolls());
+        }),
+        HYBRID(info -> {
+            int clustered = RingWallPattern.blend(info.coarse(), info.fine(), 66, info.totalRolls());
+            int panel = RingWallPattern.panelRoll(info.style(), info.canonicalX(), info.y(), info.depth(), info.worldSeed(), info.fine(), info.totalRolls());
+            int selector = RingWallPattern.materialNoise(info.worldSeed(), RingWallPattern.MATERIAL_SALT, Math.floorDiv(info.canonicalX(), 23), Math.floorDiv(info.y(), 17), info.depth(), info.style().palette(), info.totalRolls());
+            return selector < 28 ? panel : RingWallPattern.blend(clustered, panel, 82, info.totalRolls());
+        }),
+        ENGINEERED(info -> RingEngineeredWallPattern.materialRoll(info.style(), info.x(), info.y(), info.depth(), info.circumference(), info.worldSeed(), info.totalRolls()));
+
+        private final Function<RingWallPattern.Info, Integer> materialFunction;
+
+        Pattern(Function<RingWallPattern.Info, Integer> function) {
+            materialFunction = function;
+        }
+
+        public int materialRoll(RingWallPattern.Info info) {
+            return materialFunction.apply(info);
+        }
     }
 }

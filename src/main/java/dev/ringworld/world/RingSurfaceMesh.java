@@ -4,6 +4,7 @@ import dev.ringworld.Constants;
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
+import dev.ringworld.world.wall.RingWallPattern;
 
 import java.util.Objects;
 

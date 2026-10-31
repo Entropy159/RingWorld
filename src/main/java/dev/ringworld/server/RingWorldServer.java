@@ -5,6 +5,7 @@ import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
+import dev.ringworld.world.wall.RingGenerationBoundary;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -115,7 +116,6 @@ public final class RingWorldServer {
         for (Entity entity : world.getAllEntities()) {
             canonicalizeEntityPosition(entity, geometry);
         }
-        migrateOneLegacyRimChunk(world, geometry);
     }
 
     /**
@@ -138,28 +138,6 @@ public final class RingWorldServer {
             navigation.ringworld$foldPath((int) Math.rint(shift));
         }
         return shift;
-    }
-
-    /**
-     * Migrates at most one loaded boundary chunk per tick. Besides avoiding
-     * chunk-load reentrancy, the limit keeps an old world's first login from
-     * turning hundreds of rim conversions into one watchdog-sized tick.
-     */
-    private static void migrateOneLegacyRimChunk(ServerLevel world, RingGeometry geometry) {
-        LinkedHashMap<Long, net.minecraft.world.level.chunk.LevelChunk> pending = PENDING_LEGACY_RIM_MIGRATIONS.get(world);
-        if (pending == null || pending.isEmpty()) return;
-
-        var iterator = pending.entrySet().iterator();
-        var entry = iterator.next();
-        iterator.remove();
-
-        long started = System.nanoTime();
-        boolean migrated = RingGenerationBoundary.migrateLegacyRim(entry.getValue(), geometry, RingWorldConfig.get(world).wallSettings().height());
-        if (migrated) {
-            double elapsedMs = (System.nanoTime() - started) / 1000000.0;
-            RingWorldMod.LOGGER.info("Migrated legacy rim chunk {} in {} ms ({} queued)", entry.getValue().getPos(), elapsedMs, pending.size());
-        }
-        if (pending.isEmpty()) PENDING_LEGACY_RIM_MIGRATIONS.remove(world);
     }
 
     /**
