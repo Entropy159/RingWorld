@@ -7,6 +7,7 @@ import dev.ringworld.config.adapters.BlockStateAdapter;
 import dev.ringworld.config.adapters.WallPatternAdapter;
 import dev.ringworld.world.wall.RingWallPattern;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -17,9 +18,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
 
 public class ConfigLoader {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(BlockState.class, new BlockStateAdapter()).registerTypeAdapter(RingWallPattern.class, new WallPatternAdapter()).enableComplexMapKeySerialization().create();
+
+    public static final HashMap<Identifier, RingWorldConfig> DEFAULT_CONFIGS = new HashMap<>();
 
     public static Path getConfigPath(ResourceKey<Level> dimension) throws IOException {
         var configFolder = FabricLoader.getInstance().getConfigDir().resolve(RingWorldMod.MOD_ID);
@@ -43,7 +47,7 @@ public class ConfigLoader {
                 config = fromData(data);
             } else if (dimension != null) {
                 RingWorldMod.LOGGER.info("Didn't find a config override for dimension {}, falling back to default", dimension.identifier());
-                return load(null);
+                return DEFAULT_CONFIGS.getOrDefault(dimension.identifier(), load(null));
             }
             save(dimension, config);
             return config;
