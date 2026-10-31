@@ -1,5 +1,6 @@
 package dev.ringworld.world.wall;
 
+import dev.ringworld.RingWorldMod;
 import dev.ringworld.config.WallSettings;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -124,10 +125,10 @@ public abstract class RingWallPattern {
         int panel = Math.floorDiv(canonicalX + xOffset, panelWidth);
         int courseHeight = 8 + materialNoise(worldSeed, MATERIAL_COARSE_SALT, panel, depth, 5, style.palette(), total) % 11;
         int yOffset = materialNoise(worldSeed, MATERIAL_SALT, panel, depth, 6, style.palette(), total) % courseHeight;
-        boolean rib = panelX == 0 || (panelX == panelWidth - 1 && materialNoise(worldSeed, MATERIAL_FINE_SALT, panel, Math.floorDiv(y, 5), depth, style.palette(), total) < 74) || Math.floorMod(y + yOffset, courseHeight) == 0;
+        boolean rib = panelX == 0 || (panelX == panelWidth - 1 && materialNoise(worldSeed, MATERIAL_FINE_SALT, panel, Math.floorDiv(y, 5), depth, style.palette(), 100) < 74) || Math.floorMod(y + yOffset, courseHeight) == 0;
         if (rib) {
-            int wear = materialNoise(worldSeed, MATERIAL_FINE_SALT, canonicalX, y, depth + 17, style.palette(), total);
-            return Math.clamp(76 + wear / 4, 0, total - 1);
+            int wear = materialNoise(worldSeed, MATERIAL_FINE_SALT, canonicalX, y, depth + 17, style.palette(), 100);
+            return Math.clamp(76 + wear / 4, 0, 99) * total / 100;
         }
         int body = materialNoise(worldSeed, MATERIAL_SALT, panel, Math.floorDiv(y + yOffset, courseHeight), depth, style.palette(), total);
         return blend(body, fine, 70, total);
@@ -143,8 +144,7 @@ public abstract class RingWallPattern {
      */
     public static int blend(int coarse, int fine, int coarseWeight, int total) {
         long blended = (long) coarse * coarseWeight + (long) fine * (100 - coarseWeight);
-
-        return Math.clamp((blended * total / 100), 0, total - 1);
+        return Math.clamp((blended / 100), 0, total - 1);
     }
 
     public static long mix(long value) {
