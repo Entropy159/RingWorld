@@ -2,17 +2,24 @@ package dev.ringworld.client.mixin;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.RingDistortionTuning;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.world.RingGeometry;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.BindGroupLayouts;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
 import net.minecraft.util.ARGB;
@@ -35,6 +42,19 @@ import java.util.OptionalDouble;
  */
 @Mixin(SkyRenderer.class)
 public abstract class SkyRenderingMixin {
+    @Unique
+    private static final RenderPipeline CELESTIAL_OVERLAY = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
+            .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+            .withLocation("pipeline/celestial_overlay")
+            .withVertexShader("core/position_tex")
+            .withFragmentShader("core/position_tex")
+            .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .build());
+
     @Final
     @Shadow
     private RenderTarget renderTarget;
@@ -122,7 +142,7 @@ public abstract class SkyRenderingMixin {
         if (ClientRingState.geometry() == null || sunColor == 0) {
             return vanillaColor;
         }
-        return new Vector4f(ARGB.red(sunColor), ARGB.green(sunColor), ARGB.blue(sunColor), vanillaColor.w() * ARGB.alpha(sunColor));
+        return new Vector4f(ARGB.red(sunColor) / 255f, ARGB.green(sunColor) / 255f, ARGB.blue(sunColor) / 255f, vanillaColor.w() * ARGB.alpha(sunColor) / 255f);
     }
 
     @Inject(method = "render", at = @At("TAIL"))
@@ -184,6 +204,11 @@ public abstract class SkyRenderingMixin {
         }
         poseStack.pushPose();
         poseStack.rotate(Axis.YP.rotationDegrees(-90));
+    }
+
+    @ModifyArg(method = "drawCelestialBody", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;getCompiledPipeline(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;)Lcom/mojang/renderpearl/api/pipeline/CompiledRenderPipeline;"))
+    private RenderPipeline useNewPipeline(RenderPipeline pipeline) {
+        return CELESTIAL_OVERLAY;
     }
 
     @Unique

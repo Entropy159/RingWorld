@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.config.adapters.BlockStateAdapter;
+import dev.ringworld.config.adapters.HexIntAdapter;
 import dev.ringworld.config.adapters.WallPatternAdapter;
 import dev.ringworld.world.wall.RingWallPattern;
 import net.fabricmc.loader.api.FabricLoader;
@@ -21,7 +22,15 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 
 public class ConfigLoader {
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(BlockState.class, new BlockStateAdapter()).registerTypeAdapter(RingWallPattern.class, new WallPatternAdapter()).enableComplexMapKeySerialization().create();
+    private static final Gson GSON = new GsonBuilder()
+            .disableHtmlEscaping()
+            .setPrettyPrinting()
+            .registerTypeAdapter(BlockState.class, new BlockStateAdapter())
+            .registerTypeAdapter(RingWallPattern.class, new WallPatternAdapter())
+            .registerTypeAdapter(int.class, new HexIntAdapter())
+            .registerTypeAdapter(Integer.class, new HexIntAdapter())
+            .enableComplexMapKeySerialization()
+            .create();
 
     public static final HashMap<Identifier, RingWorldConfig> DEFAULT_CONFIGS = new HashMap<>();
 
