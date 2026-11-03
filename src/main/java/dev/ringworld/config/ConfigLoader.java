@@ -56,7 +56,11 @@ public class ConfigLoader {
                 config = fromData(data);
             } else if (dimension != null) {
                 RingWorldMod.LOGGER.info("Didn't find a config override for dimension {}, falling back to default", dimension.identifier());
-                return DEFAULT_CONFIGS.getOrDefault(dimension.identifier(), load(null));
+                if (DEFAULT_CONFIGS.containsKey(dimension.identifier())) {
+                    RingWorldMod.LOGGER.info("Found API override for {}, using", dimension.identifier());
+                    return DEFAULT_CONFIGS.get(dimension.identifier());
+                }
+                return load(null);
             }
             save(dimension, config);
             return config;
