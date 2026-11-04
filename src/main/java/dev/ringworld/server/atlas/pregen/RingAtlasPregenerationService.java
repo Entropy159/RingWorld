@@ -179,6 +179,7 @@ public final class RingAtlasPregenerationService {
         WorldState state = WORLDS.get(world);
         if (state == null) return;
         state.ticks++;
+        pollCheckpoint(state);
         // Completed/paused jobs still supply the live player's adaptive capture policy.
         if (state.job != null && !state.stopping) state.job.updateRequestLimit();
         long captureStart = System.nanoTime();
@@ -534,6 +535,14 @@ public final class RingAtlasPregenerationService {
         return Math.max(state.getLightEmission(), Math.max(world.getBrightness(LightLayer.BLOCK, surface), world.getBrightness(LightLayer.BLOCK, surface.above())));
     }
 
+    private static void pollCheckpoint(WorldState state) {
+        try {
+            RingAtlasCheckpointWriter.Result result = state.checkpoints.poll();
+        } catch (CompletionException e) {
+            RingWorldMod.LOGGER.error("Could not save RingWorld terrain atlas " + state.path + "! ", e);
+        }
+    }
+
     /**
      * Blocking drain is reserved for server stop/world unload, never a gameplay tick.
      */
@@ -541,8 +550,10 @@ public final class RingAtlasPregenerationService {
         commitPendingRevision(state);
         try {
             state.checkpoints.awaitActive(state.atlas);
+            pollCheckpoint(state);
             state.checkpoints.request(state.atlas, false);
             state.checkpoints.awaitActive(state.atlas);
+            pollCheckpoint(state);
             return !state.checkpoints.dirty();
         } catch (CompletionException exception) {
             RingWorldMod.LOGGER.error("Could not flush RingWorld terrain atlas " + state.path, exception);
