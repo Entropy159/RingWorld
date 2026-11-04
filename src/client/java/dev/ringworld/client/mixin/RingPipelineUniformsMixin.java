@@ -30,7 +30,7 @@ public abstract class RingPipelineUniformsMixin {
     @Unique
     private boolean ringworld$bindingAdded;
 
-    @Inject(method = "build", at = @At("HEAD"))
+    @Inject(method = {"build", "buildSnippet"}, at = @At("HEAD"))
     private void ringworld$declarePrivateUniforms(CallbackInfoReturnable<RenderPipeline> cir) {
         var builder = (RenderPipeline.Builder) (Object) this;
         var vertex = shaders.get(ShaderType.VERTEX);
