@@ -1,6 +1,5 @@
 package dev.ringworld.world.wall;
 
-import dev.ringworld.RingWorldMod;
 import dev.ringworld.config.WallSettings;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -135,7 +134,7 @@ public abstract class RingWallPattern {
     }
 
     public static int materialNoise(long seed, long salt, int x, int y, int depth, HashMap<BlockState, Integer> palette, int total) {
-        long value = seed ^ salt ^ (long) x * 0x9E3779B97F4A7C15L ^ (long) y * 0xC2B2AE3D27D4EB4FL ^ (long) depth * 0x165667B19E3779F9L ^ (long) palette.hashCode() << 41;
+        long value = seed ^ salt ^ (long) x * 0x9E3779B97F4A7C15L ^ (long) y * 0xC2B2AE3D27D4EB4FL ^ (long) depth * 0x165667B19E3779F9L ^ (long) palette.toString().hashCode() << 41;
         return (int) Long.remainderUnsigned(mix(value), total);
     }
 

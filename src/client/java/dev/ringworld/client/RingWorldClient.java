@@ -3,9 +3,9 @@ package dev.ringworld.client;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.net.*;
-import dev.ringworld.world.RingLayoutFingerprint;
 import dev.ringworld.world.RingLodQuality;
 import dev.ringworld.world.atlas.RingAtlasLightProfile;
 import net.fabricmc.api.ClientModInitializer;
@@ -25,8 +25,9 @@ public final class RingWorldClient implements ClientModInitializer {
         registerAtlasLightCommand();
         RingClientPayloadTransport.configure(new FabricRingClientPayloadTransport());
         ClientPlayNetworking.registerGlobalReceiver(RingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> {
-            long fingerprint = RingLayoutFingerprint.compute(payload.getConfig(), payload.seed());
+            long fingerprint = payload.getConfig().layoutFingerprint(payload.seed());
             if (fingerprint != payload.fingerprint()) {
+                RingWorldMod.LOGGER.error("RingWorld client fingerprint did not match server! Expected {}, got {}", payload.fingerprint(), fingerprint);
                 var handler = context.client().getConnection();
                 if (handler != null) {
                     handler.getConnection().disconnect(Component.literal("RingWorld layout fingerprint mismatch."));

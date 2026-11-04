@@ -80,7 +80,7 @@ public final class RingTerrainAtlas {
     }
 
     public static long worldHash(RingWorldConfig settings, long seed) {
-        long value = RingLayoutFingerprint.compute(settings, seed);
+        long value = settings.layoutFingerprint(seed);
         value = RingLayoutFingerprint.mix(value ^ ((long) FORMAT_VERSION << 32));
         return RingLayoutFingerprint.mix(value ^ SAMPLE_STEP_BLOCKS);
     }

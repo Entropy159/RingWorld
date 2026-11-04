@@ -23,7 +23,7 @@ public final class RingLayoutFingerprint {
         value = mix(value ^ (Integer.toUnsignedLong(circumferenceBlocks) << 1));
         value = mix(value ^ (Integer.toUnsignedLong(wallHeightBlocks) << 17));
         value = mix(value ^ (Integer.toUnsignedLong(wallStyle.thickness()) << 9));
-        value = mix(value ^ (Integer.toUnsignedLong(wallStyle.palette().hashCode()) << 13));
+        value = mix(value ^ (Integer.toUnsignedLong(wallStyle.palette().toString().hashCode()) << 13));
         value = mix(value ^ (Integer.toUnsignedLong(wallStyle.pattern().id.hashCode()) << 21));
         value = mix(value ^ (Integer.toUnsignedLong(wallStyle.decay()) << 29));
         return mix(value ^ (Integer.toUnsignedLong(RingGenerationBoundary.RIM_STYLE_VERSION) << 25));
