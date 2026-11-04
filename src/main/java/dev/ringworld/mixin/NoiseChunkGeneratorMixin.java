@@ -1,7 +1,9 @@
 package dev.ringworld.mixin;
 
 import dev.ringworld.config.WallSettings;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingRandomStateAccess;
+import dev.ringworld.world.RingWorldGeneratorAccess;
 import dev.ringworld.world.wall.RingGenerationBoundary;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
@@ -15,6 +17,7 @@ import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,15 +44,9 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     @Unique
     private @Nullable RingGeometry ringworld$geometry;
     @Unique
-    private final int ringworld$terrainNoiseMapping = RingTerrainNoiseMapping.CURRENT;
-    @Unique
     private int ringworld$wallHeight;
     @Unique
     private WallSettings ringworld$wallStyle = WallSettings.DEFAULT;
-    @Unique
-    private volatile boolean ringworld$guaranteeStronghold;
-    @Unique
-    private long ringworld$generatorSeed;
 
     @Override
     public void ringworld$setGeometry(RingGeometry geometry) {
@@ -59,11 +56,6 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     @Override
     public @Nullable RingGeometry ringworld$getGeometry() {
         return ringworld$geometry;
-    }
-
-    @Override
-    public int ringworld$getTerrainNoiseMapping() {
-        return ringworld$terrainNoiseMapping;
     }
 
     @Override
@@ -87,20 +79,10 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
     }
 
     @Override
-    public void ringworld$setGuaranteeStronghold(boolean guaranteeStronghold) {
-        ringworld$guaranteeStronghold = guaranteeStronghold;
-    }
-
-    @Override
-    public boolean ringworld$guaranteesStronghold() {
-        return ringworld$guaranteeStronghold;
-    }
-
-    @Override
     public synchronized Climate.Sampler ringworld$getPeriodicClimateSampler(RandomState state) {
         if (ringworld$geometry != null)
-            ((RingRandomStateAccess) (Object) state).ringworld$configureNoise(ringworld$geometry, ringworld$terrainNoiseMapping, ringworld$generatorSeed, settings.value().seaLevel(), settings.value().noiseRouter());
-        return RingClimateSampler.create(state);
+            ((RingRandomStateAccess) (Object) state).ringworld$configureNoise(ringworld$geometry, settings.value().seaLevel(), settings.value().noiseRouter());
+        return state.createClimateSampler(SamplerContext.EMPTY_UNCACHED);
     }
 
     @Inject(method = "buildTerrain", at = @At("HEAD"), cancellable = true)
@@ -111,18 +93,11 @@ public abstract class NoiseChunkGeneratorMixin implements RingWorldGeneratorAcce
 
     @Redirect(method = "generateCarvers", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/WorldgenRandom;setLargeFeatureSeed(JII)V"))
     private void ringworld$periodicCarverSeed(WorldgenRandom random, long seed, int x, int z) {
-        random.setLargeFeatureSeed(seed, ringworld$geometry == null ? x : RingTerrainNoiseMapping.carverSeedChunkX(ringworld$geometry, ringworld$terrainNoiseMapping, x), z);
+        random.setLargeFeatureSeed(seed, ringworld$geometry == null ? x : Math.floorMod(x, ringworld$geometry.circumferenceChunks()), z);
     }
 
     @ModifyVariable(method = "iterateNoiseColumn", at = @At("HEAD"), argsOnly = true, name = "blockX")
     private int ringworld$canonicalizeHeightQueryX(int x) {
         return ringworld$geometry == null ? x : ringworld$geometry.wrapBlockX(x);
-    }
-
-    @Inject(method = "doFill", at = @At("TAIL"))
-    private void ringworld$captureFixtureNoiseHeights(net.minecraft.world.level.levelgen.NoiseChunk noise, ChunkAccess chunk, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
-        if (ringworld$geometry != null && Boolean.getBoolean("ringworld.strongholdTest")) {
-            RingMinecraftFixtureAccess.captureNoiseHeights(chunk);
-        }
     }
 }

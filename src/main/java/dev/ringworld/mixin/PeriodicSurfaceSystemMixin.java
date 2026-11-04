@@ -27,6 +27,6 @@ public abstract class PeriodicSurfaceSystemMixin implements RingWorldGeneratorAc
     private void ringworld$surface(MaterialSystem system, RandomState state, BiomeManager biomes, WorldGenerationContext context, ChunkAccess chunk, NoiseChunk noise, MaterialRule rule, Set<Holder<Biome>> possible) {
         Runnable build = () -> system.buildSurface(state, biomes, context, chunk, noise, rule, possible);
         if (ringworld$getGeometry() == null) build.run();
-        else RingSurfaceSamplingContext.run(ringworld$getGeometry(), ringworld$getTerrainNoiseMapping(), build);
+        else RingSurfaceSamplingContext.run(ringworld$getGeometry(), build);
     }
 }

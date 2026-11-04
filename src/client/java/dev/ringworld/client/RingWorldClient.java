@@ -1,10 +1,12 @@
 package dev.ringworld.client;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.net.*;
 import dev.ringworld.world.RingLayoutFingerprint;
-import dev.ringworld.world.RingLodCommandSuggestions;
+import dev.ringworld.world.RingLodQuality;
 import dev.ringworld.world.atlas.RingAtlasLightProfile;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -34,7 +36,6 @@ public final class RingWorldClient implements ClientModInitializer {
             clearRingSession();
             ClientRingState.set(payload.dimension(), payload.getConfig(), payload.seed(), fingerprint);
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingBuildingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.setBuildingSettings(payload)));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.ID, (payload, context) -> context.client().execute(() -> {
             boolean cacheComplete = ClientRingState.installTerrainAtlas(payload);
             if (!RingClientPayloadTransport.canSend(RingTerrainAtlasRequestPayload.ID)) {
@@ -53,7 +54,7 @@ public final class RingWorldClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             RingAtlasPerformanceFeedback.tick(client);
             if (client.getConnection() != null && ClientCommands.getActiveDispatcher() != null) {
-                RingLodCommandSuggestions.ensurePresent(client.getConnection().getCommands());
+                ensureSuggestionsPresent(client.getConnection().getCommands());
             }
             if (client.player != null) ClientRingState.updateCameraPosition(client.player.getX());
         });
@@ -123,6 +124,27 @@ public final class RingWorldClient implements ClientModInitializer {
             })).then(falloff);
             dispatcher.register(ClientCommands.literal("ringworld").then(ringLights));
         });
+    }
+
+    private static <S> void ensureSuggestionsPresent(CommandDispatcher<S> dispatcher) {
+        var root = dispatcher.getRoot().getChild("ringworld");
+        if (root == null || root.getChild("distortion") == null) {
+            var distortion = LiteralArgumentBuilder.<S>literal("distortion").executes(context -> 0);
+            for (String action : new String[]{"on", "off", "show"})
+                distortion.then(LiteralArgumentBuilder.<S>literal(action).executes(context -> 0));
+            distortion.then(LiteralArgumentBuilder.<S>literal("distance").then(com.mojang.brigadier.builder.RequiredArgumentBuilder.<S, Integer>argument("chunks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 8)).executes(context -> 0)));
+            dispatcher.register(LiteralArgumentBuilder.<S>literal("ringworld").then(distortion));
+        }
+        if (root != null && root.getChild("lod") != null) return;
+        var lod = LiteralArgumentBuilder.<S>literal("lod").executes(context -> 0);
+        lod.then(LiteralArgumentBuilder.<S>literal("show").executes(context -> 0));
+        lod.then(LiteralArgumentBuilder.<S>literal("reset").executes(context -> 0));
+        for (var quality : RingLodQuality.values()) {
+            lod.then(LiteralArgumentBuilder.<S>literal(quality.command()).executes(context -> 0));
+        }
+        // Build all descendants before merging: an existing server root keeps its
+        // identity, so adding descendants to a detached clone afterwards loses them.
+        dispatcher.register(LiteralArgumentBuilder.<S>literal("ringworld").then(lod));
     }
 
     private static int showAtlasLight(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {

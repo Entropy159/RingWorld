@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * The single server-thread owner of a RingWorld Overworld terrain atlas.
@@ -178,7 +179,6 @@ public final class RingAtlasPregenerationService {
         WorldState state = WORLDS.get(world);
         if (state == null) return;
         state.ticks++;
-        pollCheckpoint(state);
         // Completed/paused jobs still supply the live player's adaptive capture policy.
         if (state.job != null && !state.stopping) state.job.updateRequestLimit();
         long captureStart = System.nanoTime();
@@ -189,13 +189,6 @@ public final class RingAtlasPregenerationService {
         captured = consumeFuture(world, state, captureStart, captured);
         if (!state.stopping) {
             captured = processLoadedCaptures(world, state, captureStart, captured, RingAtlasCaptureBudget.MAX_CHUNKS);
-        }
-        if (Boolean.getBoolean("ringworld.atlasCaptureTimings")) {
-            long elapsed = System.nanoTime() - captureStart;
-            state.captureChunks += captured;
-            state.maxCaptureChunks = Math.max(state.maxCaptureChunks, captured);
-            state.captureNanos += elapsed;
-            state.maxCaptureNanos = Math.max(state.maxCaptureNanos, elapsed);
         }
         processRecaptures(world, state);
         commitPendingRevision(state);
@@ -541,17 +534,6 @@ public final class RingAtlasPregenerationService {
         return Math.max(state.getLightEmission(), Math.max(world.getBrightness(LightLayer.BLOCK, surface), world.getBrightness(LightLayer.BLOCK, surface.above())));
     }
 
-    private static void pollCheckpoint(WorldState state) {
-        try {
-            RingAtlasCheckpointWriter.Result result = state.checkpoints.poll();
-            if (result != null && Boolean.getBoolean("ringworld.atlasSaveTimings")) {
-                RingWorldMod.LOGGER.info("RingWorld Atlas checkpoint cells={} snapshotMs={} writeMs={} verifyMs={} maxCopyTickMs={}", result.cells(), result.snapshotNanos() / 1e6, result.writeNanos() / 1e6, result.verificationNanos() / 1e6, result.maxCopyStepNanos() / 1e6);
-            }
-        } catch (java.util.concurrent.CompletionException exception) {
-            RingWorldMod.LOGGER.error("Could not save RingWorld terrain atlas " + state.path, exception);
-        }
-    }
-
     /**
      * Blocking drain is reserved for server stop/world unload, never a gameplay tick.
      */
@@ -559,12 +541,10 @@ public final class RingAtlasPregenerationService {
         commitPendingRevision(state);
         try {
             state.checkpoints.awaitActive(state.atlas);
-            pollCheckpoint(state);
             state.checkpoints.request(state.atlas, false);
             state.checkpoints.awaitActive(state.atlas);
-            pollCheckpoint(state);
             return !state.checkpoints.dirty();
-        } catch (java.util.concurrent.CompletionException exception) {
+        } catch (CompletionException exception) {
             RingWorldMod.LOGGER.error("Could not flush RingWorld terrain atlas " + state.path, exception);
             return false;
         }

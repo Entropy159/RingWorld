@@ -16,7 +16,6 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 public final class RingWorldNetworking {
     public static void registerPayloads() {
         PayloadTypeRegistry.clientboundPlay().register(RingSettingsPayload.ID, RingSettingsPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(RingBuildingSettingsPayload.ID, RingBuildingSettingsPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainAtlasMetadataPayload.ID, RingTerrainAtlasMetadataPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainAtlasTilePayload.ID, RingTerrainAtlasTilePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainAtlasRevisionPayload.ID, RingTerrainAtlasRevisionPayload.CODEC);
@@ -55,6 +54,5 @@ public final class RingWorldNetworking {
         RingWorldConfig settings = RingWorldConfig.get(level);
         ServerPlayNetworking.send(handler.player, RingSettingsPayload.from(level.dimension(), settings, level.getSeed(), settings.layoutFingerprint(level.getSeed())));
         RingTerrainAtlasServer.sendMetadata(handler.player);
-        RingTerrainAtlasServer.sendBuildingSettings(handler.player);
     }
 }

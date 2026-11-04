@@ -3,11 +3,16 @@ package dev.ringworld.server.atlas;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.api.RingWorldApi;
-import dev.ringworld.config.RingWorldConfig;
-import dev.ringworld.net.*;
+import dev.ringworld.net.RingTerrainAtlasMetadataPayload;
+import dev.ringworld.net.RingTerrainAtlasRevisionPayload;
+import dev.ringworld.net.RingTerrainAtlasTilePayload;
+import dev.ringworld.net.RingTerrainPreviewPayload;
 import dev.ringworld.server.atlas.pregen.RingAtlasCommandPolicy;
 import dev.ringworld.server.atlas.pregen.RingAtlasPregenerationService;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingTerrainPreview;
+import dev.ringworld.world.RingTerrainPreviewSampler;
+import dev.ringworld.world.RingTerrainPreviewStage;
 import dev.ringworld.world.atlas.RingAtlasPregenerationCursor;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 import dev.ringworld.world.atlas.pregen.*;
@@ -69,14 +74,6 @@ public final class RingTerrainAtlasServer {
                 Commands.literal("ringworld")
                         .requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)))
                         .then(generationRate)
-                        .then(Commands.literal("building")
-                                .then(Commands.literal("outside")
-                                        .then(Commands.literal("on")
-                                                .executes(c -> outsideBuilding(c.getSource(), true)))
-                                        .then(Commands.literal("off")
-                                                .executes(c -> outsideBuilding(c.getSource(), false)))
-                                        .then(Commands.literal("show")
-                                                .executes(c -> outsideBuilding(c.getSource(), null)))))
                         .then(Commands.literal("atlas")
                                 .then(Commands.literal("status")
                                         .executes(context -> {
@@ -100,22 +97,6 @@ public final class RingTerrainAtlasServer {
         }
         source.sendSuccess(() -> Component.literal("RingWorld chunk generation: " + RingAtlasPregenerationService.chunkGenerationRate(world) + ". Existing requests finish normally. Setting lasts until the world closes."), rate != null);
         return 1;
-    }
-
-    private static int outsideBuilding(CommandSourceStack source, Boolean enabled) {
-        ServerLevel world = source.getLevel();
-        if (enabled != null) {
-            RingBuildingSettings.get(world).setOutsideBuilding(enabled);
-            for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) sendBuildingSettings(player);
-        }
-        source.sendSuccess(() -> Component.literal("RingWorld outside building: " + (RingBuildingSettings.get(world).outsideBuilding() ? "on" : "off") + (Boolean.FALSE.equals(enabled) ? ". Existing builds are kept." : ".")), enabled != null);
-        return 1;
-    }
-
-    public static void sendBuildingSettings(ServerPlayer player) {
-        ServerLevel world = player.level().getLevel();
-        var payload = new RingBuildingSettingsPayload(RingWorldConfig.get(world).layoutFingerprint(world.getSeed()), RingBuildingSettings.get(world).outsideBuilding());
-        if (transport.canSend(player, RingBuildingSettingsPayload.ID)) transport.send(player, payload);
     }
 
     public static void unload(ServerLevel world) {
@@ -159,11 +140,10 @@ public final class RingTerrainAtlasServer {
         // Geometry acknowledgement is the first point at which a client can
         // safely bind this status to a RingWorld layout.
         PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
-        sendPregenerationStatus(player, world, Optional.empty());
+        sendPregenerationStatus(player, world);
     }
 
     private static void sendPreview(ServerPlayer player, ServerLevel world, RingTerrainAtlas atlas) {
-        if (Boolean.getBoolean("ringworld.disableSeedPreview")) return;
         PreviewJob job = PREVIEW_JOBS.get(world);
         if (job != null && job.worldHash != atlas.worldHash()) {
             job.cancel();
@@ -273,7 +253,7 @@ public final class RingTerrainAtlasServer {
         }
         if (atlas.worldHash() != worldHash) return;
         PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
-        sendPregenerationStatus(player, world, Optional.empty());
+        sendPregenerationStatus(player, world);
     }
 
     /**
@@ -290,11 +270,11 @@ public final class RingTerrainAtlasServer {
         }
         PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
         if (atlas.worldHash() != worldHash) {
-            sendPregenerationStatus(player, world, Optional.of("This map belongs to another RingWorld layout."));
+            sendPregenerationStatus(player, world);
             return;
         }
         if (!canControl(player)) {
-            sendPregenerationStatus(player, world, Optional.of("You can view progress, but only the world owner or a gamemaster can control generation."));
+            sendPregenerationStatus(player, world);
             return;
         }
         try {
@@ -303,11 +283,11 @@ public final class RingTerrainAtlasServer {
             switch (action) {
                 case START -> {
                     if (state == AtlasPregenerationState.COMPLETE) {
-                        sendPregenerationStatus(player, world, Optional.of("The complete atlas is already saved."));
+                        sendPregenerationStatus(player, world);
                         return;
                     }
                     if (state == AtlasPregenerationState.RUNNING || state == AtlasPregenerationState.PAUSED || state == AtlasPregenerationState.SAVING) {
-                        sendPregenerationStatus(player, world, Optional.of("Generation is already active."));
+                        sendPregenerationStatus(player, world);
                         return;
                     }
                     // Mode is an adapter intent, not permission to make a second
@@ -317,30 +297,30 @@ public final class RingTerrainAtlasServer {
                 }
                 case PAUSE -> {
                     if (state != AtlasPregenerationState.RUNNING) {
-                        sendPregenerationStatus(player, world, Optional.of("Generation is not currently running."));
+                        sendPregenerationStatus(player, world);
                         return;
                     }
                     handle.pause();
                 }
                 case RESUME -> {
                     if (state != AtlasPregenerationState.PAUSED) {
-                        sendPregenerationStatus(player, world, Optional.of("Generation is not paused."));
+                        sendPregenerationStatus(player, world);
                         return;
                     }
                     handle.resume();
                 }
                 case CANCEL -> {
                     if (state != AtlasPregenerationState.RUNNING && state != AtlasPregenerationState.PAUSED) {
-                        sendPregenerationStatus(player, world, Optional.of("There is no running generation to cancel."));
+                        sendPregenerationStatus(player, world);
                         return;
                     }
                     handle.cancel();
                 }
             }
-            sendPregenerationStatus(player, world, Optional.empty());
+            sendPregenerationStatus(player, world);
         } catch (RuntimeException exception) {
             RingWorldMod.LOGGER.warn("Rejected atlas generation action {} from {}", action, player.getName().getString(), exception);
-            sendPregenerationStatus(player, world, Optional.of(Optional.ofNullable(exception.getMessage()).orElse("Generation request could not be completed.")));
+            sendPregenerationStatus(player, world);
         }
     }
 
@@ -369,7 +349,7 @@ public final class RingTerrainAtlasServer {
             if (observer == null || observer.world != world) continue;
             AtlasPregenerationState current = currentState(world);
             if (observer.state != current || tick - observer.lastSentTick >= PROGRESS_INTERVAL_TICKS) {
-                sendPregenerationStatus(player, world, Optional.empty());
+                sendPregenerationStatus(player, world);
             }
         }
     }
@@ -378,7 +358,7 @@ public final class RingTerrainAtlasServer {
         return RingAtlasPregenerationService.active(world).map(handle -> handle.progress().state()).orElse(AtlasPregenerationState.IDLE);
     }
 
-    private static void sendPregenerationStatus(ServerPlayer player, ServerLevel world, Optional<String> message) {
+    private static void sendPregenerationStatus(ServerPlayer player, ServerLevel world) {
         RingTerrainAtlas atlas;
         try {
             atlas = RingAtlasPregenerationService.atlas(world);

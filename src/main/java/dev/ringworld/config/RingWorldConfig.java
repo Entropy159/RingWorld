@@ -5,8 +5,8 @@ import dev.ringworld.world.RingLayoutFingerprint;
 import net.minecraft.server.level.ServerLevel;
 
 public record RingWorldConfig(int width, int circumference, WallSettings wallSettings, SkySettings skySettings,
-                              boolean pregenAtlas) {
-    public static final RingWorldConfig DEFAULT = new RingWorldConfig(512, 32768, WallSettings.DEFAULT, SkySettings.DEFAULT, true);
+                              boolean pregenAtlas, boolean allowBuildingOutside) {
+    public static final RingWorldConfig DEFAULT = new RingWorldConfig(512, 32768, WallSettings.DEFAULT, SkySettings.DEFAULT, true, true);
 
     public RingWorldConfig {
         new RingGeometry(width, circumference); //Error checking

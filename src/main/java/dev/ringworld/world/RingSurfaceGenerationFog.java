@@ -8,13 +8,6 @@ public final class RingSurfaceGenerationFog {
     public static final float MAX_SEED_PREVIEW_FOG = 0.20F;
 
     /**
-     * Returns the fraction of proxy terrain replaced by the live fog colour.
-     */
-    public static float amount(double atlasCompletion) {
-        return amount(atlasCompletion, false);
-    }
-
-    /**
      * A seed-derived biome preview remains hazy, but no longer gets hidden by the fallback fog.
      */
     public static float amount(double atlasCompletion, boolean hasSeedPreview) {

@@ -1,8 +1,7 @@
 package dev.ringworld.mixin;
 
 import dev.ringworld.api.RingWorldApi;
-import dev.ringworld.server.RingWorldServer;
-import dev.ringworld.world.RingBuildingSettings;
+import dev.ringworld.config.RingWorldConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -19,7 +18,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class BlockItemMixin {
     @Inject(method = "canPlace", at = @At("HEAD"), cancellable = true)
     private void ringworld$placementPolicy(BlockPlaceContext context, BlockState state, CallbackInfoReturnable<Boolean> cir) {
-        if (context.getPlayer() != null && context.getLevel() instanceof ServerLevel world && RingWorldApi.isRingWorld(world) && !RingWorldApi.allowPlacing(RingBuildingSettings.get(world).outsideBuilding(), RingWorldServer.geometryFor(world), context))
-            cir.setReturnValue(false);
+        if (context.getPlayer() != null && context.getLevel() instanceof ServerLevel world && RingWorldApi.isRingWorld(world)) {
+            var config = RingWorldConfig.get(world);
+            if (config != null && !config.allowBuildingOutside() && config.geometry().isOutsideWidth(context.getClickedPos().relative(context.getHorizontalDirection()).getZ())) {
+                cir.setReturnValue(false);
+            }
+        }
     }
 }

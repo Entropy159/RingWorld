@@ -1,7 +1,6 @@
 package dev.ringworld.client.mixin;
 
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.world.RingBuildingSettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -20,7 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ClientBucketItemMixin {
     @Inject(method = "emptyContents", at = @At("HEAD"), cancellable = true)
     private void ringworld$placementPolicy(LivingEntity actor, Level world, BlockPos pos, BlockHitResult hit, CallbackInfoReturnable<Boolean> cir) {
-        if (actor instanceof Player && world.isClientSide() && ClientRingState.geometry() != null && !RingBuildingSettings.allows(ClientRingState.outsideBuilding(), ClientRingState.geometry(), pos.getZ()))
-            cir.setReturnValue(false);
+        if (actor instanceof Player && world.isClientSide() && ClientRingState.geometry() != null) {
+            var config = ClientRingState.config();
+            if (config != null && !config.allowBuildingOutside() && config.geometry().isOutsideWidth(pos.getZ())) {
+                cir.setReturnValue(false);
+            }
+        }
     }
 }

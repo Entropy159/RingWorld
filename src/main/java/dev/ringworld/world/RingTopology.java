@@ -28,38 +28,22 @@ public final class RingTopology {
         return geometry.wrapX(chartX);
     }
 
-    public int canonicalBlockX(int chartBlockX) {
-        return RingBlockCoordinates.canonicalBlockX(chartBlockX, geometry);
-    }
-
-    public int canonicalChunkX(int chartChunkX) {
-        return RingChunkCoordinates.wrapChunkX(chartChunkX, geometry);
-    }
-
-    public int canonicalSectionX(int chartSectionX) {
-        return canonicalChunkX(chartSectionX);
-    }
-
     public double imageNear(double canonicalOrChartX, double observerChartX) {
         return geometry.nearestImageX(canonicalOrChartX, observerChartX);
     }
 
     public int imageBlockNear(int canonicalBlockX, double observerChartX) {
-        return RingBlockCoordinates.nearestImageBlockX(canonicalBlockX, observerChartX, geometry);
-    }
-
-    public int imageChunkNear(int canonicalChunkX, int observerChartChunkX) {
-        return RingChunkCoordinates.nearestImageChunkX(canonicalChunkX, observerChartChunkX, geometry);
-    }
-
-    public double deltaX(double fromChartX, double toCanonicalOrChartX) {
-        return geometry.shortestCircumferenceDelta(fromChartX, toCanonicalOrChartX);
-    }
-
-    public double squaredHorizontalDistance(double fromX, double fromZ, double toX, double toZ) {
-        double dx = deltaX(fromX, toX);
-        double dz = toZ - fromZ;
-        return dx * dx + dz * dz;
+        if (!Double.isFinite(observerChartX)) {
+            throw new IllegalArgumentException("reference chart X must be finite");
+        }
+        int circumference = geometry.circumference();
+        int wrapped = geometry.wrapBlockX(canonicalBlockX);
+        double imageIndex = Math.rint((observerChartX - wrapped) / circumference);
+        double result = wrapped + imageIndex * circumference;
+        if (!Double.isFinite(result) || result < Integer.MIN_VALUE || result > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("ring block image exceeds vanilla coordinate range");
+        }
+        return (int) result;
     }
 
     /**
@@ -111,8 +95,5 @@ public final class RingTopology {
     }
 
     public record QueryWindow(AABB canonicalBox, double chartOffset) {
-        public AABB toChart(AABB box) {
-            return box.move(chartOffset, 0.0, 0.0);
-        }
     }
 }

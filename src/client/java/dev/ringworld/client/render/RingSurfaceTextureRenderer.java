@@ -440,9 +440,6 @@ public final class RingSurfaceTextureRenderer {
 
     private static void flagRenderStall(String operation, long started) {
         long elapsed = System.nanoTime() - started;
-        if (Boolean.getBoolean("ringworld.profileSurfaceBuilds") && elapsed >= 1000000L) {
-            RingWorldMod.LOGGER.info("RingWorld surface timing: {} took {} ms", operation, elapsed / 1000000.0);
-        }
         if (elapsed >= 16000000L) {
             RingWorldMod.LOGGER.warn("RingWorld render stall candidate: {} took {} ms", operation, String.format(java.util.Locale.ROOT, "%.2f", elapsed / 1000000.0));
         }

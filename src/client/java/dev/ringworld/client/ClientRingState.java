@@ -2,7 +2,6 @@ package dev.ringworld.client;
 
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.config.RingWorldConfig;
-import dev.ringworld.net.RingBuildingSettingsPayload;
 import dev.ringworld.net.RingTerrainAtlasMetadataPayload;
 import dev.ringworld.net.RingTerrainPreviewPayload;
 import dev.ringworld.world.RingGeometry;
@@ -28,7 +27,6 @@ import java.util.Map;
  */
 public final class ClientRingState {
     private static final Map<ResourceKey<Level>, RingWorldConfig> CONFIGS = new HashMap<>();
-    private static volatile boolean outsideBuilding = true;
     private static volatile long generatorSeed;
     private static volatile long layoutFingerprint;
     @Nullable
@@ -89,15 +87,6 @@ public final class ClientRingState {
 
     public static @Nullable RingWorldConfig config(ResourceKey<Level> dimension) {
         return CONFIGS.get(dimension);
-    }
-
-    public static boolean outsideBuilding() {
-        return outsideBuilding;
-    }
-
-    public static void setBuildingSettings(RingBuildingSettingsPayload payload) {
-        if (payload.fingerprint() != layoutFingerprint) return;
-        outsideBuilding = payload.enabled();
     }
 
     public static long generatorSeed() {
@@ -314,7 +303,6 @@ public final class ClientRingState {
     public static void clear() {
         saveTerrainAtlasIfDue(true);
         CONFIGS.clear();
-        outsideBuilding = true;
         layoutFingerprint = 0;
         generatorSeed = 0;
         cameraPosition = null;

@@ -5,20 +5,16 @@ import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
-import dev.ringworld.world.wall.RingGenerationBoundary;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.Relative;
-import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,24 +23,12 @@ import java.util.Set;
  */
 public final class RingWorldServer {
     private static final Map<ServerLevel, RingGeometry> WORLD_GEOMETRY = new IdentityHashMap<>();
-    private static final Map<ServerLevel, LinkedHashMap<Long, LevelChunk>> PENDING_LEGACY_RIM_MIGRATIONS = new IdentityHashMap<>();
-
-    /**
-     * Queues safe deferred rim migration from a loader-owned chunk-load callback.
-     */
-    public static void onChunkLoaded(ServerLevel world, LevelChunk chunk) {
-        if (!RingWorldApi.isRingWorld(world)) return;
-        if (RingGenerationBoundary.containsRim(chunk, geometryFor(world))) {
-            PENDING_LEGACY_RIM_MIGRATIONS.computeIfAbsent(world, _ -> new LinkedHashMap<>()).putIfAbsent(chunk.getPos().pack(), chunk);
-        }
-    }
 
     /**
      * Clears loader-neutral state after a platform level-unload callback.
      */
     public static void onLevelUnloaded(ServerLevel world) {
         WORLD_GEOMETRY.remove(world);
-        PENDING_LEGACY_RIM_MIGRATIONS.remove(world);
         if (RingWorldApi.isRingWorld(world)) RingNoiseCoordinates.clearCache();
     }
 
@@ -65,38 +49,14 @@ public final class RingWorldServer {
     }
 
     private static void attachGeneratorSettings(ServerLevel world, RingGeometry geometry, WallSettings wallStyle) {
-        RingStructurePolicy policy = RingStructurePolicy.get(world);
-        boolean guaranteeStronghold = policy.guaranteesStronghold();
         ChunkGenerator generator = world.getChunkSource().getGenerator();
-        Climate.Sampler periodicClimateSampler = null;
-        java.util.function.IntBinaryOperator oceanFloorHeight = null;
         var generatorState = world.getChunkSource().getGeneratorState();
         if (generator instanceof RingWorldGeneratorAccess access) {
             access.ringworld$setGeometry(geometry);
             access.ringworld$setWallHeight(wallStyle.height());
             access.ringworld$setWallStyle(wallStyle);
-            access.ringworld$setGuaranteeStronghold(guaranteeStronghold);
-            periodicClimateSampler = access.ringworld$getPeriodicClimateSampler(generatorState.randomState());
-            oceanFloorHeight = (x, z) -> generator.getFirstOccupiedHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, world, generatorState.randomState());
+            access.ringworld$getPeriodicClimateSampler(generatorState.randomState());
         }
-        if (generatorState instanceof RingStructureStateAccess access) {
-            access.ringworld$setStructurePolicy(geometry, policy, generator.getSeaLevel(), periodicClimateSampler, oceanFloorHeight);
-            if (policy.oceanMonument().status() == RingMonumentResolution.Status.PENDING) {
-                RingMonumentResolution resolution = access.ringworld$resolvePendingOceanMonument();
-                policy = RingStructurePolicy.resolvePendingOceanMonument(world, resolution);
-                // New-world PENDING must become durable before any structure-start work can observe it.
-                world.getDataStorage().saveAndJoin();
-                access.ringworld$setStructurePolicy(geometry, policy, generator.getSeaLevel(), periodicClimateSampler, oceanFloorHeight);
-                if (resolution.status() == RingMonumentResolution.Status.SATISFIED) {
-                    RingWorldMod.LOGGER.info("Resolved requested RingWorld ocean monument: status={}, candidate={}", resolution.status(), resolution.candidate());
-                } else {
-                    RingWorldMod.LOGGER.warn("RingWorld ocean monument request could not be satisfied: status={}, reason={}", resolution.status(), resolution.reason());
-                }
-            } else if (!access.ringworld$hasCompatibleSavedOceanMonument()) {
-                RingWorldMod.LOGGER.error("Saved RingWorld ocean-monument candidate is incompatible with the current built-in registry or biome data; it will not be moved or regenerated");
-            }
-        }
-        RingWorldMod.LOGGER.debug("Attached RingWorld generator policy: guaranteeStronghold={}, monumentStatus={}", guaranteeStronghold, policy.oceanMonument().status());
     }
 
     /**

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.config.adapters.BlockStateAdapter;
+import dev.ringworld.config.adapters.ConfigDefaults;
 import dev.ringworld.config.adapters.HexIntAdapter;
 import dev.ringworld.config.adapters.WallPatternAdapter;
 import dev.ringworld.world.wall.RingWallPattern;
@@ -25,6 +26,7 @@ public class ConfigLoader {
     private static final Gson GSON = new GsonBuilder()
             .disableHtmlEscaping()
             .setPrettyPrinting()
+            .registerTypeAdapterFactory(new ConfigDefaults())
             .registerTypeAdapter(BlockState.class, new BlockStateAdapter())
             .registerTypeAdapter(RingWallPattern.class, new WallPatternAdapter())
             .registerTypeAdapter(int.class, new HexIntAdapter())

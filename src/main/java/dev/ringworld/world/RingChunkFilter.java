@@ -29,18 +29,25 @@ public record RingChunkFilter(ChunkPos center, int logicalCenterX, int viewDista
 
     @Override
     public boolean contains(int x, int z, boolean includeEdge) {
-        return isWithinRingDistance(circumferenceChunks, center.x(), center.z(), viewDistance, minChunkZ, maxChunkZ, x, z, includeEdge);
+        return isWithinVanillaDistance(circumferenceChunks, center.x(), center.z(), viewDistance, x, z, includeEdge);
     }
 
     /**
      * Same bounded periodic window, including entities over the exterior void.
      */
     public boolean containsEntity(int x, int z) {
-        return RingChunkTopology.isWithinVanillaDistance(circumferenceChunks, center.x(), center.z(), viewDistance, x, z, true);
+        return isWithinVanillaDistance(circumferenceChunks, center.x(), center.z(), viewDistance, x, z, true);
     }
 
-    static boolean isWithinRingDistance(int circumferenceChunks, int centerX, int centerZ, int viewDistance, int minChunkZ, int maxChunkZ, int x, int z, boolean includeEdge) {
-        return RingChunkTopology.isWithinVanillaDistance(circumferenceChunks, centerX, centerZ, viewDistance, x, z, includeEdge);
+    private static boolean isWithinVanillaDistance(int circumferenceChunks, int centerX, int centerZ, int viewDistance, int x, int z, boolean includeEdge) {
+        int edgeAllowance = includeEdge ? 2 : 1;
+        int first = Math.floorMod(centerX, circumferenceChunks);
+        int second = Math.floorMod(x, circumferenceChunks);
+        int raw = Math.abs(first - second);
+        int periodicDistance = Math.min(raw, circumferenceChunks - raw);
+        long dx = Math.max(0, periodicDistance - edgeAllowance);
+        long dz = Math.max(0, Math.abs(z - centerZ) - edgeAllowance);
+        return dx * dx + dz * dz < (long) viewDistance * viewDistance;
     }
 
     @Override

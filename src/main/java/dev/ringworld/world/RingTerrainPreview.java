@@ -136,7 +136,7 @@ public final class RingTerrainPreview {
     }
 
     private static int sampleIndex(int targetIndex, int targetSize, int sourceSize) {
-        if (targetIndex < 0 || targetIndex >= targetSize || targetSize <= 0) {
+        if (targetIndex < 0 || targetIndex >= targetSize) {
             throw new IndexOutOfBoundsException("terrain-preview sample outside bounds");
         }
         return Math.min(sourceSize - 1, (int) (((long) targetIndex * 2L + 1L) * sourceSize / (targetSize * 2L)));

@@ -4,7 +4,6 @@ import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.world.RingChunkCoordinates;
 import dev.ringworld.world.RingChunkFilter;
-import dev.ringworld.world.RingEntityTracking;
 import dev.ringworld.world.RingGeometry;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
@@ -15,6 +14,7 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
@@ -65,6 +65,11 @@ public abstract class ServerEntityTrackerMixin {
         int canonicalChunkX = RingChunkCoordinates.wrapChunkX(chunkX, geometry);
         boolean canonicalChunkWatched = player.getChunkTrackingView().contains(canonicalChunkX, chunkZ);
         boolean exteriorChunkWatched = (chunkZ < geometry.minChunkZ() || chunkZ > geometry.maxChunkZ()) && player.getChunkTrackingView() instanceof RingChunkFilter filter && filter.containsEntity(canonicalChunkX, chunkZ);
-        return RingEntityTracking.shouldRemainPaired(false, seenBy.contains(player.connection), canonicalChunkWatched, exteriorChunkWatched);
+        return shouldRemainPaired(seenBy.contains(player.connection), canonicalChunkWatched, exteriorChunkWatched);
+    }
+
+    @Unique
+    private static boolean shouldRemainPaired(boolean alreadyPaired, boolean canonicalChunkWatched, boolean exteriorChunkWatched) {
+        return exteriorChunkWatched || alreadyPaired && canonicalChunkWatched;
     }
 }

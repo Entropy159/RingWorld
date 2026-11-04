@@ -10,14 +10,6 @@ import java.util.Arrays;
 public final class RingSurfacePlaceholder {
     public static final int NEUTRAL_GREY = 0x6B706F;
 
-    public static Surface resolve(RingTerrainAtlas atlas) {
-        return resolve(atlas, atlas.columns(), atlas.rows());
-    }
-
-    public static Surface resolve(RingTerrainAtlas atlas, int targetColumns, int targetRows) {
-        return resolve(atlas, targetColumns, targetRows, null);
-    }
-
     public static Surface resolve(RingTerrainAtlas atlas, int targetColumns, int targetRows, RingTerrainPreview preview) {
         if (targetColumns <= 0 || targetRows <= 0) {
             throw new IllegalArgumentException("placeholder dimensions must be positive");

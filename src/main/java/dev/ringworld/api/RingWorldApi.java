@@ -3,15 +3,11 @@ package dev.ringworld.api;
 import dev.ringworld.Constants;
 import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.server.RingWorldServer;
-import dev.ringworld.world.RingBuildingSettings;
 import dev.ringworld.world.RingChunkCoordinates;
 import dev.ringworld.world.RingGeometry;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.phys.Vec3;
 
 public final class RingWorldApi {
@@ -55,10 +51,6 @@ public final class RingWorldApi {
      */
     public static RingPhysicalPose physicalPose(ServerLevel world, Vec3 intrinsicPosition, float yawDegrees, float pitchDegrees) {
         return RingPhysicalPose.fromIntrinsic(geometry(world), intrinsicPosition, yawDegrees, pitchDegrees);
-    }
-
-    public static boolean allowPlacing(boolean enabled, RingGeometry geometry, BlockPlaceContext context) {
-        return RingBuildingSettings.allows(enabled, geometry, context.getClickedPos().getZ()) && (!(context.getItemInHand().getItem() instanceof BlockItem item && item.getBlock() instanceof BedBlock) || RingBuildingSettings.allows(enabled, geometry, context.getClickedPos().relative(context.getHorizontalDirection()).getZ()));
     }
 
     public static int wrapChunkX(int chunkX, LevelAccessor level) {

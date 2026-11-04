@@ -13,8 +13,6 @@ public interface RingWorldGeneratorAccess {
 
     RingGeometry ringworld$getGeometry();
 
-    int ringworld$getTerrainNoiseMapping();
-
     void ringworld$setWallHeight(int wallHeightBlocks);
 
     int ringworld$getWallHeight();
@@ -22,10 +20,6 @@ public interface RingWorldGeneratorAccess {
     void ringworld$setWallStyle(WallSettings wallStyle);
 
     WallSettings ringworld$getWallStyle();
-
-    void ringworld$setGuaranteeStronghold(boolean guaranteeStronghold);
-
-    boolean ringworld$guaranteesStronghold();
 
     Climate.Sampler ringworld$getPeriodicClimateSampler(RandomState randomState);
 }

@@ -6,13 +6,9 @@ package dev.ringworld.world;
 public final class RingSurfaceSamplingContext {
     private static final ThreadLocal<RingNoiseCoordinates> ACTIVE = new ThreadLocal<>();
 
-    public static void run(RingGeometry geometry, int mappingVersion, Runnable operation) {
-        if (mappingVersion < RingTerrainNoiseMapping.ANNULAR_COMPLETE) {
-            operation.run();
-            return;
-        }
+    public static void run(RingGeometry geometry, Runnable operation) {
         RingNoiseCoordinates previous = ACTIVE.get();
-        ACTIVE.set(RingNoiseCoordinates.forGeometry(geometry, mappingVersion));
+        ACTIVE.set(RingNoiseCoordinates.forGeometry(geometry));
         try {
             operation.run();
         } finally {

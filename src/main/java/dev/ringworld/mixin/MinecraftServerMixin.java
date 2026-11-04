@@ -4,7 +4,6 @@ import com.llamalad7.mixinextras.sugar.Local;
 import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingSpawnBounds;
 import dev.ringworld.world.RingWorldStorageAccess;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -19,6 +18,7 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
@@ -43,7 +43,7 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
         var vanilla = generator.getOrigin(state);
         RingWorldConfig config = RingWorldConfig.get(level);
         RingGeometry geometry = new RingGeometry(config.width(), config.circumference());
-        return new ChunkPos(Math.floorMod(vanilla.x(), geometry.circumference()), Math.floorDiv(RingSpawnBounds.constrainInitialSpawnZ(vanilla.z() * 16 + 8, geometry), 16));
+        return new ChunkPos(Math.floorMod(vanilla.x(), geometry.circumference()), Math.floorDiv(constrainInitialSpawnZ(vanilla.z() * 16 + 8, geometry), 16));
     }
 
     @Redirect(method = "setInitialSpawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/LevelData$RespawnData;of(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/core/BlockPos;FF)Lnet/minecraft/world/level/storage/LevelData$RespawnData;"), require = 3)
@@ -53,6 +53,20 @@ public abstract class MinecraftServerMixin implements RingWorldStorageAccess {
         }
         RingWorldConfig config = RingWorldConfig.get(level);
         RingGeometry geometry = new RingGeometry(config.width(), config.circumference());
-        return LevelData.RespawnData.of(dimension, RingSpawnBounds.canonicalInitialSpawn(position, geometry), yaw, pitch);
+        return LevelData.RespawnData.of(dimension, canonicalInitialSpawn(position, geometry), yaw, pitch);
+    }
+
+    @Unique
+    private static int constrainInitialSpawnZ(int vanillaZ, RingGeometry geometry) {
+        int safeMargin = Math.clamp(geometry.width() / 4, 1, 32);
+        int minSafeZ = geometry.minWidthZ() + safeMargin;
+        int maxSafeZ = geometry.maxWidthZ() - safeMargin;
+        return vanillaZ >= minSafeZ && vanillaZ <= maxSafeZ ? vanillaZ : 0;
+    }
+
+    @Unique
+    private static BlockPos canonicalInitialSpawn(BlockPos candidate, RingGeometry geometry) {
+        int canonicalX = geometry.wrapBlockX(candidate.getX());
+        return canonicalX == candidate.getX() ? candidate.immutable() : new BlockPos(canonicalX, candidate.getY(), candidate.getZ());
     }
 }

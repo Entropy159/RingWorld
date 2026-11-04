@@ -23,10 +23,6 @@ public enum RingLodQuality {
         return command;
     }
 
-    public String label() {
-        return command.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + command.substring(1);
-    }
-
     public RingLodQuality next() {
         return values()[(ordinal() + 1) % values().length];
     }
@@ -37,10 +33,6 @@ public enum RingLodQuality {
 
     public int meshStep() {
         return meshStep;
-    }
-
-    public RingRenderProfile profile(RingGeometry geometry, double distance) {
-        return profile(geometry, distance, Integer.MAX_VALUE);
     }
 
     public RingRenderProfile profile(RingGeometry geometry, double distance, int textureLimit) {

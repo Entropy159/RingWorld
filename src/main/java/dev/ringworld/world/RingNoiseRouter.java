@@ -14,24 +14,20 @@ import java.util.IdentityHashMap;
  */
 public final class RingNoiseRouter implements DfRewriteRule {
     private final RingGeometry geometry;
-    private final int mapping;
-    private final long seed;
     private final int seaLevel;
     private final NoiseRouter router;
     private final RingNoiseCoordinates coordinates;
     private final IdentityHashMap<DensityFunction, DensityFunction> rewritten = new IdentityHashMap<>();
 
-    public RingNoiseRouter(RingGeometry geometry, int mapping, long seed, int seaLevel, NoiseRouter router) {
+    public RingNoiseRouter(RingGeometry geometry, int seaLevel, NoiseRouter router) {
         this.geometry = geometry;
-        this.mapping = mapping;
-        this.seed = seed;
         this.seaLevel = seaLevel;
         this.router = router;
-        coordinates = RingNoiseCoordinates.forGeometry(geometry, mapping);
+        coordinates = RingNoiseCoordinates.forGeometry(geometry);
     }
 
-    public boolean matches(RingGeometry geometry, int mapping, long seed, int seaLevel, NoiseRouter router) {
-        return this.geometry.equals(geometry) && this.mapping == mapping && this.seed == seed && this.seaLevel == seaLevel && this.router == router;
+    public boolean matches(RingGeometry geometry, int seaLevel, NoiseRouter router) {
+        return this.geometry.equals(geometry) && this.seaLevel == seaLevel && this.router == router;
     }
 
     @Override
@@ -41,7 +37,7 @@ public final class RingNoiseRouter implements DfRewriteRule {
         DensityFunction input = DfRewriteRule.INLINE_REFERENCE.rewrite(original);
         DensityFunction result;
         if (input != original) result = rewrite(input);
-        else if (input instanceof RingCoordinateDensityFunction || (mapping >= RingTerrainNoiseMapping.ANNULAR_COMPLETE_V2 && input instanceof BlendedNoise)) {
+        else if (input instanceof RingCoordinateDensityFunction || input instanceof BlendedNoise) {
             // The whole noise leaf sees one transform, including its shift children.
             result = new Cylindrical(input, coordinates);
         } else result = input.rewriteChildren(this);

@@ -134,9 +134,6 @@ public abstract class ChunkMapMaintenanceMixin {
 
     @Inject(method = "tick(Ljava/util/function/BooleanSupplier;)V", at = @At("RETURN"))
     private void ringworld$end(BooleanSupplier haveTime, CallbackInfo ci) {
-        if (ringworld$ordinaryTick && Boolean.getBoolean("ringworld.chunkWorkTimings") && (ringworld$tasks > 0 || ringworld$saveKeys != null)) {
-            org.slf4j.LoggerFactory.getLogger("ringworld").info("RingWorld chunk maintenance tick={} tasks={} saveAttempts={} sweepRemaining={} spanMs={} budgetMs={}", level.getServer().getTickCount(), ringworld$tasks, ringworld$saves, ringworld$saveKeys == null ? 0 : ringworld$saveKeys.length - ringworld$saveCursor, (System.nanoTime() - ringworld$start) / 1000000.0, ringworld$budget.nanos() / 1000000.0);
-        }
         ringworld$ordinaryTick = false;
     }
 

@@ -29,9 +29,6 @@ public final class RingTerrainPreviewSampler {
     private static final int STONE = 0x72736D;
     private static final int MYCELIUM = RingSurfaceLod.VANILLA_MYCELIUM_TOP_RGB;
 
-    private RingTerrainPreviewSampler() {
-    }
-
     public static RingTerrainPreview generate(long worldHash, RingGeometry geometry, RingTerrainPreviewStage stage, ChunkGenerator generator, RandomState randomState, LevelHeightAccessor heightAccessor) {
         if (!(generator instanceof RingWorldGeneratorAccess access)) return null;
         BiomeSource biomeSource = generator.getBiomeSource();

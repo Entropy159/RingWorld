@@ -15,15 +15,15 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * 26.3 routes terrain, climate, aquifer, ore and material functions here.
  */
 @Mixin(RandomState.class)
-abstract class ChunkNoiseSamplerMixin implements RingRandomStateAccess {
+public abstract class ChunkNoiseSamplerMixin implements RingRandomStateAccess {
     @Unique
     private volatile RingNoiseRouter ringworld$mapper;
 
     @Override
-    public synchronized void ringworld$configureNoise(RingGeometry geometry, int mapping, long seed, int seaLevel, NoiseRouter router) {
-        if (ringworld$mapper != null && ringworld$mapper.matches(geometry, mapping, seed, seaLevel, router))
+    public synchronized void ringworld$configureNoise(RingGeometry geometry, int seaLevel, NoiseRouter router) {
+        if (ringworld$mapper != null && ringworld$mapper.matches(geometry, seaLevel, router))
             return;
-        ringworld$mapper = new RingNoiseRouter(geometry, mapping, seed, seaLevel, router);
+        ringworld$mapper = new RingNoiseRouter(geometry, seaLevel, router);
     }
 
     @ModifyVariable(method = "getSampler", at = @At("HEAD"), argsOnly = true, name = "function")

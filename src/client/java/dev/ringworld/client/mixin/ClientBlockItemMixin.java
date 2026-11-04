@@ -1,6 +1,5 @@
 package dev.ringworld.client.mixin;
 
-import dev.ringworld.api.RingWorldApi;
 import dev.ringworld.client.ClientRingState;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -17,7 +16,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ClientBlockItemMixin {
     @Inject(method = "canPlace", at = @At("HEAD"), cancellable = true)
     private void ringworld$placementPolicy(BlockPlaceContext context, BlockState state, CallbackInfoReturnable<Boolean> cir) {
-        if (context.getLevel().isClientSide() && context.getPlayer() != null && ClientRingState.geometry() != null && !RingWorldApi.allowPlacing(ClientRingState.outsideBuilding(), ClientRingState.geometry(), context))
-            cir.setReturnValue(false);
+        if (context.getLevel().isClientSide() && context.getPlayer() != null && ClientRingState.geometry() != null) {
+            var config = ClientRingState.config();
+            if (config != null && !config.allowBuildingOutside() && config.geometry().isOutsideWidth(context.getClickedPos().relative(context.getHorizontalDirection()).getZ())) {
+                cir.setReturnValue(false);
+            }
+        }
     }
 }

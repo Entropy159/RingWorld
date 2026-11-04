@@ -116,8 +116,8 @@ public record RingGeometry(int width, int circumference) {
         return x < 0.0 || x >= circumference;
     }
 
-    public boolean isInsideWidth(double canonicalZ) {
-        return canonicalZ >= minWidthZ() + 1.0 && canonicalZ <= maxWidthZ() - 1.0;
+    public boolean isOutsideWidth(double canonicalZ) {
+        return canonicalZ >= maxWidthZ() || canonicalZ <= minWidthZ();
     }
 
     /**

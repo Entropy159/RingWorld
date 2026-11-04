@@ -6,13 +6,14 @@ import dev.ringworld.client.chunk.RingClientChunkMapAccess;
 import dev.ringworld.client.chunk.RingClientChunkMaps;
 import dev.ringworld.world.RingChunkCoordinates;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingPositionPaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.entity.PositionPath;
+import net.minecraft.world.entity.PositionStep;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.vehicle.minecart.NewMinecartBehavior;
 import net.minecraft.world.level.ChunkPos;
@@ -99,7 +100,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         var values = packet.position();
         double logicalX = geometry.nearestImageX(values.endPosition().x, client.player.getX());
         if (logicalX == values.endPosition().x) return packet;
-        var logical = RingPositionPaths.shift(values, logicalX - values.endPosition().x);
+        var logical = shiftPath(values, logicalX - values.endPosition().x);
         return new ClientboundEntityPositionSyncPacket(packet.id(), logical, packet.yRot(), packet.xRot(), packet.onGround());
     }
 
@@ -363,5 +364,17 @@ public abstract class ClientPlayNetworkHandlerMixin {
         Minecraft client = Minecraft.getInstance();
         if (geometry == null || client.player == null) return canonicalChunkX;
         return RingChunkCoordinates.nearestImageChunkX(canonicalChunkX, Math.floorDiv((int) Math.floor(client.player.getX()), 16), geometry);
+    }
+
+    @Unique
+    private static PositionPath shiftPath(PositionPath path, double x) {
+        Vec3 delta = new Vec3(x, 0, 0);
+        if (path instanceof PositionPath.Linear(Vec3 endPosition))
+            return new PositionPath.Linear(endPosition.add(delta));
+        if (path instanceof PositionPath.Stepped(
+                Vec3 endPosition, List<PositionStep> steps
+        ))
+            return new PositionPath.Stepped(endPosition.add(delta), steps.stream().map(step -> step.addDelta(delta)).toList());
+        throw new IllegalArgumentException("Unknown movement path: " + path.type());
     }
 }

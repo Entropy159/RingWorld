@@ -58,10 +58,6 @@ public record RingNearbyProjection(RingGeometry geometry, double referenceRadius
         return Math.copySign(value, wrapped) + turns * Math.PI * 2.0;
     }
 
-    public double angularSlope(double delta) {
-        return angularSlope(delta, cameraY);
-    }
-
     public double angularSlope(double delta, double vertexY) {
         double u = Math.abs(geometry.shortestCircumferenceDelta(0.0, delta));
         double t = Math.clamp((u - coreBlocks) / (blendEnd() - coreBlocks), 0.0, 1.0);
