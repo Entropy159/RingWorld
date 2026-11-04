@@ -24,7 +24,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permission;
 import net.minecraft.server.permissions.PermissionLevel;
-import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.io.IOException;
@@ -257,74 +256,6 @@ public final class RingTerrainAtlasServer {
     }
 
     /**
-     * Server-thread action gateway. Every request rechecks world and player authority.
-     */
-    public static void controlPregeneration(ServerPlayer player, long worldHash, AtlasPregenerationAction action) {
-        ServerLevel world = player.level();
-        if (!RingWorldApi.isRingWorld(world)) return;
-        RingTerrainAtlas atlas;
-        try {
-            atlas = RingAtlasPregenerationService.atlas(world);
-        } catch (IllegalStateException ignored) {
-            return;
-        }
-        PROGRESS_OBSERVERS.put(player.getUUID(), new ProgressObserver(world));
-        if (atlas.worldHash() != worldHash) {
-            sendPregenerationStatus(player, world);
-            return;
-        }
-        if (!canControl(player)) {
-            sendPregenerationStatus(player, world);
-            return;
-        }
-        try {
-            AtlasPregenerationHandle handle = RingAtlasPregenerationService.active(world).orElse(null);
-            AtlasPregenerationState state = handle == null ? null : handle.progress().state();
-            switch (action) {
-                case START -> {
-                    if (state == AtlasPregenerationState.COMPLETE) {
-                        sendPregenerationStatus(player, world);
-                        return;
-                    }
-                    if (state == AtlasPregenerationState.RUNNING || state == AtlasPregenerationState.PAUSED || state == AtlasPregenerationState.SAVING) {
-                        sendPregenerationStatus(player, world);
-                        return;
-                    }
-                    // Mode is an adapter intent, not permission to make a second
-                    // writer: matching conservative policies reuse the loaded job.
-                    RingAtlasPregenerationService.pregenerate(world, AtlasPregenerationOptions.interactiveDefaults(), progress -> {
-                    });
-                }
-                case PAUSE -> {
-                    if (state != AtlasPregenerationState.RUNNING) {
-                        sendPregenerationStatus(player, world);
-                        return;
-                    }
-                    handle.pause();
-                }
-                case RESUME -> {
-                    if (state != AtlasPregenerationState.PAUSED) {
-                        sendPregenerationStatus(player, world);
-                        return;
-                    }
-                    handle.resume();
-                }
-                case CANCEL -> {
-                    if (state != AtlasPregenerationState.RUNNING && state != AtlasPregenerationState.PAUSED) {
-                        sendPregenerationStatus(player, world);
-                        return;
-                    }
-                    handle.cancel();
-                }
-            }
-            sendPregenerationStatus(player, world);
-        } catch (RuntimeException exception) {
-            RingWorldMod.LOGGER.warn("Rejected atlas generation action {} from {}", action, player.getName().getString(), exception);
-            sendPregenerationStatus(player, world);
-        }
-    }
-
-    /**
      * Fabric lifecycle adapter calls this on disconnect so old observer state cannot leak into a new session.
      */
     public static void clearPlayer(ServerPlayer player) {
@@ -334,12 +265,6 @@ public final class RingTerrainAtlasServer {
 
     public static String status(ServerLevel world) {
         return RingAtlasPregenerationService.status(world);
-    }
-
-    private static boolean canControl(ServerPlayer player) {
-        boolean integratedOwner = player.level().getServer().isSingleplayer() && player.level().getServer().isSingleplayerOwner(new NameAndId(player.getGameProfile()));
-        boolean gamemaster = player.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS));
-        return integratedOwner || gamemaster;
     }
 
     private static void publishObservedStatus(ServerLevel world) {

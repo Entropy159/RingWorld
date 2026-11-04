@@ -641,11 +641,6 @@ public final class RingAtlasPregenerationService {
         private Integer requestLimitOverride;
         private boolean revisionPending;
         private long ticks;
-        private int captureChunks;
-        private int maxCaptureChunks;
-        private long captureNanos;
-        private long maxCaptureNanos;
-        private long maxObservedTickNanos;
         private Job job;
 
         private WorldState(RingTerrainAtlas atlas, Path path, boolean dirty) {

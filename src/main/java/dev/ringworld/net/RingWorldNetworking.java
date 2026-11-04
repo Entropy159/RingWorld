@@ -22,7 +22,6 @@ public final class RingWorldNetworking {
         PayloadTypeRegistry.clientboundPlay().register(RingTerrainPreviewPayload.ID, RingTerrainPreviewPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RingTerrainAtlasRequestPayload.ID, RingTerrainAtlasRequestPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RingAtlasPregenerationStatusRequestPayload.ID, RingAtlasPregenerationStatusRequestPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RingAtlasPregenerationControlPayload.ID, RingAtlasPregenerationControlPayload.CODEC);
     }
 
     public static void registerServer() {
@@ -37,9 +36,6 @@ public final class RingWorldNetworking {
         }));
         ServerPlayNetworking.registerGlobalReceiver(RingAtlasPregenerationStatusRequestPayload.ID, (payload, context) -> context.server().execute(() -> {
             RingTerrainAtlasServer.requestPregenerationStatus(context.player(), payload.worldHash());
-        }));
-        ServerPlayNetworking.registerGlobalReceiver(RingAtlasPregenerationControlPayload.ID, (payload, context) -> context.server().execute(() -> {
-            RingTerrainAtlasServer.controlPregeneration(context.player(), payload.worldHash(), payload.action());
         }));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             RingTerrainAtlasServer.clearPlayer(handler.player);
