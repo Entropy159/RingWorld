@@ -1,7 +1,6 @@
 package dev.ringworld.client.mixin;
 
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.RingMinecraftClientAccess;
 import dev.ringworld.client.render.CurvedRingFrustum;
 import dev.ringworld.world.RingGeometry;
 import net.minecraft.client.Minecraft;
@@ -53,9 +52,9 @@ public abstract class ChunkRenderingDataPreparerMixin {
         if (frustum instanceof CurvedRingFrustum) return frustum;
         RingGeometry geometry = ClientRingState.geometry();
         Minecraft client = Minecraft.getInstance();
-        if (geometry == null || client.gameRenderer == null || !RingMinecraftClientAccess.camera(client).isInitialized())
+        if (geometry == null || !client.gameRenderer.mainCamera().isInitialized())
             return frustum;
-        Vec3 cameraPosition = RingMinecraftClientAccess.camera(client).position();
+        Vec3 cameraPosition = client.gameRenderer.mainCamera().position();
         return new CurvedRingFrustum(frustum, geometry, cameraPosition);
     }
 }

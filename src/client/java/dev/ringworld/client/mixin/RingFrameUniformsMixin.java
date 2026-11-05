@@ -5,9 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import dev.ringworld.Constants;
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.RingAtlasLightTuning;
-import dev.ringworld.client.RingClientLodTuning;
-import dev.ringworld.client.RingDistortionTuning;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.client.render.RingRenderUniforms;
 import dev.ringworld.client.render.RingSurfaceGpu;
 import dev.ringworld.world.RingCloudBounds;
@@ -85,9 +83,8 @@ public abstract class RingFrameUniformsMixin {
         float maxWidthZExclusive = geometry == null ? 0.0F : geometry.maxWidthZ() + 1.0F;
         float halfCircumference = geometry == null ? 0.0F : geometry.circumference() * 0.5F;
         float viewDistanceBlocks = active == 1 ? client.options.getEffectiveRenderDistance() * 16.0F : 0.0F;
-        RingRenderProfile profile = geometry == null ? null : RingClientLodTuning.profile(geometry, viewDistanceBlocks);
+        RingRenderProfile profile = geometry == null ? null : ClientRingWorldConfig.get().renderProfile(geometry, viewDistanceBlocks);
         RingCloudBounds cloudBounds = geometry == null || config == null ? null : RingCloudBounds.betweenInnerRimFaces(geometry, config.wallSettings().thickness());
-        var atlasLight = RingAtlasLightTuning.profile();
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             var builder = Std140Builder.onStack(stack, RINGWORLD_GLOBALS_SIZE)
@@ -106,13 +103,13 @@ public abstract class RingFrameUniformsMixin {
                     // cloud fade end, visual policy version, inner Z face planes
                     .putVec4(profile == null ? 0.0F : (float) profile.cloudFadeEndBlocks(), profile == null ? 0.0F : profile.visualProfileVersion() + 1, cloudBounds == null ? 0.0F : (float) cloudBounds.minimumZ(), cloudBounds == null ? 0.0F : (float) cloudBounds.maximumZ()) //RingWorldAtmosphere2
                     // process-local Atlas-light debug profile; never persisted
-                    .putVec4(atlasLight.shaderMode(), atlasLight.falloffExponent(), atlasLight.peakStrength(), config == null ? 0 : config.skySettings().skyType().ordinal()); //RingWorldAtlasLight
+                    .putVec4(1, 2, 1.25f, config == null ? 0 : config.skySettings().skyType().ordinal()); //RingWorldAtlasLight
             ringworld$waterBounds(builder, client, RINGWORLD_WATER_STILL, active == 1 && client.level != null); //RingWorldWaterStill
             ringworld$waterBounds(builder, client, RINGWORLD_WATER_FLOW, active == 1 && client.level != null); //RingWorldWaterFlow
             // Uploaded correction parameters are independent of camera Y.
             // The shared shader reads the actual camera from vanilla Globals.
-            var distortion = geometry == null ? null : RingDistortionTuning.projection(geometry, Vec3.ZERO);
-            builder.putVec4(geometry != null && RingDistortionTuning.enabled() ? 1.0F : 0.0F, distortion == null ? 0.0F : (float) distortion.coreBlocks(), distortion == null ? 0.0F : (float) distortion.blendEnd(), distortion == null ? 0.0F : (float) distortion.referenceRadius()); //RingWorldDistortion
+            var distortion = geometry == null ? null : ClientRingWorldConfig.get().projection(geometry, Vec3.ZERO);
+            builder.putVec4(geometry != null && ClientRingWorldConfig.get().distorionEnabled() ? 1.0F : 0.0F, distortion == null ? 0.0F : (float) distortion.coreBlocks(), distortion == null ? 0.0F : (float) distortion.blendEnd(), distortion == null ? 0.0F : (float) distortion.referenceRadius()); //RingWorldDistortion
 
             builder.putFloat(Constants.CLOUD_FADE_BLOCKS); //RingWorldCloudFade
 

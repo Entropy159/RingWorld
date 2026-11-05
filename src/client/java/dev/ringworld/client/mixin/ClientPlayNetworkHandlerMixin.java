@@ -76,7 +76,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         // teleport can deliver them in either order, so make the acceptance
         // window authoritative here instead of leaving it on the old chart.
         client.level.getChunkSource().updateViewCenter(nextX, nextZ);
-        dev.ringworld.client.RingMinecraftClientAccess.invalidateChunks(client);
+        client.levelRenderer.sectionOcclusionGraph().invalidate();
         RingWorldMod.LOGGER.debug("Re-keyed client chunk chart from {},{} to {},{}", previousX, previousZ, nextX, nextZ);
     }
 

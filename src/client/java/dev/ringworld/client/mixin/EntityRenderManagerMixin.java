@@ -3,7 +3,7 @@ package dev.ringworld.client.mixin;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.RingDistortionTuning;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingObjectTransform;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -23,11 +23,11 @@ public abstract class EntityRenderManagerMixin {
     @Redirect(method = "submit", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(DDD)V", ordinal = 0))
     private void ringworld$translateEntity(PoseStack matrices, double x, double y, double z, EntityRenderState state, CameraRenderState cameraState, double originalX, double originalY, double originalZ, PoseStack originalMatrices, SubmitNodeCollector queue) {
         RingGeometry geometry = ClientRingState.geometry();
-        if (geometry == null || cameraState.pos == null) {
+        if (geometry == null) {
             matrices.translate(x, y, z);
             return;
         }
-        RingObjectTransform transform = RingDistortionTuning.object(geometry, cameraState.pos, x, y, z);
+        RingObjectTransform transform = ClientRingWorldConfig.get().distortionTransform(geometry, cameraState.pos, x, y, z);
         Vec3 localPosition = transform.cameraLocalPosition();
         matrices.translate(localPosition.x, localPosition.y, localPosition.z);
         // Entity renderers apply their normal yaw/pose transforms after this

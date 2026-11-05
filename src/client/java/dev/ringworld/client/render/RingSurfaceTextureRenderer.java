@@ -11,9 +11,7 @@ import com.mojang.renderpearl.api.textures.GpuTextureView;
 import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.RingClientLodTuning;
-import dev.ringworld.client.RingDistortionTuning;
-import dev.ringworld.client.RingMinecraftClientAccess;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
@@ -84,7 +82,7 @@ public final class RingSurfaceTextureRenderer {
         // Distant scenery must not remain visible through underwater fog.
         // Use the render camera (also correct for third person), retain buffers
         // for resurfacing, and leave real chunks to Minecraft's normal fog.
-        if (RingMinecraftClientAccess.camera(client).getFluidInCamera() == FogType.WATER) return;
+        if (client.gameRenderer.mainCamera().getFluidInCamera() == FogType.WATER) return;
         long resourceStarted = System.nanoTime();
         ensureResources(geometry, atlas);
         flagRenderStall("surface resource update (including allocation/release)", resourceStarted);
@@ -110,7 +108,7 @@ public final class RingSurfaceTextureRenderer {
         // Model vertices use global ring coordinates. Rotate the entire static
         // object into the camera's tangent frame, then move its centre to the
         // same local point used by curved real chunk vertices.
-        if (!RingDistortionTuning.enabled()) {
+        if (!ClientRingWorldConfig.get().distorionEnabled()) {
             modelView.translate(0.0F, (float) cameraRadius, (float) -camera.z);
             modelView.rotateZ((float) -cameraAngle);
         }
@@ -208,11 +206,11 @@ public final class RingSurfaceTextureRenderer {
             }
         }
 
-        var quality = RingClientLodTuning.quality();
+        var quality = ClientRingWorldConfig.get().lodQuality();
         long snapshotStarted = System.nanoTime();
         RingTerrainAtlas snapshot = atlas.snapshot();
         flagRenderStall("Atlas snapshot copy", snapshotStarted);
-        RingRenderProfile profile = RingClientLodTuning.profile(geometry, 16.0);
+        RingRenderProfile profile = ClientRingWorldConfig.get().renderProfile(geometry, 16.0);
         RingSurfaceBuildSnapshot buildSnapshot = new RingSurfaceBuildSnapshot(snapshot, revision);
         long generation = textureBuildGeneration;
         Minecraft client = Minecraft.getInstance();
@@ -314,7 +312,7 @@ public final class RingSurfaceTextureRenderer {
                 int rightColumn = Math.floorMod(column + 1, targetColumns);
                 int index = row * targetColumns + column;
                 float centerHeight = heights[index];
-                int shaded = RingSurfaceLod.shadeSurfaceColor(pixels[index], centerHeight, presentHeightOr(heights, pixels, row * targetColumns + leftColumn, centerHeight), presentHeightOr(heights, pixels, row * targetColumns + rightColumn, centerHeight), presentHeightOr(heights, pixels, lowerRow * targetColumns + column, centerHeight), presentHeightOr(heights, pixels, upperRow * targetColumns + column, centerHeight), spacingX, spacingZ);
+                int shaded = RingSurfaceLod.shadeSurfaceColor(pixels[index], centerHeight, presentHeightOr(heights, row * targetColumns + leftColumn, centerHeight), presentHeightOr(heights, row * targetColumns + rightColumn, centerHeight), presentHeightOr(heights, lowerRow * targetColumns + column, centerHeight), presentHeightOr(heights, upperRow * targetColumns + column, centerHeight), spacingX, spacingZ);
                 // The RGB channels remain ordinary daytime terrain. Alpha is
                 // a separate exposed block-light intensity consumed only by
                 // the nighttime shader; mesh opacity does not depend on it.
@@ -445,7 +443,7 @@ public final class RingSurfaceTextureRenderer {
         }
     }
 
-    private static float presentHeightOr(float[] heights, int[] pixels, int index, float fallback) {
+    private static float presentHeightOr(float[] heights, int index, float fallback) {
         return Float.isFinite(heights[index]) ? heights[index] : fallback;
     }
 

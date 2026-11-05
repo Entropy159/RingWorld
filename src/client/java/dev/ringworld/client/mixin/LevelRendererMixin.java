@@ -3,7 +3,7 @@ package dev.ringworld.client.mixin;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.RingDistortionTuning;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingObjectTransform;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -42,7 +42,7 @@ public abstract class LevelRendererMixin {
             poseStack.translate(x, y, z);
             return;
         }
-        RingObjectTransform transform = RingDistortionTuning.object(geometry, camera, x, y, z);
+        RingObjectTransform transform = ClientRingWorldConfig.get().distortionTransform(geometry, camera, x, y, z);
         Vec3 local = transform.cameraLocalPosition();
         poseStack.translate(local.x, local.y, local.z);
         poseStack.rotate(Axis.ZP.rotation((float) transform.tangentAngleRadians()));

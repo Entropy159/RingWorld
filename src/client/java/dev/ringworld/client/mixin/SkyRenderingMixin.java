@@ -13,7 +13,7 @@ import com.mojang.renderpearl.api.pipeline.ColorTargetState;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.client.RingDistortionTuning;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.world.RingGeometry;
 import net.minecraft.client.Camera;
@@ -107,7 +107,7 @@ public abstract class SkyRenderingMixin {
 
         // Project the one physical star at the ring centre into the camera's
         // tangent frame. Crossing the finite width tilts it toward that point.
-        Vec3 starDirection = RingDistortionTuning.centerDirection(geometry, camera.position());
+        Vec3 starDirection = ClientRingWorldConfig.get().distorionEnabled() ? new Vec3(0, ClientRingWorldConfig.get().projection(geometry, camera.position()).cameraRadius(), -camera.position().z).normalize() : geometry.directionToRingCenter(camera.position());
         ringworld$starTiltRadians = (float) Math.atan2(starDirection.z, starDirection.y);
     }
 

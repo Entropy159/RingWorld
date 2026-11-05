@@ -11,7 +11,6 @@ import dev.ringworld.world.atlas.RingAtlasSurfaceInvalidation;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 import dev.ringworld.world.atlas.pregen.*;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.tags.BlockTags;
@@ -391,25 +390,6 @@ public final class RingAtlasPregenerationService {
             }
         }
         return captured;
-    }
-
-    /**
-     * Local integrated-client feedback only; no remote-player packets or world access off-thread.
-     */
-    public static void reportLocalFrameRate(MinecraftServer server, int fps, int target) {
-        if (fps <= 0 || target <= 0) return;
-        long sampledAt = System.nanoTime();
-        Runnable update = () -> {
-            WorldState state = WORLDS.get(server.overworld());
-            if (state == null || state.stopping || state.job == null || !state.job.adaptive.automatic()) return;
-            if (System.nanoTime() - sampledAt > 3000000000L) return;
-            state.localFps = fps;
-            state.localFrameTarget = Math.min(60, target);
-            state.frameFeedbackNanos = sampledAt;
-            state.hasFrameFeedback = true;
-        };
-        if (server.isSameThread()) update.run();
-        else server.execute(update);
     }
 
     private static CaptureResult captureChunk(ServerLevel world, LevelChunk chunk, WorldState state) {

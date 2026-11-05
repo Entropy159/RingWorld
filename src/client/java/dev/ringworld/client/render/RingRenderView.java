@@ -1,6 +1,6 @@
 package dev.ringworld.client.render;
 
-import dev.ringworld.client.RingDistortionTuning;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingNearbyProjection;
 import net.minecraft.world.phys.AABB;
@@ -21,7 +21,7 @@ public record RingRenderView(RingGeometry geometry, Vec3 camera, RingNearbyProje
      * Capture on the client thread; subsequent queries never read live client state.
      */
     public static RingRenderView capture(RingGeometry geometry, Vec3 camera) {
-        return new RingRenderView(geometry, camera, RingDistortionTuning.enabled() ? RingDistortionTuning.projection(geometry, camera) : null);
+        return new RingRenderView(geometry, camera, ClientRingWorldConfig.get().distorionEnabled() ? ClientRingWorldConfig.get().projection(geometry, camera) : null);
     }
 
     public Vec3 position(Vec3 canonical) {

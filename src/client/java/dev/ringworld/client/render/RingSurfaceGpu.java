@@ -18,7 +18,6 @@ import com.mojang.renderpearl.api.textures.GpuTexture;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.mojang.renderpearl.api.vertex.VertexFormat;
 import dev.ringworld.RingWorldMod;
-import dev.ringworld.client.RingMinecraftClientAccess;
 import dev.ringworld.world.RingSurfaceMesh;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BindGroupLayouts;
@@ -106,8 +105,8 @@ public final class RingSurfaceGpu {
     }
 
     public static void draw(Minecraft client, GpuBuffer vertexBuffer, int vertexCount, GpuTextureView current, GpuTextureView previous, GpuTextureView walls, GpuBufferSlice transforms) {
-        GpuTextureView color = RingMinecraftClientAccess.mainRenderTarget(client).getColorTextureView();
-        GpuTextureView depth = RingMinecraftClientAccess.mainRenderTarget(client).getDepthTextureView();
+        GpuTextureView color = client.gameRenderer.mainRenderTarget().getColorTextureView();
+        GpuTextureView depth = client.gameRenderer.mainRenderTarget().getDepthTextureView();
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
         try (RenderPass pass = encoder.createRenderPass(() -> "RingWorld textured surface", color, Optional.empty(), depth, OptionalDouble.empty())) {
             pass.setPipeline(RenderSystem.getCompiledPipeline(PIPELINE));

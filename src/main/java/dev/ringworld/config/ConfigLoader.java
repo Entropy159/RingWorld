@@ -23,7 +23,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 
 public class ConfigLoader {
-    private static final Gson GSON = new GsonBuilder()
+    public static final Gson GSON = new GsonBuilder()
             .disableHtmlEscaping()
             .setPrettyPrinting()
             .registerTypeAdapterFactory(new ConfigDefaults())
@@ -67,7 +67,7 @@ public class ConfigLoader {
             save(dimension, config);
             return config;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to get RingWorld config!", e);
         }
     }
 

@@ -6,21 +6,15 @@ import dev.ringworld.world.atlas.RingTerrainAtlas;
  * Local display choices. These IDs are not saved generation settings or network values.
  */
 public enum RingLodQuality {
-    LOW("low", 8, 4096, 1024, 8), MEDIUM("medium", 2, 16384, 1024, 4), HIGH("high", 1, 32768, 2048, 1);
+    LOW(8, 4096, 1024, 8), MEDIUM(2, 16384, 1024, 4), HIGH(1, 32768, 2048, 1);
 
-    private final String command;
     private final int sampleStep, columns, rows, meshStep;
 
-    RingLodQuality(String command, int sampleStep, int columns, int rows, int meshStep) {
-        this.command = command;
+    RingLodQuality(int sampleStep, int columns, int rows, int meshStep) {
         this.sampleStep = sampleStep;
         this.columns = columns;
         this.rows = rows;
         this.meshStep = meshStep;
-    }
-
-    public String command() {
-        return command;
     }
 
     public RingLodQuality next() {
@@ -29,10 +23,6 @@ public enum RingLodQuality {
 
     public int sampleStep() {
         return sampleStep;
-    }
-
-    public int meshStep() {
-        return meshStep;
     }
 
     public RingRenderProfile profile(RingGeometry geometry, double distance, int textureLimit) {

@@ -1,19 +1,14 @@
 package dev.ringworld.client;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.FloatArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.net.*;
-import dev.ringworld.world.RingLodQuality;
-import dev.ringworld.world.atlas.RingAtlasLightProfile;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
@@ -22,8 +17,6 @@ public final class RingWorldClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         RenderPipelines.register(RingSurfaceTextureRenderer.pipeline());
-        registerAtlasLightCommand();
-        RingClientPayloadTransport.configure(new FabricRingClientPayloadTransport());
         ClientPlayNetworking.registerGlobalReceiver(RingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> {
             long fingerprint = payload.getConfig().layoutFingerprint(payload.seed());
             if (fingerprint != payload.fingerprint()) {
@@ -39,124 +32,43 @@ public final class RingWorldClient implements ClientModInitializer {
         }));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.ID, (payload, context) -> context.client().execute(() -> {
             boolean cacheComplete = ClientRingState.installTerrainAtlas(payload);
-            if (!RingClientPayloadTransport.canSend(RingTerrainAtlasRequestPayload.ID)) {
+            if (!ClientPlayNetworking.canSend(RingTerrainAtlasRequestPayload.ID)) {
                 var handler = context.client().getConnection();
                 if (handler != null) {
                     handler.getConnection().disconnect(Component.literal("Server RingWorld terrain-atlas protocol is missing or out of date."));
                 }
                 return;
             }
-            RingClientPayloadTransport.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
+            ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
         }));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data())));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.commitTerrainAtlasRevision(payload.worldHash(), payload.revision())));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainPreviewPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.installTerrainPreview(payload)));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(RingWorldClient::clearRingSession));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            RingAtlasPerformanceFeedback.tick(client);
-            if (client.getConnection() != null && ClientCommands.getActiveDispatcher() != null) {
-                ensureSuggestionsPresent(client.getConnection().getCommands());
-            }
             if (client.player != null) ClientRingState.updateCameraPosition(client.player.getX());
         });
-    }
+        HudElementRegistry.attachElementAfter(VanillaHudElements.CHAT, RingWorldMod.id("hud"), (graphics, delta) -> {
+            String prefix = "Ring Atlas Generating: ";
+            float scale = 0.5f;
+            int left = 12;
+            int top = 12;
+            int padding = 3;
+            int background = 0xA0000000;
+            int color = 0xFFFFFFFF;
 
-    private static void registerAtlasLightCommand() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            var distortion = ClientCommands.literal("distortion").executes(context -> {
-                String message = RingDistortionTuning.summary();
-                context.getSource().sendFeedback(Component.literal(message));
-                return 1;
-            });
-            for (String action : new String[]{"on", "off", "show"}) {
-                distortion.then(ClientCommands.literal(action).executes(context -> {
-                    String message = action.equals("show") ? RingDistortionTuning.summary() : RingDistortionTuning.select(action.equals("on"));
-                    context.getSource().sendFeedback(Component.literal(message));
-                    return 1;
-                }));
-            }
-            distortion.then(ClientCommands.literal("distance").then(ClientCommands.argument("chunks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 8)).executes(context -> {
-                String message = RingDistortionTuning.distance(com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "chunks"));
-                context.getSource().sendFeedback(Component.literal(message));
-                return 1;
-            })));
-            dispatcher.register(ClientCommands.literal("ringworld").then(distortion));
-            var lod = ClientCommands.literal("lod").executes(context -> {
-                String message = RingClientLodTuning.summary();
-                context.getSource().sendFeedback(Component.literal(message));
-                return 1;
-            });
-            lod.then(ClientCommands.literal("show").executes(context -> {
-                String message = RingClientLodTuning.summary();
-                context.getSource().sendFeedback(Component.literal(message));
-                return 1;
-            }));
-            lod.then(ClientCommands.literal("reset").executes(context -> {
-                String message = RingClientLodTuning.select(null);
-                context.getSource().sendFeedback(Component.literal(message));
-                return 1;
-            }));
-            for (var quality : dev.ringworld.world.RingLodQuality.values()) {
-                lod.then(ClientCommands.literal(quality.command()).executes(context -> {
-                    String message = RingClientLodTuning.select(quality);
-                    context.getSource().sendFeedback(Component.literal(message));
-                    return 1;
-                }));
-            }
-            dispatcher.register(ClientCommands.literal("ringworld").then(lod));
-            // The client root must explicitly forward server-owned building commands.
-            var outside = ClientCommands.literal("outside");
-            for (String operation : new String[]{"on", "off", "show"}) {
-                outside.then(ClientCommands.literal(operation).executes(context -> {
-                    var connection = Minecraft.getInstance().getConnection();
-                    if (connection == null) return 0;
-                    connection.send(new net.minecraft.network.protocol.game.ServerboundChatCommandPacket(context.getInput()));
-                    return 1;
-                }));
-            }
-            dispatcher.register(ClientCommands.literal("ringworld").then(ClientCommands.literal("building").then(outside)));
-
-            var falloff = ClientCommands.argument("falloff", FloatArgumentType.floatArg(RingAtlasLightProfile.MIN_FALLOFF, RingAtlasLightProfile.MAX_FALLOFF)).executes(context -> setGamma(context.getSource(), FloatArgumentType.getFloat(context, "falloff"), RingAtlasLightProfile.DEFAULT_GAMMA_PEAK));
-            falloff.then(ClientCommands.argument("peak", FloatArgumentType.floatArg(RingAtlasLightProfile.MIN_PEAK, RingAtlasLightProfile.MAX_PEAK)).executes(context -> setGamma(context.getSource(), FloatArgumentType.getFloat(context, "falloff"), FloatArgumentType.getFloat(context, "peak"))));
-            var ringLights = ClientCommands.literal("ringlights").executes(context -> showAtlasLight(context.getSource())).then(ClientCommands.literal("show").executes(context -> showAtlasLight(context.getSource()))).then(ClientCommands.literal("reset").executes(context -> {
-                var profile = RingAtlasLightTuning.reset();
-                context.getSource().sendFeedback(Component.literal("Ring Atlas light: " + profile.summary()));
-                return 1;
-            })).then(falloff);
-            dispatcher.register(ClientCommands.literal("ringworld").then(ringLights));
+            var atlas = ClientRingState.terrainAtlas();
+            if (atlas == null || atlas.presentCount() == atlas.cellCount()) return;
+            int percent = Math.min(99, (int) (atlas.presentCount() * 100L / atlas.cellCount()));
+            String label = prefix + percent + "%";
+            Component text = Component.literal(label);
+            int width = Minecraft.getInstance().font.width(text);
+            graphics.pose().pushMatrix();
+            graphics.pose().scale(scale, scale);
+            graphics.fill(left, top, left + width + padding * 2, top + Minecraft.getInstance().font.lineHeight + padding * 2, background);
+            graphics.text(Minecraft.getInstance().font, text, left + padding, top + padding, color);
+            graphics.pose().popMatrix();
         });
-    }
-
-    private static <S> void ensureSuggestionsPresent(CommandDispatcher<S> dispatcher) {
-        var root = dispatcher.getRoot().getChild("ringworld");
-        if (root == null || root.getChild("distortion") == null) {
-            var distortion = LiteralArgumentBuilder.<S>literal("distortion").executes(context -> 0);
-            for (String action : new String[]{"on", "off", "show"})
-                distortion.then(LiteralArgumentBuilder.<S>literal(action).executes(context -> 0));
-            distortion.then(LiteralArgumentBuilder.<S>literal("distance").then(com.mojang.brigadier.builder.RequiredArgumentBuilder.<S, Integer>argument("chunks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 8)).executes(context -> 0)));
-            dispatcher.register(LiteralArgumentBuilder.<S>literal("ringworld").then(distortion));
-        }
-        if (root != null && root.getChild("lod") != null) return;
-        var lod = LiteralArgumentBuilder.<S>literal("lod").executes(context -> 0);
-        lod.then(LiteralArgumentBuilder.<S>literal("show").executes(context -> 0));
-        lod.then(LiteralArgumentBuilder.<S>literal("reset").executes(context -> 0));
-        for (var quality : RingLodQuality.values()) {
-            lod.then(LiteralArgumentBuilder.<S>literal(quality.command()).executes(context -> 0));
-        }
-        // Build all descendants before merging: an existing server root keeps its
-        // identity, so adding descendants to a detached clone afterwards loses them.
-        dispatcher.register(LiteralArgumentBuilder.<S>literal("ringworld").then(lod));
-    }
-
-    private static int showAtlasLight(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("Ring Atlas light: " + RingAtlasLightTuning.profile().summary()));
-        return 1;
-    }
-
-    private static int setGamma(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source, float falloff, float peak) {
-        var profile = RingAtlasLightTuning.useGamma(falloff, peak);
-        source.sendFeedback(Component.literal("Ring Atlas light: " + profile.summary()));
-        return 1;
     }
 
     /**
@@ -167,8 +79,6 @@ public final class RingWorldClient implements ClientModInitializer {
      */
     public static void clearRingSession() {
         RingSurfaceTextureRenderer.clear();
-        RingClientLodTuning.clearSession();
-        RingDistortionTuning.clearSession();
         ClientRingState.clear();
     }
 }
