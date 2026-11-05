@@ -17,33 +17,33 @@ public class ClientConfigCommand {
                 .then(literal("distortion")
                         .then(argument("chunks", IntegerArgumentType.integer(0))
                                 .executes(ctx -> {
-                                    ClientRingWorldConfig.get().setDistortionChunks(IntegerArgumentType.getInteger(ctx, "chunks"));
+                                    ClientRingWorldConfig.update(ClientRingWorldConfig.get().withDistortionChunks(IntegerArgumentType.getInteger(ctx, "chunks")));
                                     return 1;
                                 })))
                 .then(literal("lodQuality")
                         .then(argument("quality", new RingLodQualityArgument())
                                 .executes(ctx -> {
-                                    ClientRingWorldConfig.get().setLodQuality(RingLodQualityArgument.get(ctx, "quality"));
+                                    ClientRingWorldConfig.update(ClientRingWorldConfig.get().withLodQuality(RingLodQualityArgument.get(ctx, "quality")));
                                     RingSurfaceTextureRenderer.clear();
                                     return 1;
                                 })))
                 .then(literal("toggleAtlas")
                         .executes(ctx -> {
                             var enabled = !ClientRingWorldConfig.get().enableAtlas();
-                            ClientRingWorldConfig.get().setEnableAtlas(enabled);
+                            ClientRingWorldConfig.update(ClientRingWorldConfig.get().withEnableAtlas(enabled));
                             RingSurfaceTextureRenderer.clear();
                             return 1;
                         }))
                 .then(literal("cloudOffset")
                         .then(argument("offset", IntegerArgumentType.integer())
                                 .executes(ctx -> {
-                                    ClientRingWorldConfig.get().setCloudHeightOffset(IntegerArgumentType.getInteger(ctx, "offset"));
+                                    ClientRingWorldConfig.update(ClientRingWorldConfig.get().withCloudHeightOffset(IntegerArgumentType.getInteger(ctx, "offset")));
                                     return 1;
                                 })))
                 .then(literal("cloudFade")
                         .then(argument("blocks", FloatArgumentType.floatArg(0))
                                 .executes(ctx -> {
-                                    ClientRingWorldConfig.get().setCloudEdgeFade(FloatArgumentType.getFloat(ctx, "blocks"));
+                                    ClientRingWorldConfig.update(ClientRingWorldConfig.get().withCloudEdgeFade(FloatArgumentType.getFloat(ctx, "blocks")));
                                     return 1;
                                 }))));
     }

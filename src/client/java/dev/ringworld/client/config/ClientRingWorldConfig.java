@@ -5,6 +5,7 @@ import dev.ringworld.config.ConfigLoader;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingNearbyProjection;
 import dev.ringworld.world.RingObjectTransform;
+import lombok.With;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -15,8 +16,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQuality, boolean enableAtlas,
-                                    int cloudHeightOffset, float cloudEdgeFade) {
+public record ClientRingWorldConfig(@With int distortionChunks, @With RingLodQuality lodQuality,
+                                    @With boolean enableAtlas,
+                                    @With int cloudHeightOffset, @With float cloudEdgeFade) {
     public static final ClientRingWorldConfig DEFAULT = new ClientRingWorldConfig(3, RingLodQuality.HIGH, true, 48, 16);
 
     private static ClientRingWorldConfig CURRENT = null;
@@ -47,6 +49,11 @@ public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQual
         }
     }
 
+    public static void update(ClientRingWorldConfig newConfig) {
+        CURRENT = newConfig;
+        newConfig.save();
+    }
+
     private void save() {
         try {
             Files.writeString(getFilePath(), ConfigLoader.GSON.toJson(this), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -57,36 +64,6 @@ public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQual
 
     public boolean distorionEnabled() {
         return distortionChunks > 0;
-    }
-
-    public void setDistortionChunks(int newValue) {
-        var config = new ClientRingWorldConfig(newValue, lodQuality, enableAtlas, cloudHeightOffset, cloudEdgeFade);
-        CURRENT = config;
-        config.save();
-    }
-
-    public void setLodQuality(RingLodQuality newValue) {
-        var config = new ClientRingWorldConfig(distortionChunks, newValue, enableAtlas, cloudHeightOffset, cloudEdgeFade);
-        CURRENT = config;
-        config.save();
-    }
-
-    public void setEnableAtlas(boolean newValue) {
-        var config = new ClientRingWorldConfig(distortionChunks, lodQuality, newValue, cloudHeightOffset, cloudEdgeFade);
-        CURRENT = config;
-        config.save();
-    }
-
-    public void setCloudHeightOffset(int newValue) {
-        var config = new ClientRingWorldConfig(distortionChunks, lodQuality, enableAtlas, newValue, cloudEdgeFade);
-        CURRENT = config;
-        config.save();
-    }
-
-    public void setCloudEdgeFade(float newValue) {
-        var config = new ClientRingWorldConfig(distortionChunks, lodQuality, enableAtlas, cloudHeightOffset, newValue);
-        CURRENT = config;
-        config.save();
     }
 
     public RingNearbyProjection projection(RingGeometry geometry, Vec3 camera) {
