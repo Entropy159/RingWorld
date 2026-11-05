@@ -15,11 +15,11 @@ import org.jspecify.annotations.NonNull;
  */
 public record RingTerrainAtlasRequestPayload(long worldHash, ResourceKey<Level> dimension, long revision,
                                              boolean cacheComplete) implements CustomPacketPayload {
-    public static final Type<RingTerrainAtlasRequestPayload> ID = new Type<>(RingWorldMod.id("terrain_atlas_request_v2"));
+    public static final Type<RingTerrainAtlasRequestPayload> TYPE = new Type<>(RingWorldMod.id("terrain_atlas_request_v2"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RingTerrainAtlasRequestPayload> CODEC = StreamCodec.composite(ByteBufCodecs.LONG, RingTerrainAtlasRequestPayload::worldHash, ResourceKey.streamCodec(Registries.DIMENSION), RingTerrainAtlasRequestPayload::dimension, ByteBufCodecs.VAR_LONG, RingTerrainAtlasRequestPayload::revision, ByteBufCodecs.BOOL, RingTerrainAtlasRequestPayload::cacheComplete, RingTerrainAtlasRequestPayload::new);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {
-        return ID;
+        return TYPE;
     }
 }

@@ -207,14 +207,14 @@ public final class ClientRingState {
         RingTerrainAtlas atlas = terrainAtlas;
         if (atlas == null || atlas.worldHash() != payload.worldHash()) return;
         try {
-            RingTerrainPreviewStage stage = RingTerrainPreviewStage.fromWireValue(payload.stage());
+            RingTerrainPreviewStage stage = RingTerrainPreviewStage.values()[payload.stage()];
             RingTerrainPreview decoded = RingTerrainPreview.decode(payload.data());
             if (decoded.worldHash() != payload.worldHash()) {
                 RingWorldMod.LOGGER.warn("Rejected RingWorld terrain preview with mismatched world identity");
                 return;
             }
             terrainPreview = decoded;
-            terrainPreviewStage = stage.wireValue();
+            terrainPreviewStage = stage.ordinal();
             terrainAtlasRevision++;
             RingWorldMod.LOGGER.info("RingWorld {} seed preview ready: {}x{} ({} compressed bytes)", stage.logLabel(), decoded.columns(), decoded.rows(), payload.data().length);
         } catch (IOException | RuntimeException exception) {

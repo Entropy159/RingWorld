@@ -13,12 +13,12 @@ import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
 
 public record RingSettingsPayload(ResourceKey<Level> dimension, String data, long seed, long fingerprint) implements CustomPacketPayload {
-    public static final Type<RingSettingsPayload> ID = new Type<>(RingWorldMod.id("settings"));
+    public static final Type<RingSettingsPayload> TYPE = new Type<>(RingWorldMod.id("settings"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RingSettingsPayload> CODEC = StreamCodec.composite(ResourceKey.streamCodec(Registries.DIMENSION), RingSettingsPayload::dimension, ByteBufCodecs.STRING_UTF8, RingSettingsPayload::data, ByteBufCodecs.LONG, RingSettingsPayload::seed, ByteBufCodecs.LONG, RingSettingsPayload::fingerprint, RingSettingsPayload::new);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {
-        return ID;
+        return TYPE;
     }
 
     public static CustomPacketPayload from(ResourceKey<Level> dimension, RingWorldConfig settings, long seed, long fingerprint) {

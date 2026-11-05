@@ -21,7 +21,8 @@ public final class RingWorldClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         RenderPipelines.register(RingSurfaceTextureRenderer.pipeline());
-        ClientPlayNetworking.registerGlobalReceiver(RingSettingsPayload.ID, (payload, context) -> context.client().execute(() -> {
+
+        ClientPlayNetworking.registerGlobalReceiver(RingSettingsPayload.TYPE, (payload, context) -> context.client().execute(() -> {
             long fingerprint = payload.getConfig().layoutFingerprint(payload.seed());
             if (fingerprint != payload.fingerprint()) {
                 RingWorldMod.LOGGER.error("RingWorld client fingerprint did not match server! Expected {}, got {}", payload.fingerprint(), fingerprint);
@@ -34,30 +35,31 @@ public final class RingWorldClient implements ClientModInitializer {
             clearRingSession();
             ClientRingState.set(payload.dimension(), payload.getConfig(), payload.seed(), fingerprint);
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.ID, (payload, context) -> context.client().execute(() -> {
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.TYPE, (payload, context) -> context.client().execute(() -> {
             boolean cacheComplete = ClientRingState.installTerrainAtlas(payload);
-            if (!ClientPlayNetworking.canSend(RingTerrainAtlasRequestPayload.ID)) {
+            if (!ClientPlayNetworking.canSend(RingTerrainAtlasRequestPayload.TYPE)) {
                 var handler = context.client().getConnection();
                 if (handler != null) {
                     handler.getConnection().disconnect(Component.literal("Server RingWorld terrain-atlas protocol is missing or out of date."));
                 }
                 return;
             }
-            if (ClientRingWorldConfig.get().enableAtlas()) {
+            if (ClientRingWorldConfig.get().fullAtlas()) {
                 ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
             }
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.ID, (payload, context) -> context.client().execute(() -> {
-            if (ClientRingWorldConfig.get().enableAtlas())
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.TYPE, (payload, context) -> context.client().execute(() -> {
+            if (ClientRingWorldConfig.get().fullAtlas())
                 ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data());
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.ID, (payload, context) -> context.client().execute(() -> {
-            if (ClientRingWorldConfig.get().enableAtlas())
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.TYPE, (payload, context) -> context.client().execute(() -> {
+            if (ClientRingWorldConfig.get().fullAtlas())
                 ClientRingState.commitTerrainAtlasRevision(payload.worldHash(), payload.revision());
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainPreviewPayload.ID, (payload, context) -> context.client().execute(() -> {
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainPreviewPayload.TYPE, (payload, context) -> context.client().execute(() -> {
             if (ClientRingWorldConfig.get().enableAtlas()) ClientRingState.installTerrainPreview(payload);
         }));
+
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(RingWorldClient::clearRingSession));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null) ClientRingState.updateCameraPosition(client.player.getX());

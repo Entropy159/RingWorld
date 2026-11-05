@@ -83,6 +83,7 @@ public final class RingAtlasPregenerationService {
         }
         Path legacyPath = legacyCachePath(world);
         int sampleStep = RingTerrainAtlas.SAMPLE_STEP_BLOCKS;
+        RingWorldMod.LOGGER.info("Loading terrain atlas for {}", world.dimension().identifier());
         RingTerrainAtlas.StorageLoad storage = RingTerrainAtlas.loadStorage(path, legacyPath, geometry, world.dimension(), hash, sampleStep);
         RingTerrainAtlas atlas = storage.atlas();
         logLoad(storage.status(), path, legacyPath, atlas);

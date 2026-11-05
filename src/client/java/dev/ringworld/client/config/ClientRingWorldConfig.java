@@ -17,9 +17,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 public record ClientRingWorldConfig(@With int distortionChunks, @With RingLodQuality lodQuality,
-                                    @With boolean enableAtlas,
+                                    @With boolean enableAtlas, @With boolean onlySeedPreview,
                                     @With int cloudHeightOffset, @With float cloudEdgeFade) {
-    public static final ClientRingWorldConfig DEFAULT = new ClientRingWorldConfig(3, RingLodQuality.HIGH, true, 48, 16);
+    public static final ClientRingWorldConfig DEFAULT = new ClientRingWorldConfig(3, RingLodQuality.HIGH, true, false, 48, 16);
 
     private static ClientRingWorldConfig CURRENT = null;
 
@@ -60,6 +60,10 @@ public record ClientRingWorldConfig(@With int distortionChunks, @With RingLodQua
         } catch (IOException e) {
             throw new RuntimeException("Failed to write client config!", e);
         }
+    }
+
+    public boolean fullAtlas() {
+        return enableAtlas && !onlySeedPreview;
     }
 
     public boolean distorionEnabled() {
