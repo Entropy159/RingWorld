@@ -1,7 +1,7 @@
 package dev.ringworld.client.mixin;
 
 import dev.ringworld.client.ClientRingState;
-import dev.ringworld.world.RingCloudBounds;
+import dev.ringworld.client.RingCloudBounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.CloudRenderer;
 import net.minecraft.core.Direction;

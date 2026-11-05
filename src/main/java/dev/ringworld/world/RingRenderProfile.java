@@ -71,7 +71,8 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
 
         int textureColumns = Math.min(geometry.circumference(), maxColumns);
         int textureRows = Math.min(geometry.width(), maxRows);
-        int circumferenceSegments = Math.clamp(maxColumns / 2, MAX_CIRCUMFERENCE_SEGMENTS, divideCeil(geometry.circumference(), meshStep));
+        int divideCircumference = divideCeil(geometry.circumference(), meshStep);
+        int circumferenceSegments = Math.clamp(maxColumns / 2, Math.min(MAX_CIRCUMFERENCE_SEGMENTS, divideCircumference), Math.max(MAX_CIRCUMFERENCE_SEGMENTS, divideCircumference));
         int widthBands = Math.min(divideCeil(geometry.width(), meshStep), MAX_WIDTH_BANDS);
         long vertices = Math.multiplyExact(Math.multiplyExact((long) circumferenceSegments, widthBands), 6L);
 

@@ -8,7 +8,7 @@ import dev.ringworld.client.ClientRingState;
 import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.client.render.RingRenderUniforms;
 import dev.ringworld.client.render.RingSurfaceGpu;
-import dev.ringworld.world.RingCloudBounds;
+import dev.ringworld.client.RingCloudBounds;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingRenderProfile;
 import net.minecraft.client.Minecraft;
@@ -83,7 +83,7 @@ public abstract class RingFrameUniformsMixin {
         float maxWidthZExclusive = geometry == null ? 0.0F : geometry.maxWidthZ() + 1.0F;
         float halfCircumference = geometry == null ? 0.0F : geometry.circumference() * 0.5F;
         float viewDistanceBlocks = active == 1 ? client.options.getEffectiveRenderDistance() * 16.0F : 0.0F;
-        RingRenderProfile profile = geometry == null ? null : ClientRingWorldConfig.get().renderProfile(geometry, viewDistanceBlocks);
+        RingRenderProfile profile = geometry == null ? null : ClientRingWorldConfig.get().lodQuality().profile(geometry, viewDistanceBlocks);
         RingCloudBounds cloudBounds = geometry == null || config == null ? null : RingCloudBounds.betweenInnerRimFaces(geometry, config.wallSettings().thickness());
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -111,7 +111,7 @@ public abstract class RingFrameUniformsMixin {
             var distortion = geometry == null ? null : ClientRingWorldConfig.get().projection(geometry, Vec3.ZERO);
             builder.putVec4(geometry != null && ClientRingWorldConfig.get().distorionEnabled() ? 1.0F : 0.0F, distortion == null ? 0.0F : (float) distortion.coreBlocks(), distortion == null ? 0.0F : (float) distortion.blendEnd(), distortion == null ? 0.0F : (float) distortion.referenceRadius()); //RingWorldDistortion
 
-            builder.putFloat(Constants.CLOUD_FADE_BLOCKS); //RingWorldCloudFade
+            builder.putFloat(ClientRingWorldConfig.get().cloudEdgeFade()); //RingWorldCloudFade
 
             var data = builder.get();
             RingSurfaceGpu.writeBuffer(ringworld$buffer.slice(), data);

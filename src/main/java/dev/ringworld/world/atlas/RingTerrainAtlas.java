@@ -273,9 +273,9 @@ public final class RingTerrainAtlas {
      * Raw canonical height access for the low-detail cylindrical mesh.
      */
     public int cellHeight(int column, int row) {
-        if (row < 0 || row >= rows) return (int) RingGeometry.SURFACE_Y;
+        if (row < 0 || row >= rows) return RingGeometry.SURFACE_Y;
         int index = index(Math.floorMod(column, columns), row);
-        return present[index] ? heights[index] : (int) RingGeometry.SURFACE_Y;
+        return present[index] ? heights[index] : RingGeometry.SURFACE_Y;
     }
 
     /**
@@ -314,7 +314,7 @@ public final class RingTerrainAtlas {
         double waterCoverage = 0.0;
         double weightTotal = 0.0;
         for (int dz = 0; dz <= 1; dz++) {
-            int row = Math.clamp(rows - 1, 0, z0 + dz);
+            int row = Math.clamp(rows - 1, Math.min(0, z0 + dz), Math.max(0, z0 + dz));
             double wz = dz == 0 ? 1.0 - fz : fz;
             for (int dx = 0; dx <= 1; dx++) {
                 int column = Math.floorMod(x0 + dx, columns);

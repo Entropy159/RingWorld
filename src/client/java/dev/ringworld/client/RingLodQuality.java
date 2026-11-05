@@ -1,5 +1,8 @@
-package dev.ringworld.world;
+package dev.ringworld.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingRenderProfile;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 /**
@@ -17,15 +20,12 @@ public enum RingLodQuality {
         this.meshStep = meshStep;
     }
 
-    public RingLodQuality next() {
-        return values()[(ordinal() + 1) % values().length];
-    }
-
     public int sampleStep() {
         return sampleStep;
     }
 
-    public RingRenderProfile profile(RingGeometry geometry, double distance, int textureLimit) {
+    public RingRenderProfile profile(RingGeometry geometry, double distance) {
+        int textureLimit = RenderSystem.getDevice().getDeviceInfo().limits().maxTextureSize();
         return RingRenderProfile.create(geometry, distance, Math.min(columns, textureLimit), Math.min(rows, textureLimit), meshStep);
     }
 

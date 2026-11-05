@@ -11,6 +11,7 @@ import com.mojang.renderpearl.api.textures.GpuTextureView;
 import dev.ringworld.Constants;
 import dev.ringworld.RingWorldMod;
 import dev.ringworld.client.ClientRingState;
+import dev.ringworld.client.RingLodQuality;
 import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.*;
@@ -77,7 +78,7 @@ public final class RingSurfaceTextureRenderer {
         // current world's atlas is absent or has no trustworthy cells. Session
         // callbacks normally destroy those resources; this guard makes the
         // world-hash boundary authoritative even if a callback is missed.
-        if (atlas == null) return;
+        if (atlas == null || !ClientRingWorldConfig.get().enableAtlas()) return;
         Minecraft client = Minecraft.getInstance();
         // Distant scenery must not remain visible through underwater fog.
         // Use the render camera (also correct for third person), retain buffers
@@ -210,7 +211,7 @@ public final class RingSurfaceTextureRenderer {
         long snapshotStarted = System.nanoTime();
         RingTerrainAtlas snapshot = atlas.snapshot();
         flagRenderStall("Atlas snapshot copy", snapshotStarted);
-        RingRenderProfile profile = ClientRingWorldConfig.get().renderProfile(geometry, 16.0);
+        RingRenderProfile profile = ClientRingWorldConfig.get().lodQuality().profile(geometry, 16.0);
         RingSurfaceBuildSnapshot buildSnapshot = new RingSurfaceBuildSnapshot(snapshot, revision);
         long generation = textureBuildGeneration;
         Minecraft client = Minecraft.getInstance();

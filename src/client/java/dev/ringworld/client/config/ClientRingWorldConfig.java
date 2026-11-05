@@ -1,8 +1,10 @@
 package dev.ringworld.client.config;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import dev.ringworld.client.RingLodQuality;
 import dev.ringworld.config.ConfigLoader;
-import dev.ringworld.world.*;
+import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingNearbyProjection;
+import dev.ringworld.world.RingObjectTransform;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -13,8 +15,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQuality) {
-    public static final ClientRingWorldConfig DEFAULT = new ClientRingWorldConfig(3, RingLodQuality.HIGH);
+public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQuality, boolean enableAtlas,
+                                    int cloudHeightOffset, float cloudEdgeFade) {
+    public static final ClientRingWorldConfig DEFAULT = new ClientRingWorldConfig(3, RingLodQuality.HIGH, true, 48, 16);
 
     private static ClientRingWorldConfig CURRENT = null;
 
@@ -25,23 +28,65 @@ public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQual
         return config;
     }
 
+    private static Path getFilePath() {
+        return FabricLoader.getInstance().getConfigDir().resolve("ringworld-client.json");
+    }
+
     public static ClientRingWorldConfig getRaw() {
         try {
-            Path configPath = FabricLoader.getInstance().getConfigDir().resolve("ringworld-client.json");
+            Path configPath = getFilePath();
             ClientRingWorldConfig config = DEFAULT;
             if (configPath.toFile().exists()) {
                 String data = Files.readString(configPath, StandardCharsets.UTF_8);
                 config = ConfigLoader.GSON.fromJson(data, ClientRingWorldConfig.class);
             }
-            Files.writeString(configPath, ConfigLoader.GSON.toJson(config), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            config.save();
             return config;
         } catch (IOException e) {
             throw new RuntimeException("Failed to get client config!", e);
         }
     }
 
+    private void save() {
+        try {
+            Files.writeString(getFilePath(), ConfigLoader.GSON.toJson(this), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write client config!", e);
+        }
+    }
+
     public boolean distorionEnabled() {
         return distortionChunks > 0;
+    }
+
+    public void setDistortionChunks(int newValue) {
+        var config = new ClientRingWorldConfig(newValue, lodQuality, enableAtlas, cloudHeightOffset, cloudEdgeFade);
+        CURRENT = config;
+        config.save();
+    }
+
+    public void setLodQuality(RingLodQuality newValue) {
+        var config = new ClientRingWorldConfig(distortionChunks, newValue, enableAtlas, cloudHeightOffset, cloudEdgeFade);
+        CURRENT = config;
+        config.save();
+    }
+
+    public void setEnableAtlas(boolean newValue) {
+        var config = new ClientRingWorldConfig(distortionChunks, lodQuality, newValue, cloudHeightOffset, cloudEdgeFade);
+        CURRENT = config;
+        config.save();
+    }
+
+    public void setCloudHeightOffset(int newValue) {
+        var config = new ClientRingWorldConfig(distortionChunks, lodQuality, enableAtlas, newValue, cloudEdgeFade);
+        CURRENT = config;
+        config.save();
+    }
+
+    public void setCloudEdgeFade(float newValue) {
+        var config = new ClientRingWorldConfig(distortionChunks, lodQuality, enableAtlas, cloudHeightOffset, newValue);
+        CURRENT = config;
+        config.save();
     }
 
     public RingNearbyProjection projection(RingGeometry geometry, Vec3 camera) {
@@ -55,9 +100,5 @@ public record ClientRingWorldConfig(int distortionChunks, RingLodQuality lodQual
             return RingObjectTransform.fromCameraRelative(geometry, camera, x, y, z);
         }
         return projection(geometry, camera).object(camera, x, y, z);
-    }
-
-    public RingRenderProfile renderProfile(RingGeometry geometry, double distance) {
-        return lodQuality.profile(geometry, distance, RenderSystem.getDevice().getDeviceInfo().limits().maxTextureSize());
     }
 }

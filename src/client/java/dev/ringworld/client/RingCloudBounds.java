@@ -1,13 +1,14 @@
-package dev.ringworld.world;
+package dev.ringworld.client;
 
-import dev.ringworld.Constants;
+import dev.ringworld.client.config.ClientRingWorldConfig;
+import dev.ringworld.world.RingGeometry;
 
 /**
  * Intrinsic-Z clipping planes for the finite RingWorld cloud deck.
  */
 public record RingCloudBounds(double minimumZ, double maximumZ) {
     public static int baseHeight(int worldBottomY, int wallHeightBlocks) {
-        return Math.addExact(Math.addExact(worldBottomY, wallHeightBlocks), Constants.CLOUD_CLEARANCE_BLOCKS);
+        return Math.addExact(Math.addExact(worldBottomY, wallHeightBlocks), ClientRingWorldConfig.get().cloudHeightOffset());
     }
 
     public RingCloudBounds {

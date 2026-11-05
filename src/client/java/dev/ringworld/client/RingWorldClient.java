@@ -1,9 +1,13 @@
 package dev.ringworld.client;
 
 import dev.ringworld.RingWorldMod;
+import dev.ringworld.client.command.ClientConfigCommand;
+import dev.ringworld.client.command.argument.RingLodQualityArgument;
+import dev.ringworld.client.config.ClientRingWorldConfig;
 import dev.ringworld.client.render.RingSurfaceTextureRenderer;
 import dev.ringworld.net.*;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -39,15 +43,30 @@ public final class RingWorldClient implements ClientModInitializer {
                 }
                 return;
             }
-            ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
+            if (ClientRingWorldConfig.get().enableAtlas()) {
+                ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
+            }
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data())));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.commitTerrainAtlasRevision(payload.worldHash(), payload.revision())));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainPreviewPayload.ID, (payload, context) -> context.client().execute(() -> ClientRingState.installTerrainPreview(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (ClientRingWorldConfig.get().enableAtlas())
+                ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data());
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRevisionPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (ClientRingWorldConfig.get().enableAtlas())
+                ClientRingState.commitTerrainAtlasRevision(payload.worldHash(), payload.revision());
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainPreviewPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (ClientRingWorldConfig.get().enableAtlas()) ClientRingState.installTerrainPreview(payload);
+        }));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(RingWorldClient::clearRingSession));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null) ClientRingState.updateCameraPosition(client.player.getX());
+            ClientRingState.saveTerrainAtlasIfDue(false);
         });
+
+        RingLodQualityArgument.register();
+        ClientCommandRegistrationCallback.EVENT.register(((dispatcher, context) -> ClientConfigCommand.register(dispatcher)));
+
         HudElementRegistry.attachElementAfter(VanillaHudElements.CHAT, RingWorldMod.id("hud"), (graphics, delta) -> {
             String prefix = "Ring Atlas Generating: ";
             float scale = 0.5f;
