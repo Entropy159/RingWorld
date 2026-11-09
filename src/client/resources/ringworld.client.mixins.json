@@ -33,7 +33,8 @@
     "compat.sodium.SodiumPipelineBindingsMixin",
     "compat.sodium.SodiumRenderPassMixin",
     "compat.sodium.SodiumEngineShaderMixin",
-    "compat.sodium.SodiumProjectionChangesMixin"
+    "compat.sodium.SodiumProjectionChangesMixin",
+    "waypoint.Vec3iWaypointMixin"
   ],
   "injectors": {
     "defaultRequire": 1
