@@ -28,8 +28,8 @@ public final class SodiumTerrainShaders {
         if (vertex) {
             header += engine ? (explicit ? "#include" : "#moj_import") + " <minecraft:globals.glsl>\n" : "uniform float RingWorldCameraY;\n";
             String cameraY = engine ? "float(CameraBlockPos.y) - CameraOffset.y" : "RingWorldCameraY";
-            source = replaceOnce(source, "vec3 position = _vert_position + translation;", """
-                    vec3 position = _vert_position + translation;
+            source = replaceOnce(source, "vec3 position = (_vert_position + translation) - u_CameraOffset;", """
+                    vec3 position = (_vert_position + translation) - u_CameraOffset;
                     vec3 ringworldFlat = position;
                     ringworldDistances = vec2(-1.0);
                     if (RingWorldLayout.x != 0) {

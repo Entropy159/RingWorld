@@ -286,4 +286,15 @@ public record RingGeometry(int width, int circumference) {
         double horizontal = Math.hypot(tangent, widthDelta);
         return -Math.toDegrees(Math.atan2(vertical, horizontal));
     }
+
+    public double distanceToSqr(Vec3 from, Vec3 to) {
+        double xd = shortestCircumferenceDelta(from.x, to.x);
+        double yd = to.y - from.y;
+        double zd = to.z - from.z;
+        return xd * xd + yd * yd + zd * zd;
+    }
+
+    public double distanceTo(Vec3 from, Vec3 to) {
+        return Math.sqrt(distanceToSqr(from, to));
+    }
 }
