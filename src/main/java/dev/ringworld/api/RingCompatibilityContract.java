@@ -19,8 +19,7 @@ public final class RingCompatibilityContract {
             new Conflict("optifabric", "OptiFabric", Area.RENDERER, "replaces terrain and shader internals used by curved rendering"),
             new Conflict("nvidium", "Nvidium", Area.RENDERER, "replaces Sodium's chunk renderer with another unsupported terrain pipeline"),
             new Conflict("betterclouds", "Better Clouds", Area.RENDERER, "Clouds do not follow ring curvature or width bounds"),
-            new Conflict("immersivevfx", "Immersive VFX", Area.RENDERER, "Fog hides ring LODs and sun does not respect configured angles."),
-            new Conflict("colorlight", "ColorLight", Area.RENDERER, "Overrides terrain shaders and breaks world curvature"));
+            new Conflict("immersivevfx", "Immersive VFX", Area.RENDERER, "Fog hides ring LODs and sun does not respect configured angles."));
 
     public static List<Conflict> knownConflicts() {
         return KNOWN_CONFLICTS;
