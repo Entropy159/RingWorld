@@ -7,32 +7,20 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class RingCompatibilityContract {
-    public static final int VERSION = 1;
-
     private static final List<Conflict> KNOWN_CONFLICTS = List.of(
-            new Conflict("iris", "Iris", Area.SHADERS,
-                    "owns a shader pipeline that does not implement RingWorld's curved material contract"),
-            new Conflict("vulkanmod", "VulkanMod", Area.RENDERER,
-                    "replaces the OpenGL renderer and RingWorld shader contract"),
-            new Conflict("canvas", "Canvas Renderer", Area.RENDERER,
-                    "replaces Fabric's vanilla-compatible renderer path"),
-            new Conflict("distanthorizons", "Distant Horizons", Area.DISTANT_TERRAIN,
-                    "adds an independent flat-world LOD that conflicts with the atlas ring"),
-            new Conflict("bobby", "Bobby", Area.CHUNK_CHART,
-                    "retains client chunks outside RingWorld's transient presentation chart"),
-            new Conflict("imm_ptl_core", "Immersive Portals", Area.TOPOLOGY,
-                    "rewrites world views and entity/chunk relationships RingWorld makes periodic"),
-            new Conflict("gravity_changer", "Gravity Changer", Area.GRAVITY,
-                    "changes vanilla -Y gameplay gravity required by RingWorld's intrinsic coordinates"),
-            new Conflict("c2me", "C2ME", Area.CHUNK_PIPELINE,
-                    "rewrites chunk and world-generation internals not covered by RingWorld's seam gate"),
-            new Conflict("optifabric", "OptiFabric", Area.RENDERER,
-                    "replaces terrain and shader internals used by curved rendering"),
-            new Conflict("nvidium", "Nvidium", Area.RENDERER,
-                    "replaces Sodium's chunk renderer with another unsupported terrain pipeline"));
-
-    private RingCompatibilityContract() {
-    }
+            new Conflict("iris", "Iris", Area.SHADERS, "Shaders break ring rendering."),
+            new Conflict("vulkanmod", "VulkanMod", Area.RENDERER, "replaces the OpenGL renderer and RingWorld shader contract"),
+            new Conflict("canvas", "Canvas Renderer", Area.RENDERER, "replaces Fabric's vanilla-compatible renderer path"),
+            new Conflict("distanthorizons", "Distant Horizons", Area.DISTANT_TERRAIN, "adds an independent flat-world LOD that conflicts with the atlas ring"),
+            new Conflict("bobby", "Bobby", Area.CHUNK_CHART, "retains client chunks outside RingWorld's transient presentation chart"),
+            new Conflict("imm_ptl_core", "Immersive Portals", Area.TOPOLOGY, "rewrites world views and entity/chunk relationships RingWorld makes periodic"),
+            new Conflict("gravity_changer", "Gravity Changer", Area.GRAVITY, "changes vanilla -Y gameplay gravity required by RingWorld's intrinsic coordinates"),
+            new Conflict("c2me", "C2ME", Area.CHUNK_PIPELINE, "Breaks ring chunk handling"),
+            new Conflict("optifabric", "OptiFabric", Area.RENDERER, "replaces terrain and shader internals used by curved rendering"),
+            new Conflict("nvidium", "Nvidium", Area.RENDERER, "replaces Sodium's chunk renderer with another unsupported terrain pipeline"),
+            new Conflict("betterclouds", "Better Clouds", Area.RENDERER, "Clouds do not follow ring curvature or width bounds"),
+            new Conflict("immersivevfx", "Immersive VFX", Area.RENDERER, "Fog hides ring LODs and sun does not respect configured angles."),
+            new Conflict("colorlight", "ColorLight", Area.RENDERER, "Overrides terrain shaders and breaks world curvature"));
 
     public static List<Conflict> knownConflicts() {
         return KNOWN_CONFLICTS;
