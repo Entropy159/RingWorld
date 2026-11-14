@@ -90,6 +90,10 @@ public record RingGeometry(int width, int circumference) {
         return Math.floorMod(canonicalX, circumference);
     }
 
+    public int wrapChunkX(int canonicalX) {
+        return Math.floorMod(canonicalX, circumferenceChunks());
+    }
+
     /**
      * Selects the periodic copy of {@code canonicalX} nearest {@code referenceX}.
      */

@@ -3,6 +3,7 @@
   "package": "dev.ringworld.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "BiomeSourceMixin",
     "BlockEntityMixin",
     "BlockEntityPositionAccessor",
     "BlockItemMixin",

@@ -1,5 +1,6 @@
 package dev.ringworld.mixin;
 
+import dev.ringworld.server.RingWorldServer;
 import dev.ringworld.server.atlas.pregen.RingAtlasPregenerationService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -8,6 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -20,5 +22,16 @@ public abstract class LevelMixin {
         if (cir.getReturnValueZ() && (Object) this instanceof ServerLevel world) {
             RingAtlasPregenerationService.blockChanged(world, position);
         }
+    }
+
+    @ModifyVariable(method = {"setBlock", "getBlockState", "getFluidState", "getBlockEntity"}, at = @At("HEAD"), argsOnly = true, name = "pos")
+    private BlockPos wrapPos(BlockPos pos) {
+        if ((Object) this instanceof ServerLevel level) {
+            var geometry = RingWorldServer.geometryFor(level);
+            if (geometry != null) {
+                return new BlockPos(geometry.wrapBlockX(pos.getX()), pos.getY(), pos.getZ());
+            }
+        }
+        return pos;
     }
 }
