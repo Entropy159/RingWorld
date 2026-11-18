@@ -53,23 +53,11 @@ public final class RingTerrainAtlasServer {
         for (int rate : new int[]{1, 2, 4, 8}) {
             generationRate.then(Commands.literal(Integer.toString(rate)).executes(context -> chunkGenerationRate(context.getSource(), rate)));
         }
-        dispatcher.register(
-                Commands.literal("ringworld")
-                        .requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)))
-                        .then(generationRate)
-                        .then(Commands.literal("atlas")
-                                .then(Commands.literal("status")
-                                        .executes(context -> {
-                                            ServerLevel world = context.getSource().getLevel();
-                                            context.getSource().sendSuccess(() -> Component.literal("RingWorld atlas: " + RingAtlasPregenerationService.status(world)), false);
-                                            return 1;
-                                        }))
-                                .then(Commands.literal("start")
-                                        .executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.START, context.getSource())))
-                                .then(Commands.literal("pause")
-                                        .executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.PAUSE, context.getSource())))
-                                .then(Commands.literal("resume")
-                                        .executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.RESUME, context.getSource())))));
+        dispatcher.register(Commands.literal("ringworld").requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS))).then(generationRate).then(Commands.literal("atlas").then(Commands.literal("status").executes(context -> {
+            ServerLevel world = context.getSource().getLevel();
+            context.getSource().sendSuccess(() -> Component.literal("RingWorld atlas: " + RingAtlasPregenerationService.status(world)), false);
+            return 1;
+        })).then(Commands.literal("start").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.START, context.getSource()))).then(Commands.literal("pause").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.PAUSE, context.getSource()))).then(Commands.literal("resume").executes(context -> control(context.getSource().getLevel(), AtlasPregenerationAction.RESUME, context.getSource())))));
     }
 
     private static int chunkGenerationRate(CommandSourceStack source, Integer rate) {
@@ -208,17 +196,11 @@ public final class RingTerrainAtlasServer {
             return;
         }
         if (atlas.worldHash() != worldHash || clientRevision < 0L) return;
-        Queue<RingAtlasPregenerationService.TileCoordinate> tiles = new ArrayDeque<>();
         boolean exactCompleteCache = cacheComplete && clientRevision == atlas.revision();
+        ClientStream stream = new ClientStream(level, atlas.tileColumns(), atlas.tileRows(), exactCompleteCache ? clientRevision : -1L);
+        STREAMS.put(player.getUUID(), stream);
         if (!exactCompleteCache) {
-            for (int z = 0; z < atlas.tileRows(); z++)
-                for (int x = 0; x < atlas.tileColumns(); x++) {
-                    tiles.add(new RingAtlasPregenerationService.TileCoordinate(x, z));
-                }
-        }
-        STREAMS.put(player.getUUID(), new ClientStream(level, tiles, exactCompleteCache ? clientRevision : -1L));
-        if (!tiles.isEmpty()) {
-            RingWorldMod.LOGGER.info("Streaming {} RingWorld terrain atlas tiles (~{} KiB) to {}", tiles.size(), Math.max(1L, atlas.estimatedWireBytes() / 1024L), player.getName().getString());
+            RingWorldMod.LOGGER.info("Streaming {} RingWorld terrain atlas tiles (~{} KiB) to {}", stream.initialTileCount, Math.max(1L, atlas.estimatedWireBytes() / 1024L), player.getName().getString());
         }
     }
 
@@ -322,7 +304,7 @@ public final class RingTerrainAtlasServer {
         for (ClientStream stream : STREAMS.values()) {
             if (stream.world != world) continue;
             for (RingAtlasPregenerationService.TileCoordinate tile : dirty)
-                if (stream.known.add(tile)) stream.tiles.add(tile);
+                stream.queueChange(tile);
         }
     }
 
@@ -337,12 +319,11 @@ public final class RingTerrainAtlasServer {
             ClientStream stream = STREAMS.get(player.getUUID());
             if (stream == null || stream.world != world || !ServerPlayNetworking.canSend(player, RingTerrainAtlasTilePayload.TYPE))
                 continue;
-            for (int count = 0; count < STREAM_TILES_PER_TICK && !stream.tiles.isEmpty(); count++) {
-                RingAtlasPregenerationService.TileCoordinate tile = stream.tiles.remove();
-                stream.known.remove(tile);
+            for (int count = 0; count < STREAM_TILES_PER_TICK && stream.hasTiles(); count++) {
+                RingAtlasPregenerationService.TileCoordinate tile = stream.nextTile();
                 ServerPlayNetworking.send(player, new RingTerrainAtlasTilePayload(atlas.worldHash(), tile.x(), tile.z(), atlas.encodeTile(tile.x(), tile.z())));
             }
-            if (stream.tiles.isEmpty() && atlas.isComplete() && !RingAtlasPregenerationService.hasPendingDirtyTiles(world)) {
+            if (!stream.hasTiles() && atlas.isComplete() && !RingAtlasPregenerationService.hasPendingDirtyTiles(world)) {
                 if (stream.committedRevision != atlas.revision() && ServerPlayNetworking.canSend(player, RingTerrainAtlasRevisionPayload.TYPE)) {
                     ServerPlayNetworking.send(player, new RingTerrainAtlasRevisionPayload(atlas.worldHash(), atlas.revision()));
                     stream.committedRevision = atlas.revision();
@@ -351,17 +332,35 @@ public final class RingTerrainAtlasServer {
         }
     }
 
-    private static final class ClientStream {
+    static final class ClientStream {
         private final ServerLevel world;
-        private final Queue<RingAtlasPregenerationService.TileCoordinate> tiles;
-        private final Set<RingAtlasPregenerationService.TileCoordinate> known = new HashSet<>();
+        private final int columns;
+        private final int initialTileCount;
+        private int nextInitialTile;
+        private final LinkedHashSet<RingAtlasPregenerationService.TileCoordinate> changes = new LinkedHashSet<>();
         private long committedRevision;
 
-        private ClientStream(ServerLevel world, Queue<RingAtlasPregenerationService.TileCoordinate> tiles, long committedRevision) {
+        ClientStream(ServerLevel world, int columns, int rows, long committedRevision) {
             this.world = world;
-            this.tiles = tiles;
+            this.columns = columns;
+            this.initialTileCount = Math.multiplyExact(columns, rows);
+            this.nextInitialTile = committedRevision >= 0 ? initialTileCount : 0;
             this.committedRevision = committedRevision;
-            this.known.addAll(tiles);
+        }
+
+        void queueChange(RingAtlasPregenerationService.TileCoordinate tile) {
+            // Unsent initial tiles are read live when their turn comes.
+            if (tile.z() * columns + tile.x() < nextInitialTile) changes.add(tile);
+        }
+
+        boolean hasTiles() {
+            return nextInitialTile < initialTileCount || !changes.isEmpty();
+        }
+
+        RingAtlasPregenerationService.TileCoordinate nextTile() {
+            if (nextInitialTile == initialTileCount) return changes.removeFirst();
+            int index = nextInitialTile++;
+            return new RingAtlasPregenerationService.TileCoordinate(index % columns, index / columns);
         }
     }
 

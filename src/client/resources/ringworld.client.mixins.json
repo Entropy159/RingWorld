@@ -26,6 +26,8 @@
     "PlayerPositionDebugHudEntryMixin",
     "SkyRenderingMixin",
     "SpriteContentsAccessor",
+    "DripstoneModelMixin",
+    "DripstoneShapeMixin",
     "compat.sodium.SodiumSimpleFrustumAccessor",
     "compat.sodium.SodiumViewportMixin",
     "compat.sodium.SodiumOcclusionMixin",

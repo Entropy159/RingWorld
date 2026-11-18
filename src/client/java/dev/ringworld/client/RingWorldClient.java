@@ -35,8 +35,7 @@ public final class RingWorldClient implements ClientModInitializer {
             clearRingSession();
             ClientRingState.set(payload.dimension(), payload.getConfig(), payload.seed(), fingerprint);
         }));
-        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.TYPE, (payload, context) -> context.client().execute(() -> {
-            boolean cacheComplete = ClientRingState.installTerrainAtlas(payload);
+        ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasMetadataPayload.TYPE, (payload, context) -> context.client().execute(() -> ClientRingState.installTerrainAtlas(payload, cacheComplete -> {
             if (!ClientPlayNetworking.canSend(RingTerrainAtlasRequestPayload.TYPE)) {
                 var handler = context.client().getConnection();
                 if (handler != null) {
@@ -47,7 +46,7 @@ public final class RingWorldClient implements ClientModInitializer {
             if (ClientRingWorldConfig.get().fullAtlas()) {
                 ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
             }
-        }));
+        })));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.TYPE, (payload, context) -> context.client().execute(() -> {
             if (ClientRingWorldConfig.get().fullAtlas())
                 ClientRingState.applyTerrainAtlasTile(payload.worldHash(), payload.tileX(), payload.tileZ(), payload.data());
