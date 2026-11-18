@@ -10,7 +10,7 @@ import dev.ringworld.client.render.RingRenderUniforms;
 import dev.ringworld.client.render.RingSurfaceGpu;
 import dev.ringworld.client.RingCloudBounds;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingRenderProfile;
+import dev.ringworld.client.render.RingRenderProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.data.AtlasIds;

@@ -1,5 +1,6 @@
-package dev.ringworld.world;
+package dev.ringworld.client.render;
 
+import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 
 /**

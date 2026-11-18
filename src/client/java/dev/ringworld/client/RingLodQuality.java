@@ -2,14 +2,16 @@ package dev.ringworld.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingRenderProfile;
+import dev.ringworld.client.render.RingRenderProfile;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 /**
  * Local display choices. These IDs are not saved generation settings or network values.
  */
 public enum RingLodQuality {
-    LOW(8, 4096, 1024, 8), MEDIUM(2, 16384, 1024, 4), HIGH(1, 32768, 2048, 1);
+    LOW(8, 4096, 1024, 8),
+    MEDIUM(2, 16384, 1024, 4),
+    HIGH(1, 32768, 2048, 1);
 
     private final int sampleStep, columns, rows, meshStep;
 

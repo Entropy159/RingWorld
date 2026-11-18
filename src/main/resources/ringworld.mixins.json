@@ -26,6 +26,7 @@
     "LevelChunkMixin",
     "LevelMixin",
     "LightSectionSnapshotMixin",
+    "LocateCommandMixin",
     "MapItemMixin",
     "MapItemSavedDataMixin",
     "MinecraftServerMixin",

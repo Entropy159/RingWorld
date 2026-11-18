@@ -4,7 +4,6 @@ import dev.ringworld.Constants;
 import dev.ringworld.client.RingCloudBounds;
 import dev.ringworld.config.WallSettings;
 import dev.ringworld.world.RingGeometry;
-import dev.ringworld.world.RingRenderProfile;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 import dev.ringworld.world.wall.RingWallPattern;
