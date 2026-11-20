@@ -67,21 +67,44 @@ public final class RingSurfaceGpu {
                     builder.addVertex(x, y, z).setUv(u, v).setColor(color);
                 }
             });
-            return new PackedMesh(allocator, builder.buildOrThrow(), mesh.vertexCount());
+            var data = builder.buildOrThrow();
+            try {
+                int[] unique = RingSurfacePageIndices.pack(data.vertexBuffer(), mesh.vertexCount(), format.getVertexSize());
+                return new PackedMesh(allocator, data, mesh.vertexCount(), mesh.layerOffsets(), unique);
+            } catch (RuntimeException | Error ex) {
+                data.close();
+                throw ex;
+            }
         } catch (RuntimeException | Error exception) {
             allocator.close();
             throw exception;
         }
     }
 
-    /**
-     * Only native GPU creation remains on the render thread. Does not own packed.
-     */
-    public static GpuBuffer uploadMesh(PackedMesh packed) {
-        return RenderSystem.getDevice().createBuffer(() -> "RingWorld textured surface mesh", GpuBuffer.USAGE_VERTEX, packed.data().vertexBuffer());
+    public record MeshPage(GpuBuffer buffer, GpuBuffer indices) implements AutoCloseable {
+        @Override
+        public void close() {
+            try {
+                buffer.close();
+            } finally {
+                if (indices != null) indices.close();
+            }
+        }
     }
 
-    public record PackedMesh(ByteBufferBuilder allocator, MeshData data, int vertexCount) implements AutoCloseable {
+    public static MeshPage uploadPage(ByteBuffer data, ByteBuffer indices) {
+        var device = RenderSystem.getDevice();
+        var vertices = device.createBuffer(() -> "RingWorld surface vertices", GpuBuffer.USAGE_VERTEX, data);
+        try {
+            return new MeshPage(vertices, indices == null ? null : device.createBuffer(() -> "RingWorld surface indices", GpuBuffer.USAGE_INDEX, indices));
+        } catch (RuntimeException | Error ex) {
+            vertices.close();
+            throw ex;
+        }
+    }
+
+    public record PackedMesh(ByteBufferBuilder allocator, MeshData data, int vertexCount, int[] layerOffsets,
+                             int[] uniqueCounts) implements AutoCloseable {
         @Override
         public void close() {
             try {
@@ -96,6 +119,19 @@ public final class RingSurfaceGpu {
         return RenderSystem.getDevice().createTexture("RingWorld canonical surface atlas", GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING, GpuFormat.RGBA8_UNORM, width, height, 1, mipLevels);
     }
 
+    public static int uploadRows(GpuTexture target, NativeImage[] levels, dev.ringworld.world.RingSurfaceRowUpdates.Cursor cursor) {
+        var encoder = RenderSystem.getDevice().createCommandEncoder();
+        int texels = cursor.transferNext(512 * 1024, (mip, row, count) -> {
+            NativeImage image = levels[mip];
+            int width = image.getWidth();
+            int stride = width * Integer.BYTES;
+            var bytes = image.getPixelBytes().slice(row * stride, count * stride);
+            encoder.writeToTexture(target, bytes, mip, 0, 0, row, width, count);
+        });
+        encoder.submit();
+        return texels;
+    }
+
     public static void uploadSurfaceTexture(GpuTexture texture, NativeImage[] levels) {
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
         for (int level = 0; level < levels.length; level++)
@@ -103,7 +139,7 @@ public final class RingSurfaceGpu {
         encoder.submit();
     }
 
-    public static void draw(Minecraft client, GpuBuffer vertexBuffer, int vertexCount, GpuTextureView current, GpuTextureView previous, GpuTextureView walls, GpuBufferSlice transforms) {
+    public static void draw(Minecraft client, RingSurfaceBuffers mesh, int vertexCount, int[] offsets, int first, int end, GpuTextureView current, GpuTextureView previous, GpuTextureView walls, GpuBufferSlice transforms) {
         GpuTextureView color = client.gameRenderer.mainRenderTarget().getColorTextureView();
         GpuTextureView depth = client.gameRenderer.mainRenderTarget().getDepthTextureView();
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
@@ -115,12 +151,33 @@ public final class RingSurfaceGpu {
             pass.setUniform("Sampler1", previous, RenderSystem.getSamplerCache().getSampler(AddressMode.REPEAT, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, true));
             pass.setUniform("Sampler2", client.gameRenderer.levelLightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.setUniform("Sampler3", walls, RenderSystem.getSamplerCache().getSampler(AddressMode.REPEAT, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, true));
-            pass.setVertexBuffer(0, vertexBuffer.slice());
-            // The GPU API orders counts first, then offsets: vertices, instances,
-            // first vertex, first instance (the latter must be zero on macOS).
-            pass.draw(vertexCount, 1, 0, 0);
+            if (offsets == null || first == end) {
+                drawRange(pass, mesh, 0, vertexCount);
+            } else if (first < end) {
+                drawRange(pass, mesh, 0, offsets[0]);
+                drawRange(pass, mesh, offsets[first], offsets[end]);
+            } else {
+                drawRange(pass, mesh, 0, offsets[end]);
+                drawRange(pass, mesh, offsets[first], vertexCount);
+            }
         }
         encoder.submit();
+    }
+
+    private static void drawRange(RenderPass pass, RingSurfaceBuffers mesh, int first, int end) {
+        while (first < end) {
+            int local = first % RingSurfaceBuffers.PAGE_VERTICES;
+            int count = Math.min(end - first, RingSurfaceBuffers.PAGE_VERTICES - local);
+            var page = mesh.pages[first / RingSurfaceBuffers.PAGE_VERTICES];
+            pass.setVertexBuffer(0, page.buffer().slice());
+            if (page.indices() == null) {
+                pass.draw(count, 1, local, 0);
+            } else {
+                pass.setIndexBuffer(page.indices(), IndexType.SHORT);
+                pass.drawIndexed(count, 1, local, 0, 0);
+            }
+            first += count;
+        }
     }
 
     public static void writeBuffer(GpuBufferSlice target, ByteBuffer data) {

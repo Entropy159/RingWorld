@@ -13,11 +13,23 @@ import org.jspecify.annotations.NonNull;
 /**
  * Describes the tiled, world-specific distant terrain cache.
  */
-public record RingTerrainAtlasMetadataPayload(long worldHash, ResourceKey<Level> dimension, int sampleStep, int columns, int rows, int tileSize,
+public record RingTerrainAtlasMetadataPayload(long worldHash, ResourceKey<Level> dimension, int sampleStep, int columns,
+                                              int rows, int tileSize,
                                               int presentCells, boolean complete,
-                                              long revision) implements CustomPacketPayload {
-    public static final Type<RingTerrainAtlasMetadataPayload> TYPE = new Type<>(RingWorldMod.id("terrain_atlas_metadata_v4"));
-    public static final StreamCodec<RegistryFriendlyByteBuf, RingTerrainAtlasMetadataPayload> CODEC = StreamCodec.composite(ByteBufCodecs.LONG, RingTerrainAtlasMetadataPayload::worldHash, ResourceKey.streamCodec(Registries.DIMENSION), RingTerrainAtlasMetadataPayload::dimension, ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::sampleStep, ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::columns, ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::rows, ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::tileSize, ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::presentCells, ByteBufCodecs.BOOL, RingTerrainAtlasMetadataPayload::complete, ByteBufCodecs.VAR_LONG, RingTerrainAtlasMetadataPayload::revision, RingTerrainAtlasMetadataPayload::new);
+                                              long revision, long contentFingerprint) implements CustomPacketPayload {
+    public static final Type<RingTerrainAtlasMetadataPayload> TYPE = new Type<>(RingWorldMod.id("terrain_atlas_metadata_v5"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, RingTerrainAtlasMetadataPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.LONG, RingTerrainAtlasMetadataPayload::worldHash,
+            ResourceKey.streamCodec(Registries.DIMENSION), RingTerrainAtlasMetadataPayload::dimension,
+            ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::sampleStep,
+            ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::columns,
+            ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::rows,
+            ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::tileSize,
+            ByteBufCodecs.VAR_INT, RingTerrainAtlasMetadataPayload::presentCells,
+            ByteBufCodecs.BOOL, RingTerrainAtlasMetadataPayload::complete,
+            ByteBufCodecs.VAR_LONG, RingTerrainAtlasMetadataPayload::revision,
+            ByteBufCodecs.LONG, RingTerrainAtlasMetadataPayload::contentFingerprint,
+            RingTerrainAtlasMetadataPayload::new);
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {

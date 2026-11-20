@@ -45,7 +45,7 @@ public abstract class PortalForcerMixin {
         if (!RingWorldApi.isRingWorld(level)) return;
         RingGeometry geometry = RingWorldServer.geometryFor(level);
         int rimThickness = RingWorldConfig.get(level).wallSettings().thickness();
-        BlockPos anchor = RingPortalDestinationBounds.normalizeSearchAnchor(geometry, approximateExitPos, rimThickness);
+        BlockPos anchor = RingPortalDestinationBounds.existingPortalAnchor(geometry, approximateExitPos, rimThickness);
         int radius = toNether ? 16 : 128;
         PoiManager pois = level.getPoiManager();
         Set<BlockPos> candidates = new LinkedHashSet<>();

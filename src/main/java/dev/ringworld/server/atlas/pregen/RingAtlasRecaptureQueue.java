@@ -14,6 +14,22 @@ public final class RingAtlasRecaptureQueue {
     private final Set<RingAtlasPregenerationService.TileCoordinate> overflowTiles = new LinkedHashSet<>();
     private RingAtlasPregenerationService.TileCoordinate activeTile;
     private int activeTileOffset;
+    private boolean overflowTurn;
+    // Park unloaded samples until their chunk's normal full capture, or persist them as missing at stop.
+    private final BitSet deferred = new BitSet();
+    private int finalDrainCursor = -1;
+
+    void defer(RingAtlasSurfaceInvalidation.Cell cell, int columns) {
+        deferred.set(cell.row() * columns + cell.column());
+    }
+
+    void capturedRange(int first, int count) {
+        if (!deferred.isEmpty()) deferred.clear(first, first + count);
+    }
+
+    void beginFinalDrain() {
+        finalDrainCursor = 0;
+    }
 
     void enqueue(RingAtlasSurfaceInvalidation.Cell cell) {
         if (exact.size() < MAX_EXACT_CELLS) {
@@ -28,8 +44,14 @@ public final class RingAtlasRecaptureQueue {
             throw new IllegalArgumentException("recapture drain bounds must be positive");
         }
         List<RingAtlasSurfaceInvalidation.Cell> drained = new ArrayList<>(maximum);
+        int exactLimit = maximum;
+        if (!exact.isEmpty() && (activeTile != null || !overflowTiles.isEmpty())) {
+            // Unloaded cells may re-enter exact every tick. Give both queues a share, even with a budget of one.
+            exactLimit = maximum / 2 + (overflowTurn ? 0 : maximum % 2);
+            overflowTurn = !overflowTurn;
+        }
         Iterator<RingAtlasSurfaceInvalidation.Cell> exactIterator = exact.iterator();
-        while (exactIterator.hasNext() && drained.size() < maximum) {
+        while (exactIterator.hasNext() && drained.size() < exactLimit) {
             drained.add(exactIterator.next());
             exactIterator.remove();
         }
@@ -54,11 +76,18 @@ public final class RingAtlasRecaptureQueue {
                 drained.add(new RingAtlasSurfaceInvalidation.Cell(column, row));
             }
         }
+        while (finalDrainCursor >= 0 && drained.size() < maximum) {
+            int index = deferred.nextSetBit(finalDrainCursor);
+            if (index < 0) break;
+            deferred.clear(index);
+            drained.add(new RingAtlasSurfaceInvalidation.Cell(index % columns, index / columns));
+            finalDrainCursor = index + 1;
+        }
         return drained;
     }
 
     boolean hasPending() {
-        return !exact.isEmpty() || activeTile != null || !overflowTiles.isEmpty();
+        return !exact.isEmpty() || activeTile != null || !overflowTiles.isEmpty() || finalDrainCursor >= 0 && !deferred.isEmpty();
     }
 
     int exactCount() {

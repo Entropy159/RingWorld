@@ -12,12 +12,30 @@ vec3 ring_handoff_edge_color(vec3 fogColor) {
     return fogColor;
 }
 
-float ring_handoff_reveal(float distance) {
+float ring_handoff_reveal(float distance, float rain) {
     float detail = ring_handoff_smootherstep(RingWorldDetail.x, RingWorldDetail.y, distance);
     float reveal = mix(RingWorldDetail.z, RingWorldDetail.w, detail);
     float fraction = clamp(distance / (float(RingWorldLayout.y) * 0.5), 0.0, 1.0);
     float haze = mix(RingWorldAtmosphere.x, RingWorldAtmosphere.y,
                      pow(fraction, RingWorldAtmosphere.z));
     // Introduce far haze continuously instead of a pale near-Atlas belt.
-    return reveal * (1.0 - haze * detail);
+    return reveal * (1.0 - haze * detail) * (1.0 - 0.35 * rain * detail);
+}
+
+// A live water surface already supplies the biome tint. In the overlap, the
+// Atlas colour behind it represents the submerged bed. Restore the surface
+// colour before the live surface dithers away, or immediately for a teleport.
+float ring_handoff_water_backing(float distance) {
+    float restoreStart = mix(RingWorldHandoff.z, RingWorldHandoff.x, 0.8);
+    float restore = smoothstep(restoreStart, RingWorldHandoff.x, distance);
+    return mix(0.30, 1.0, max(restore, RingWorldRender.z));
+}
+
+// Carry the last live blocks' environmental fog onto the first Atlas faces.
+// Cap at the native range, then hand it back to the ring's long-distance haze.
+float ring_handoff_environment(float distance, float fogStart, float fogEnd) {
+    float edge = RingWorldHandoff.y;
+    float nativeDistance = 1.02 * min(distance, edge);
+    float fog = clamp((nativeDistance - fogStart) / max(0.0001, fogEnd - fogStart), 0.0, 1.0);
+    return fog * (1.0 - smoothstep(edge, 2.0 * edge, distance));
 }

@@ -1,6 +1,6 @@
 package dev.ringworld.client.config;
 
-import dev.ringworld.client.RingLodQuality;
+import dev.ringworld.world.RingLodQuality;
 import dev.ringworld.config.ConfigLoader;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingNearbyProjection;

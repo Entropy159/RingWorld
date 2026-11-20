@@ -44,7 +44,7 @@ public final class RingWorldClient implements ClientModInitializer {
                 return;
             }
             if (ClientRingWorldConfig.get().fullAtlas()) {
-                ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete));
+                ClientPlayNetworking.send(new RingTerrainAtlasRequestPayload(payload.worldHash(), payload.dimension(), ClientRingState.terrainAtlasDurableRevision(), cacheComplete, payload.contentFingerprint()));
             }
         })));
         ClientPlayNetworking.registerGlobalReceiver(RingTerrainAtlasTilePayload.TYPE, (payload, context) -> context.client().execute(() -> {

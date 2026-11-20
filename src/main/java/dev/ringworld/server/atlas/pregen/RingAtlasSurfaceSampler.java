@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -12,13 +13,40 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * Shared by initial Atlas capture and dirty-cell recapture. Never loads neighbours.
  */
 public final class RingAtlasSurfaceSampler {
-    static int surfaceY(LevelChunk chunk, int localX, int localZ) {
+    static int surfaceY(ChunkAccess chunk, int localX, int localZ) {
         int top = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ);
         var position = new BlockPos.MutableBlockPos(chunk.getPos().getMinBlockX() + localX, top, chunk.getPos().getMinBlockZ() + localZ);
         return RingAtlasColumnSurface.select(top, chunk.getMinY(), y -> {
             position.setY(y);
             return material(chunk.getBlockState(position));
         });
+    }
+
+    /**
+     * One sample per 2x2 Medium footprint, using only this already loaded chunk.
+     */
+    static int layer(ChunkAccess chunk, BlockPos selected) {
+        if ((selected.getX() & 1) == 0 || (selected.getZ() & 1) == 0) return 0;
+        int top = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, selected.getX() & 15, selected.getZ() & 15);
+        if (top < chunk.getMinY() || top - selected.getY() > 47) return 0;
+        var pos = selected.mutable();
+        pos.setY(top);
+        var roof = chunk.getBlockState(pos);
+        if (!roof.is(BlockTags.LEAVES) && !roof.is(BlockTags.LOGS) && material(roof) != RingAtlasColumnSurface.Material.BUILT)
+            return 0;
+        int y = top;
+        int minimum = chunk.getMinY();
+        while (y >= minimum && top - y < 17 && !chunk.getBlockState(pos.setY(y)).isAir()) y--;
+        int thickness = top - y;
+        if (thickness < 1 || thickness > 16) return 0;
+        int firstAir = y;
+        while (y >= minimum && firstAir - y < 32 && chunk.getBlockState(pos.setY(y)).isAir()) y--;
+        int gap = firstAir - y;
+        if (y < minimum || gap < 2 || gap > 31 || (selected.getY() != top && selected.getY() != y)) return 0;
+        boolean storedFloor = selected.getY() == y;
+        var other = storedFloor ? roof : chunk.getBlockState(pos);
+        int palette = other.getMapColor(chunk, pos.setY(storedFloor ? top : y)).id;
+        return gap | ((thickness - 1) << 5) | (palette << 9) | (storedFloor ? 0x8000 : 0);
     }
 
     /**

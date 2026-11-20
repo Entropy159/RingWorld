@@ -1,6 +1,8 @@
 package dev.ringworld.client.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import dev.ringworld.world.RingGeometry;
+import dev.ringworld.world.RingLodQuality;
 import dev.ringworld.world.atlas.RingAtlasFidelity;
 
 /**
@@ -8,7 +10,7 @@ import dev.ringworld.world.atlas.RingAtlasFidelity;
  * shader globals. Coverage distances include intrinsic horizontal blocks and
  * canonical vertical separation; material/detail distances remain horizontal.
  */
-public record RingRenderProfile(int visualProfileVersion, double requestedViewDistanceBlocks,
+public record RingRenderProfile(double requestedViewDistanceBlocks,
                                 double effectiveViewDistanceBlocks, double halfCircumferenceBlocks,
                                 double liveFadeStartBlocks, double liveFadeEndBlocks, double proxyFadeStartBlocks,
                                 double proxyFadeEndBlocks, double detailStartBlocks, double detailEndBlocks,
@@ -16,12 +18,6 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
                                 double hazeExponent, double cloudFadeStartBlocks, double cloudFadeEndBlocks,
                                 int textureColumns, int textureRows, int circumferenceSegments, int widthBands,
                                 long vertexCount, double textureBlocksPerTexelX, double textureBlocksPerTexelZ) {
-
-    /**
-     * Increment when visual-policy semantics change enough that comparison
-     * captures need to identify a different profile.
-     */
-    public static final int VISUAL_PROFILE_VERSION = 7;
     public static final double LIVE_FADE_START_FACTOR = 0.90;
     public static final double LIVE_FADE_END_FACTOR = 1.02;
     public static final double PROXY_FADE_START_FACTOR = 0.68;
@@ -41,6 +37,11 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
     public static final double HAZE_NEAR = 0.04;
     public static final double HAZE_FAR = 0.16;
     public static final double HAZE_EXPONENT = 1.35;
+
+    public static RingRenderProfile profile(RingGeometry geometry, RingLodQuality quality, double distance) {
+        int textureLimit = RenderSystem.getDevice().getDeviceInfo().limits().maxTextureSize();
+        return RingRenderProfile.create(geometry, distance, Math.min(quality.columns(), textureLimit), Math.min(quality.rows(), textureLimit), quality.meshStep());
+    }
 
     public static RingRenderProfile create(RingGeometry geometry, double viewDistanceBlocks) {
         return create(geometry, viewDistanceBlocks, RingAtlasFidelity.BALANCED);
@@ -77,7 +78,7 @@ public record RingRenderProfile(int visualProfileVersion, double requestedViewDi
         int widthBands = Math.min(divideCeil(geometry.width(), meshStep), MAX_WIDTH_BANDS);
         long vertices = Math.multiplyExact(Math.multiplyExact((long) circumferenceSegments, widthBands), 6L);
 
-        return new RingRenderProfile(VISUAL_PROFILE_VERSION, viewDistanceBlocks, effective, half, liveStart, liveEnd, proxyStart, proxyEnd, detailStart, detailEnd, REVEAL_NEAR, REVEAL_FAR, HAZE_NEAR, HAZE_FAR, HAZE_EXPONENT, half, half, textureColumns, textureRows, circumferenceSegments, widthBands, vertices, (double) geometry.circumference() / textureColumns, (double) geometry.width() / textureRows);
+        return new RingRenderProfile(viewDistanceBlocks, effective, half, liveStart, liveEnd, proxyStart, proxyEnd, detailStart, detailEnd, REVEAL_NEAR, REVEAL_FAR, HAZE_NEAR, HAZE_FAR, HAZE_EXPONENT, half, half, textureColumns, textureRows, circumferenceSegments, widthBands, vertices, (double) geometry.circumference() / textureColumns, (double) geometry.width() / textureRows);
     }
 
     private static int divideCeil(int value, int divisor) {

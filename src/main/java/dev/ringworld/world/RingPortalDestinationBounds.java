@@ -43,6 +43,14 @@ public final class RingPortalDestinationBounds {
         return new BlockPos(geometry.wrapBlockX(target.getX()), target.getY(), z);
     }
 
+    /**
+     * Rank existing portals from the destination, allowing safe portals right up to the rim.
+     */
+    public static BlockPos existingPortalAnchor(RingGeometry geometry, BlockPos target, int rimThicknessBlocks) {
+        int z = Math.clamp(target.getZ(), safePortalMinZ(geometry, rimThicknessBlocks), safePortalMaxZ(geometry, rimThicknessBlocks));
+        return new BlockPos(geometry.wrapBlockX(target.getX()), target.getY(), z);
+    }
+
     public static boolean isSafePortalBlock(RingGeometry geometry, BlockPos portalBlock, int rimThicknessBlocks) {
         return portalBlock.getZ() >= safePortalMinZ(geometry, rimThicknessBlocks) && portalBlock.getZ() <= safePortalMaxZ(geometry, rimThicknessBlocks);
     }

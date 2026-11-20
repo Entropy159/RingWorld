@@ -23,13 +23,20 @@ public abstract class WorldTickSchedulerMixin<T> implements RingTickSchedulerAcc
         ringworld$geometry = geometry;
     }
 
+    @ModifyVariable(method = {"hasScheduledTick", "willTickThisTick"}, at = @At("HEAD"), argsOnly = true)
+    private BlockPos ringworld$canonicalTickPosition(BlockPos pos) {
+        return ringworld$wrapTickPosition(pos);
+    }
+
+    @Unique
+    private BlockPos ringworld$wrapTickPosition(BlockPos pos) {
+        return ringworld$geometry == null ? pos : new BlockPos(ringworld$geometry.wrapBlockX(pos.getX()), pos.getY(), pos.getZ());
+    }
+
     @ModifyVariable(method = "schedule", at = @At("HEAD"), argsOnly = true, name = "tick")
     private ScheduledTick<T> ringworld$canonicalScheduledTick(ScheduledTick<T> tick) {
-        RingGeometry geometry = ringworld$geometry;
-        if (geometry == null) return tick;
-        BlockPos pos = tick.pos();
-        int canonicalX = geometry.wrapBlockX(pos.getX());
-        if (canonicalX == pos.getX()) return tick;
-        return new ScheduledTick<>(tick.type(), new BlockPos(canonicalX, pos.getY(), pos.getZ()), tick.triggerTick(), tick.priority(), tick.subTickOrder());
+        BlockPos pos = ringworld$wrapTickPosition(tick.pos());
+        if (pos == tick.pos()) return tick;
+        return new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder());
     }
 }

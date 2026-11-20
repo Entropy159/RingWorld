@@ -44,7 +44,7 @@ public record RingGeometry(int width, int circumference) {
     }
 
     public int widthChunks() {
-        return width / 16;
+        return maxChunkZ() - minChunkZ() + 1;
     }
 
     /**

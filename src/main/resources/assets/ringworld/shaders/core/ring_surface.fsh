@@ -111,11 +111,26 @@ vec4 filteredWall(vec2 uv, float strip) {
 
 void main() {
     vec2 surfaceUv = texCoord0;
-    if (surfaceUv.x >= 2.0) surfaceUv.x -= 2.0;
+    bool water = surfaceUv.x < 0.0;
+    if (water) surfaceUv.x = -1.0 - surfaceUv.x;
+    bool replacement = surfaceUv.x >= 8.0;
+    bool covered = surfaceUv.x >= 4.0 && !replacement;
+    // Retain the distant single surface outside the transition neighbourhood.
+    // Near coverage continues to use the regular native-to-Atlas fade below.
+    if (covered || replacement) {
+        // Scale the width from the near edge, leaving the native handoff fixed.
+        float outer = mix(RingWorldHandoff.z, RingWorldHandoff.y * 1.4, ColorModulator.x);
+        bool useLayers = handoffDistance >= RingWorldHandoff.z && handoffDistance < outer;
+        if (replacement != useLayers) discard;
+        surfaceUv.x -= replacement ? 8.0 : 4.0;
+    }
+    bool side = surfaceUv.x >= 2.0;
+    if (side) surfaceUv.x -= 2.0;
     vec4 previous = texture(Sampler1, surfaceUv);
     vec4 current = texture(Sampler0, surfaceUv);
     vec4 sampled = mix(previous, current, clamp(ColorModulator.z, 0.0, 1.0));
-    if (texCoord0.x >= 2.0) sampled.rgb = vertexColor.rgb * 0.85;
+    if (side) sampled.rgb = vertexColor.rgb * 0.85;
+    if (replacement) sampled = vec4(vertexColor.rgb, 0.0);
     bool rimBridge = texCoord0.y < 0.0 || texCoord0.y > 1.0;
     if (rimBridge) {
         float worldY = RingWorldVertical.w - intrinsicHeight;
@@ -142,7 +157,15 @@ void main() {
             RingWorldHandoff.w,
             handoffDistance
     );
-    if (proxyAlpha <= 0.001) {
+    // Fill missing destination chunks behind native geometry during a teleport.
+    // Only colour coverage changes. Near proxy fragments still write far depth.
+    float coverageAlpha = mix(proxyAlpha, 1.0, RingWorldRender.z);
+    // Opaque backing only where native geometry leaves the bed uncovered.
+    // Its depth is behind the live range, so loaded coral and sand still win.
+    float waterY = RingWorldVertical.w - intrinsicHeight;
+    bool waterBacking = water && proxyAlpha < 1.0 && float(CameraBlockPos.y) - CameraOffset.y > waterY;
+    if (waterBacking) coverageAlpha = 1.0;
+    if (coverageAlpha <= 0.001) {
         discard;
     }
 
@@ -161,14 +184,25 @@ void main() {
     gl_FragDepth = mix(1.0, surfaceDepth, proxyAlpha);
     #endif
 
+    if (waterBacking) {
+        // Move along this view ray to just beyond the native fade, keeping the
+        // physical water silhouette. Use the same ordered far tail on both APIs.
+        float inverseW = gl_FragCoord.w * min(1.0, handoffDistance / (1.05 * RingWorldHandoff.y));
+        float backNative = depthMapping.x + depthMapping.y * inverseW;
+        #ifdef RINGWORLD_REVERSED_DEPTH
+        float backDepth = max(backNative, depthMapping.z * inverseW);
+        #else
+        float backDepth = min(backNative, 1.0 + depthMapping.z * inverseW);
+        #endif
+        gl_FragDepth = mix(backDepth, surfaceDepth, proxyAlpha);
+    }
+
     // Match the final live chunks' atmosphere before their geometry fades.
     // ColorModulator.y carries the celestial rain fade (1 - rain).
     // Add bounded rain haze beyond the live-terrain transition. Full rain
     // retains 65% of the normal reveal instead of erasing the terrain.
     float rain = 1.0 - clamp(ColorModulator.y, 0.0, 1.0);
-    float rainDistance = smootherstep(RingWorldDetail.x, RingWorldDetail.y, intrinsicDistance);
-    float reveal = ring_handoff_reveal(intrinsicDistance)
-    * (1.0 - 0.35 * rain * rainDistance);
+    float reveal = ring_handoff_reveal(intrinsicDistance, rain);
 
     // ColorModulator.w is the incomplete-Atlas generation haze. It begins
     // dense, clears with authoritative coverage, and reaches exactly zero for
@@ -182,6 +216,7 @@ void main() {
     const vec2 fullSkyNoBlockLight = vec2(0.5 / 16.0, 15.5 / 16.0);
     vec3 surfaceLight = texture(Sampler2, fullSkyNoBlockLight).rgb;
     vec3 litTerrain = sampled.rgb * surfaceLight;
+    if (waterBacking) litTerrain *= ring_handoff_water_backing(handoffDistance);
     // Surface texture alpha is a separate server-authored exposed block-light
     // level. Reveal it only when the live lightmap says environmental daylight
     // is low; daytime terrain RGB and nearby real lighting remain untouched.
@@ -205,5 +240,7 @@ void main() {
     // The incomplete texture is deliberately opaque: real generated colours
     // flavour nearby unknown cells, then each published revision cross-fades
     // into the next instead of exposing a hard tile update.
-    fragColor = vec4(mix(ring_handoff_edge_color(FogColor.rgb), litTerrain, reveal), proxyAlpha);
+    vec3 terrain = mix(ring_handoff_edge_color(FogColor.rgb), litTerrain, reveal);
+    float fog = ring_handoff_environment(handoffDistance, FogEnvironmentalStart, FogEnvironmentalEnd);
+    fragColor = vec4(mix(terrain, FogColor.rgb, fog * FogColor.a), coverageAlpha);
 }

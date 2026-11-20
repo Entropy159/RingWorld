@@ -38,12 +38,8 @@ public record RingSurfaceBuildSnapshot(RingTerrainAtlas atlas, int renderRevisio
         }
     }
 
-    /**
-     * Resolves the detailed-mesh fingerprint for complete content only.
-     * Call this from the asynchronous texture worker, never the render thread.
-     */
-    public RingSurfaceBuildSnapshot resolveDetailedHeightFingerprint() {
-        return resolveDetailedHeightFingerprint(atlas::surfaceHeightFingerprint);
+    public RingSurfaceBuildSnapshot resolveDetailedHeightFingerprint(int rimThickness) {
+        return resolveDetailedHeightFingerprint(() -> atlas.surfaceHeightFingerprint(rimThickness));
     }
 
     /**

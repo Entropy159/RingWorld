@@ -1,17 +1,12 @@
-package dev.ringworld.client;
+package dev.ringworld.world;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import dev.ringworld.world.RingGeometry;
-import dev.ringworld.client.render.RingRenderProfile;
 import dev.ringworld.world.atlas.RingTerrainAtlas;
 
 /**
  * Local display choices. These IDs are not saved generation settings or network values.
  */
 public enum RingLodQuality {
-    LOW(8, 4096, 1024, 8),
-    MEDIUM(2, 16384, 1024, 4),
-    HIGH(1, 32768, 2048, 1);
+    LOW(8, 4096, 1024, 8), MEDIUM(2, 16384, 1024, 4), HIGH(1, 32768, 2048, 1);
 
     private final int sampleStep, columns, rows, meshStep;
 
@@ -26,9 +21,16 @@ public enum RingLodQuality {
         return sampleStep;
     }
 
-    public RingRenderProfile profile(RingGeometry geometry, double distance) {
-        int textureLimit = RenderSystem.getDevice().getDeviceInfo().limits().maxTextureSize();
-        return RingRenderProfile.create(geometry, distance, Math.min(columns, textureLimit), Math.min(rows, textureLimit), meshStep);
+    public int columns() {
+        return columns;
+    }
+
+    public int rows() {
+        return rows;
+    }
+
+    public int meshStep() {
+        return meshStep;
     }
 
     /**
@@ -41,7 +43,7 @@ public enum RingLodQuality {
             int sourceRow = Math.min(source.rows() - 1, (row * sampleStep + sampleStep / 2) / source.sampleStep());
             for (int col = 0; col < result.columns(); col++) {
                 int sourceCol = Math.min(source.columns() - 1, (col * sampleStep + sampleStep / 2) / source.sampleStep());
-                result.putCell(col, row, source.cellHeight(sourceCol, sourceRow), source.cellColor(sourceCol, sourceRow), source.cellBlockLight(sourceCol, sourceRow), source.cellSideColor(sourceCol, sourceRow), waterCoverage(source, col, row));
+                result.putCell(col, row, source.cellHeight(sourceCol, sourceRow), source.cellColor(sourceCol, sourceRow), source.cellBlockLight(sourceCol, sourceRow), source.cellSideColor(sourceCol, sourceRow), waterCoverage(source, col, row), source.cellLayer(sourceCol, sourceRow));
             }
         }
         return result;
@@ -56,6 +58,8 @@ public enum RingLodQuality {
                 count++;
             }
         }
-        return count == 0 ? 0 : (int) Math.round((double) sum / count);
+        if (sum == 0 || sum == count * 15) return sum == 0 ? 0 : 15;
+        // Keep even a single wet or dry block distinguishable at Low.
+        return Math.clamp((int) Math.round((double) sum / count), 1, 14);
     }
 }

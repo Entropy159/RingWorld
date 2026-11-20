@@ -49,7 +49,7 @@ public abstract class ServerWorldMixin {
         ((RingTickSchedulerAccess) fluidTicks).ringworld$setGeometry(geometry);
     }
 
-    @ModifyVariable(method = "areEntitiesLoaded", at = @At("HEAD"), argsOnly = true, name = "chunkKey")
+    @ModifyVariable(method = {"areEntitiesLoaded", "shouldTickBlocksAt"}, at = @At("HEAD"), argsOnly = true)
     private long ringworld$canonicalLoadedChunkKey(long packedPos) {
         ServerLevel world = (ServerLevel) (Object) this;
         if (!RingWorldApi.isRingWorld(world)) return packedPos;

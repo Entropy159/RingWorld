@@ -3,10 +3,13 @@ package dev.ringworld.world.atlas;
 import dev.ringworld.config.RingWorldConfig;
 import dev.ringworld.world.RingGeometry;
 import dev.ringworld.world.RingLayoutFingerprint;
+import dev.ringworld.world.RingLodQuality;
+import dev.ringworld.world.RingSurfaceLod;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.MapColor;
 
 import java.io.*;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -14,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -90,6 +94,12 @@ public final class RingTerrainAtlas {
         return pages[page];
     }
 
+    // X-major indexing matches the pregeneration cursor. Partial edge chunks can own fewer samples.
+    private final short[] missingByChunk;
+    private final short[] samplesByTile;
+    private final BitSet populatedTiles = new BitSet();
+    private long contentFingerprint;
+    private int completeChunks;
     private int presentCount;
     private long revision;
 
@@ -109,6 +119,9 @@ public final class RingTerrainAtlas {
         this.rows = divideCeil(geometry.width(), sampleStep);
         long cells = Math.multiplyExact((long) columns, rows);
         this.cellCount = Math.toIntExact(cells);
+        missingByChunk = new short[Math.multiplyExact(geometry.circumferenceChunks(), geometry.widthChunks())];
+        samplesByTile = new short[Math.multiplyExact(tileColumns(), tileRows())];
+        resetCoverage();
         pages = new Page[divideCeil(cellCount, PAGE_SIZE)];
         Arrays.fill(pages, EMPTY);
     }
@@ -135,6 +148,15 @@ public final class RingTerrainAtlas {
         return sampleStep;
     }
 
+    // A Medium cell uses the block at offset (1, 1), centred 1.5 blocks from the cell edge.
+    public double sampleCenterInCells() {
+        return sampleStep == RingLodQuality.MEDIUM.sampleStep() ? 0.75 : 0.5;
+    }
+
+    public double sampleCoordinate(double blockOffset) {
+        return blockOffset / sampleStep - sampleCenterInCells();
+    }
+
     public int columns() {
         return columns;
     }
@@ -159,12 +181,25 @@ public final class RingTerrainAtlas {
         return revision;
     }
 
-    public int cellCount() {
-        return cellCount;
+    public BitSet populatedTiles() {
+        return (BitSet) populatedTiles.clone();
     }
 
-    public long estimatedWireBytes() {
-        return (long) cellCount * ESTIMATED_BYTES_PER_CELL + (long) tileColumns() * tileRows() * 2L;
+    public long contentFingerprint() {
+        return contentFingerprint;
+    }
+
+    // Include position and every field that goes over the wire. XOR lets an edit replace just its own contribution.
+    private static long sampleFingerprint(int index, Page page, int offset) {
+        if (!page.present[offset]) return 0;
+        long location = ((long) index << 24) | ((long) Short.toUnsignedInt(page.heights[offset]) << 8) | Byte.toUnsignedInt(page.blockLights[offset]);
+        long colors = ((long) (page.colors[offset] & 0xffffff) << 24) | (page.sideColors[offset] & 0xffffff);
+        colors |= (long) layer(page.colors[offset], page.sideColors[offset]) << 48;
+        return RingLayoutFingerprint.mix(RingLayoutFingerprint.mix(location) ^ colors ^ 0x62A9D9ED799705F5L);
+    }
+
+    public int cellCount() {
+        return cellCount;
     }
 
     public boolean isComplete() {
@@ -178,12 +213,31 @@ public final class RingTerrainAtlas {
     /**
      * Stable key for mesh height and distinct side-material vertex colours.
      */
-    public long surfaceHeightFingerprint() {
+    public long surfaceHeightFingerprint(int rimThickness) {
+        // The rim closure bakes the highest of the two neighbouring rows' side colours even when it equals the top.
+        double innerWidth = geometry.width() - 2.0 * rimThickness;
+        double inset = rimThickness + Math.min(sampleStep, innerWidth);
+        int lowRow = (int) Math.floor(sampleCoordinate(inset));
+        int highRow = (int) Math.floor(sampleCoordinate(geometry.width() - inset));
         long fingerprint = 0xCBF29CE484222325L;
         for (int index = 0; index < cellCount; index++) {
             Page page = pages[index >>> PAGE_SHIFT];
             long sample = page.present[index & PAGE_MASK] ? 0x1_0000L | Short.toUnsignedLong(page.heights[index & PAGE_MASK]) : 0L;
-            fingerprint ^= sample ^ (page.present[index & PAGE_MASK] && page.sideColors[index & PAGE_MASK] != page.colors[index & PAGE_MASK] ? (0x1000000L | page.sideColors[index & PAGE_MASK]) << 17 : 0L);
+            if (sample != 0 && ((page.blockLights[index & PAGE_MASK] & 255) >>> 4) == 15) {
+                sample |= 1L << 49;
+            }
+            int row = index / columns;
+            boolean rim = rimThickness > 0 && (row == lowRow || row == lowRow + 1 || row == highRow || row == highRow + 1);
+            int side = page.sideColors[index & PAGE_MASK];
+            int top = page.colors[index & PAGE_MASK];
+            boolean distinct = ((side ^ top) & 0xffffff) != 0;
+            if (sample != 0 && layer(top, side) != 0) {
+                sample ^= RingLayoutFingerprint.mix((long) layer(top, side) << 24 | (top & 0xffffff));
+            }
+            if (sampleStep == RingLodQuality.MEDIUM.sampleStep() && sample != 0 && shoreline(page, index & PAGE_MASK)) {
+                sample |= 1L << 48;
+            }
+            fingerprint ^= sample ^ (page.present[index & PAGE_MASK] && (rim || distinct) ? ((distinct ? 0x1000000L : 0x2000000L) | (side & 0xffffff)) << 17 : 0L);
             fingerprint *= 0x100000001B3L;
         }
         fingerprint ^= Integer.toUnsignedLong(columns);
@@ -200,6 +254,11 @@ public final class RingTerrainAtlas {
         RingTerrainAtlas copy = new RingTerrainAtlas(geometry, dimension, worldHash, sampleStep);
         System.arraycopy(pages, 0, copy.pages, 0, pages.length);
         writable.clear();
+        System.arraycopy(missingByChunk, 0, copy.missingByChunk, 0, missingByChunk.length);
+        System.arraycopy(samplesByTile, 0, copy.samplesByTile, 0, samplesByTile.length);
+        copy.populatedTiles.or(populatedTiles);
+        copy.contentFingerprint = contentFingerprint;
+        copy.completeChunks = completeChunks;
         copy.presentCount = presentCount;
         copy.revision = revision;
         return copy;
@@ -218,7 +277,10 @@ public final class RingTerrainAtlas {
             if (source != destination.pages[i >>> PAGE_SHIFT]) {
                 Page target = destination.writablePage(i);
                 for (int j = offset; j < offset + length; j++) {
-                    if (source.present[j] != target.present[j]) destination.presentCount += source.present[j] ? 1 : -1;
+                    if (source.present[j] != target.present[j]) {
+                        int index = i + j - offset;
+                        destination.changePresence(index % columns, index / columns, source.present[j] ? 1 : -1);
+                    }
                 }
                 System.arraycopy(source.heights, offset, target.heights, offset, length);
                 System.arraycopy(source.colors, offset, target.colors, offset, length);
@@ -237,6 +299,7 @@ public final class RingTerrainAtlas {
         if (!geometry.equals(source.geometry) || worldHash != source.worldHash || sampleStep != source.sampleStep || presentCount != source.presentCount) {
             throw new IllegalStateException("incomplete checkpoint copy");
         }
+        contentFingerprint = source.contentFingerprint;
         revision = source.revision;
     }
 
@@ -267,6 +330,10 @@ public final class RingTerrainAtlas {
     }
 
     public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight, int sideColor, int waterCoverage) {
+        return putCell(column, row, surfaceY, mapColor, blockLight, sideColor, waterCoverage, 0);
+    }
+
+    public boolean putCell(int column, int row, int surfaceY, int mapColor, int blockLight, int sideColor, int waterCoverage, int layer) {
         if (waterCoverage < 0 || waterCoverage > 15) {
             throw new IllegalArgumentException("atlas water coverage must be between 0 and 15");
         }
@@ -277,19 +344,35 @@ public final class RingTerrainAtlas {
         int index = index(column, row);
         Page page = pages[index >>> PAGE_SHIFT];
         short clampedHeight = (short) Math.clamp(surfaceY, Short.MIN_VALUE, Short.MAX_VALUE);
-        int rgb = mapColor & 0xFFFFFF;
+        // The existing RGB fields have a spare byte each in both the cache and the network tile.
+        int rgb = (mapColor & 0xffffff) | (layer >>> 8) << 24;
+        int side = (sideColor & 0xffffff) | layer << 24;
         byte light = (byte) (blockLight | waterCoverage << 4);
-        boolean changed = !page.present[index & PAGE_MASK] || page.heights[index & PAGE_MASK] != clampedHeight || page.colors[index & PAGE_MASK] != rgb || page.blockLights[index & PAGE_MASK] != light || page.sideColors[index & PAGE_MASK] != (sideColor & 0xFFFFFF);
+        boolean changed = !page.present[index & PAGE_MASK] || page.heights[index & PAGE_MASK] != clampedHeight || page.colors[index & PAGE_MASK] != rgb || page.blockLights[index & PAGE_MASK] != light || page.sideColors[index & PAGE_MASK] != side;
         if (!changed) return false;
+        contentFingerprint ^= sampleFingerprint(index, page, index & PAGE_MASK);
         page = writablePage(index);
         if (!page.present[index & PAGE_MASK]) {
             page.present[index & PAGE_MASK] = true;
-            presentCount++;
+            changePresence(column, row, 1);
         }
         page.heights[index & PAGE_MASK] = clampedHeight;
         page.colors[index & PAGE_MASK] = rgb;
-        page.sideColors[index & PAGE_MASK] = sideColor & 0xFFFFFF;
+        page.sideColors[index & PAGE_MASK] = side;
         page.blockLights[index & PAGE_MASK] = light;
+        contentFingerprint ^= sampleFingerprint(index, page, index & PAGE_MASK);
+        return true;
+    }
+
+    /**
+     * Persist unavailable dirty samples as missing so the resume cursor revisits them.
+     */
+    public boolean invalidateCell(int column, int row) {
+        if (!hasCell(column, row)) return false;
+        int index = index(Math.floorMod(column, columns), row);
+        contentFingerprint ^= sampleFingerprint(index, pages[index >>> PAGE_SHIFT], index & PAGE_MASK);
+        writablePage(index).present[index & PAGE_MASK] = false;
+        changePresence(Math.floorMod(column, columns), row, -1);
         return true;
     }
 
@@ -307,14 +390,34 @@ public final class RingTerrainAtlas {
         if (row < 0 || row >= rows) return -1;
         int index = index(Math.floorMod(column, columns), row);
         Page page = pages[index >>> PAGE_SHIFT];
-        return page.present[index & PAGE_MASK] ? page.colors[index & PAGE_MASK] : -1;
+        return page.present[index & PAGE_MASK] ? page.colors[index & PAGE_MASK] & 0xffffff : -1;
     }
 
     public int cellSideColor(int column, int row) {
         if (row < 0 || row >= rows) return -1;
         int index = index(Math.floorMod(column, columns), row);
         Page page = pages[index >>> PAGE_SHIFT];
-        return page.present[index & PAGE_MASK] ? page.sideColors[index & PAGE_MASK] : -1;
+        return page.present[index & PAGE_MASK] ? page.sideColors[index & PAGE_MASK] & 0xffffff : -1;
+    }
+
+    public boolean shorelineCell(int column, int row) {
+        int index = index(column, row);
+        return shoreline(pages[index >>> PAGE_SHIFT], index & PAGE_MASK);
+    }
+
+    private static boolean shoreline(Page page, int offset) {
+        return (page.blockLights[offset] & 0xf0) != 0 || (page.colors[offset] & 0xffffff) == MapColor.SAND.col || (page.colors[offset] & 0xffffff) == RingSurfaceLod.VANILLA_SAND_TOP_RGB;
+    }
+
+    private static int layer(int top, int side) {
+        return ((top >>> 24) << 8) | (side >>> 24);
+    }
+
+    public int cellLayer(int column, int row) {
+        if (row < 0 || row >= rows) return 0;
+        int i = index(Math.floorMod(column, columns), row);
+        Page page = pages[i >>> PAGE_SHIFT];
+        return page.present[i & PAGE_MASK] ? layer(page.colors[i & PAGE_MASK], page.sideColors[i & PAGE_MASK]) : 0;
     }
 
     /**
@@ -350,8 +453,8 @@ public final class RingTerrainAtlas {
      * progressively without producing zero-height spikes.
      */
     public SurfaceSample sample(double canonicalX, double canonicalZ) {
-        double atlasX = geometry.wrapX(canonicalX) / sampleStep - 0.5;
-        double atlasZ = (canonicalZ - geometry.minWidthZ()) / sampleStep - 0.5;
+        double atlasX = sampleCoordinate(geometry.wrapX(canonicalX));
+        double atlasZ = sampleCoordinate(canonicalZ - geometry.minWidthZ());
         int x0 = (int) Math.floor(atlasX);
         int z0 = (int) Math.floor(atlasZ);
         double fx = atlasX - x0;
@@ -442,9 +545,9 @@ public final class RingTerrainAtlas {
                     int height = input.readShort();
                     int color = input.readInt();
                     int blockLight = input.readUnsignedByte();
-                    int sideColor = input.readInt() & 0xFFFFFF;
+                    int sideColor = input.readInt();
                     if (incomingPresent) {
-                        changed |= putCell(firstX + x, firstZ + z, height, color, blockLight & 15, sideColor, blockLight >>> 4);
+                        changed |= putCell(firstX + x, firstZ + z, height, color, blockLight & 15, sideColor, blockLight >>> 4, layer(color, sideColor));
                     }
                 }
             }
@@ -495,6 +598,13 @@ public final class RingTerrainAtlas {
         return readCache(path, geometry, hash, revision);
     }
 
+    /**
+     * Equal layout and revision can also describe two independently edited copies of a save.
+     */
+    public static Optional<RingTerrainAtlas> loadMatchingCache(Path path, RingGeometry geometry, long hash, long revision, int step, long fingerprint) throws IOException {
+        return loadIfRevisionMatches(path, geometry, hash, revision).filter(atlas -> atlas.sampleStep == step && atlas.contentFingerprint == fingerprint);
+    }
+
     private static Optional<RingTerrainAtlas> readCache(Path path, RingGeometry geometry, long expectedHash, long expectedRevision) throws IOException {
         try (var file = Files.newInputStream(path); DataInputStream input = new DataInputStream(new BufferedInputStream(new GZIPInputStream(file, 8192)))) {
             if (input.readInt() != MAGIC) throw new IOException("not a RingWorld terrain atlas");
@@ -504,10 +614,7 @@ public final class RingTerrainAtlas {
             int width = input.readInt();
             int circumference = input.readInt();
             int sampleStep = input.readInt();
-            if (width != geometry.width() || circumference != geometry.circumference()
-                    || hash != expectedHash || sampleStep <= 0 || 16 % sampleStep != 0
-                    || input.readInt() != divideCeil(circumference, sampleStep)
-                    || input.readInt() != divideCeil(width, sampleStep)) {
+            if (width != geometry.width() || circumference != geometry.circumference() || hash != expectedHash || sampleStep <= 0 || 16 % sampleStep != 0 || input.readInt() != divideCeil(circumference, sampleStep) || input.readInt() != divideCeil(width, sampleStep)) {
                 throw new IOException("terrain atlas does not match this ring world");
             }
             long revision = input.readLong();
@@ -516,13 +623,18 @@ public final class RingTerrainAtlas {
             RingTerrainAtlas atlas = new RingTerrainAtlas(geometry, dimension, hash, sampleStep);
             atlas.revision = revision;
             for (int index = 0; index < atlas.cellCount; index++) {
+                if (!input.readBoolean()) {
+                    input.skipNBytes(11); // Absent samples still occupy a fixed record in existing saves.
+                    continue;
+                }
                 Page page = atlas.writablePage(index);
-                page.present[index & PAGE_MASK] = input.readBoolean();
+                page.present[index & PAGE_MASK] = true;
                 page.heights[index & PAGE_MASK] = input.readShort();
-                page.colors[index & PAGE_MASK] = input.readInt() & 0xFFFFFF;
+                page.colors[index & PAGE_MASK] = input.readInt();
                 page.blockLights[index & PAGE_MASK] = input.readByte();
-                page.sideColors[index & PAGE_MASK] = input.readInt() & 0xFFFFFF;
-                if (page.present[index & PAGE_MASK]) atlas.presentCount++;
+                page.sideColors[index & PAGE_MASK] = input.readInt();
+                atlas.contentFingerprint ^= sampleFingerprint(index, page, index & PAGE_MASK);
+                atlas.changePresence(index % atlas.columns, index / atlas.columns, 1);
             }
             if (input.read() != -1) throw new IOException("trailing terrain atlas data");
             return Optional.of(atlas);
@@ -562,38 +674,58 @@ public final class RingTerrainAtlas {
         return (long) chunksAlong * chunksAcross;
     }
 
-    public boolean isChunkPresent(int chunkX, int chunkRow) {
-        int samplesPerChunk = 16 / sampleStep;
-        int firstX = chunkX * samplesPerChunk;
-        int firstZ = chunkRow * samplesPerChunk;
-        for (int z = 0; z < samplesPerChunk; z++) {
-            for (int x = 0; x < samplesPerChunk; x++) {
-                if (!hasCell(firstX + x, firstZ + z)) return false;
-            }
-        }
-        return true;
+    /**
+     * First Atlas row with its sample centre at or beyond this world Z boundary.
+     */
+    public int firstSampleRowAt(int blockZ) {
+        int offset = blockZ - geometry.minWidthZ() - sampleStep / 2;
+        return Math.clamp(Math.ceilDiv(offset, sampleStep), 0, rows);
     }
 
-    /**
-     * Exact durable count used for progress reporting after restart/resume.
-     */
+    public boolean isChunkPresent(int chunkX, int chunkRow) {
+        if (chunkRow < 0 || chunkRow >= geometry.widthChunks() || chunkX < 0 || chunkX >= geometry.circumferenceChunks())
+            return false;
+        return missingByChunk[chunkX * geometry.widthChunks() + chunkRow] == 0;
+    }
+
     public long presentChunkCount() {
-        // Completed worlds publish status to each player repeatedly. The cell
-        // counter already proves every chunk is present; avoid a full scan.
-        if (isComplete()) return (long) geometry.circumferenceChunks() * geometry.widthChunks();
-        long count = 0;
-        for (int chunkX = 0; chunkX < geometry.circumferenceChunks(); chunkX++) {
-            for (int chunkRow = 0; chunkRow < geometry.widthChunks(); chunkRow++) {
-                if (isChunkPresent(chunkX, chunkRow)) count++;
-            }
+        return completeChunks;
+    }
+
+    private void changePresence(int column, int row, int delta) {
+        int chunkX = (column * sampleStep) >> 4;
+        int chunkZ = (geometry.minWidthZ() + row * sampleStep + sampleStep / 2) >> 4;
+        int chunk = chunkX * geometry.widthChunks() + chunkZ - geometry.minChunkZ();
+        if (missingByChunk[chunk] == 0) completeChunks--;
+        missingByChunk[chunk] -= delta;
+        if (missingByChunk[chunk] == 0) completeChunks++;
+        int tile = (row / TILE_SIZE) * tileColumns() + column / TILE_SIZE;
+        samplesByTile[tile] += delta;
+        populatedTiles.set(tile, samplesByTile[tile] != 0);
+        presentCount += delta;
+    }
+
+    private void resetCoverage() {
+        int across = geometry.widthChunks();
+        completeChunks = 0;
+        for (int row = 0; row < across; row++) {
+            int z = (geometry.minChunkZ() + row) * 16;
+            missingByChunk[row] = (short) ((firstSampleRowAt(z + 16) - firstSampleRowAt(z)) * (16 / sampleStep));
+            if (missingByChunk[row] == 0) completeChunks += geometry.circumferenceChunks();
         }
-        return count;
+        for (int i = across; i < missingByChunk.length; i += across) {
+            System.arraycopy(missingByChunk, 0, missingByChunk, i, across);
+        }
     }
 
     public void clear() {
         Arrays.fill(pages, EMPTY);
         writable.clear();
         presentCount = 0;
+        contentFingerprint = 0;
+        populatedTiles.clear();
+        Arrays.fill(samplesByTile, (short) 0);
+        resetCoverage();
     }
 
     private int index(int column, int row) {

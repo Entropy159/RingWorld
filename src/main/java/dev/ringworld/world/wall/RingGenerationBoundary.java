@@ -39,15 +39,6 @@ public final class RingGenerationBoundary {
         return pos.getMaxBlockZ() < geometry.minWidthZ() || pos.getMinBlockZ() > geometry.maxWidthZ();
     }
 
-    public static boolean containsRim(ChunkAccess chunk, RingGeometry geometry) {
-        ChunkPos pos = chunk.getPos();
-        return containsZ(pos, geometry.minWidthZ()) || containsZ(pos, geometry.maxWidthZ());
-    }
-
-    private static boolean containsZ(ChunkPos pos, int z) {
-        return z >= pos.getMinBlockZ() && z <= pos.getMaxBlockZ();
-    }
-
     /**
      * Removes only cross-chunk feature spillover; noise generation is skipped entirely.
      */

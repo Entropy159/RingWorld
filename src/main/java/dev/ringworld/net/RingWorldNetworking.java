@@ -30,7 +30,7 @@ public final class RingWorldNetworking {
             sendSettings(player);
         });
         ServerPlayNetworking.registerGlobalReceiver(RingTerrainAtlasRequestPayload.TYPE, (payload, context) -> context.server().execute(() -> {
-            RingTerrainAtlasServer.requestTiles(context.player(), payload.worldHash(), payload.revision(), payload.cacheComplete());
+            RingTerrainAtlasServer.requestTiles(context.player(), payload.worldHash(), payload.revision(), payload.cacheComplete(), payload.contentFingerprint());
         }));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             RingTerrainAtlasServer.clearPlayer(handler.player);
